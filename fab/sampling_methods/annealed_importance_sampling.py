@@ -2,12 +2,13 @@ from typing import Tuple
 
 from fab.types import LogProbFunc
 from fab.sampling_methods.transition_operators.base import TransitionOperator
+from fab.learnt_distributions.base import LearntDistribubtion
 import torch
-# TODO: types
+
 
 class AnnealedImportanceSampler:
     def __init__(self,
-                 base_distribution,
+                 base_distribution: LearntDistribubtion,
                  target_log_prob: LogProbFunc,
                  transition_operator: TransitionOperator,
                  n_intermediate_distributions: int = 1,
