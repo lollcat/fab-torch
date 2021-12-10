@@ -1,8 +1,11 @@
+from typing import Optional
+
 from fab.target_distributions.base import TargetDistribution
 from fab.sampling_methods import AnnealedImportanceSampler, HamiltoneanMonteCarlo, \
     TransitionOperator
 from fab.learnt_distributions import LearntDistribubtion
 import torch
+
 
 class FABModel:
     """Definition of the Flow Annealed Importance Sampling Bootstrap (FAB) model. """
@@ -10,12 +13,14 @@ class FABModel:
                  flow: LearntDistribubtion,
                  target_distribution: TargetDistribution,
                  n_intermediate_distributions: int,
-                 transition_operator: TransitionOperator = HamiltoneanMonteCarlo,
+                 transition_operator: Optional[TransitionOperator],
                  ais_distribution_spacing: "str" = "linear",
                  ):
         self.flow = flow
         self.target_distribution = target_distribution
         self.n_intermediate_distributions = n_intermediate_distributions
+        if transition_operator is None:
+            transition_operator = HamiltoneanMonteCarlo(n_intermediate_distributions)
         self.annealed_importance_sampler = AnnealedImportanceSampler(
             base_distribution=flow,
             target_log_prob=target_distribution.log_prob,
