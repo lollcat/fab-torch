@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from fab.sampling_methods.transition_operators.base import TransitionOperator
-from fab.types import LogProbFunc
+from fab.types_ import LogProbFunc
 
 HMC_STEP_TUNING_METHODS = ["p_accept", "Expected_target_prob", "No-U", "No-U-unscaled"]
 

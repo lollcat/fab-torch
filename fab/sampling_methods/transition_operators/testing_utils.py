@@ -4,7 +4,7 @@ torch.autograd.set_detect_anomaly(True)
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from fab.target_distributions.MoG import MoG
+from fab.target_distributions.gmm import MoG
 from fab.sampling_methods.transition_operators import TransitionOperator
 from fab.utils.plotting import plot_history
 from fab.utils.logging import ListLogger

@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 from fab.sampling_methods.transition_operators.base import TransitionOperator
-from fab.types import LogProbFunc
+from fab.types_ import LogProbFunc
 
 class Metropolis(nn.Module, TransitionOperator):
     def __init__(self, n_transitions, n_updates, max_step_size=1.0, min_step_size=0.1,

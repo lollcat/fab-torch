@@ -3,7 +3,7 @@ from typing import Mapping, Any
 import abc
 import torch
 
-from fab.types import LogProbFunc
+from fab.types_ import LogProbFunc
 
 class TransitionOperator(abc.ABC):
 

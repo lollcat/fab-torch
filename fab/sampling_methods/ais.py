@@ -1,8 +1,8 @@
 from typing import Tuple, Dict, Any, NamedTuple
 
-from fab.types import LogProbFunc
+from fab.types_ import LogProbFunc
 from fab.sampling_methods.transition_operators.base import TransitionOperator
-from fab.types import Distribution
+from fab.types_ import Distribution
 from fab.utils.numerical import effective_sample_size
 import torch
 import numpy as np
@@ -91,7 +91,7 @@ class AnnealedImportanceSampler:
         """Setup the spacing of the distributions, either with linear or geometric spacing."""
         assert n_intermediate_distributions > 0
         if n_intermediate_distributions < 3:
-            print(f"using linear spacing as there is {n_intermediate_distributions}"
+            print(f"using linear spacing as there are only {n_intermediate_distributions} "
                   f"intermediate distribution")
             distribution_spacing_type = "linear"
         if distribution_spacing_type == "geometric":

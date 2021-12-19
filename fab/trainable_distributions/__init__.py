@@ -1,0 +1,1 @@
+from fab.trainable_distributions.base import TrainableDistribution

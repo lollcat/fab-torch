@@ -1,1 +1,0 @@
-from fab.learnt_distributions.base import TrainableDistribution

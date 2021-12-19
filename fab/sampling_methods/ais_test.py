@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 from fab.sampling_methods import AnnealedImportanceSampler, Metropolis, HamiltoneanMonteCarlo
 from fab.utils.logging import ListLogger
-from fab.target_distributions.MoG import MoG
-from fab.wrappers import WrappedTorchDist
+from fab.target_distributions.gmm import MoG
+from fab.wrappers.torch import WrappedTorchDist
 from fab.utils.plotting import plot_history
 
 
