@@ -1,3 +1,3 @@
 from fab.sampling_methods.ais import AnnealedImportanceSampler
-from fab.sampling_methods.transition_operators.base import TransitionOperator
-from fab.sampling_methods.transition_operators.hmc import HamiltoneanMonteCarlo
+from fab.sampling_methods.transition_operators import TransitionOperator, HamiltoneanMonteCarlo, \
+    Metropolis

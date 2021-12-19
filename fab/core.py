@@ -3,14 +3,14 @@ from typing import Optional
 from fab.target_distributions.base import TargetDistribution
 from fab.sampling_methods import AnnealedImportanceSampler, HamiltoneanMonteCarlo, \
     TransitionOperator
-from fab.learnt_distributions import LearntDistribubtion
+from fab.learnt_distributions import TrainableDistribution
 import torch
 
 
 class FABModel:
     """Definition of the Flow Annealed Importance Sampling Bootstrap (FAB) model. """
     def __init__(self,
-                 flow: LearntDistribubtion,
+                 flow: TrainableDistribution,
                  target_distribution: TargetDistribution,
                  n_intermediate_distributions: int,
                  transition_operator: Optional[TransitionOperator],

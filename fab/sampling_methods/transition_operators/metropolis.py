@@ -10,15 +10,19 @@ class Metropolis(nn.Module, TransitionOperator):
     def __init__(self, n_transitions, n_updates, max_step_size=1.0, min_step_size=0.1,
                  adjust_step_size=True, target_p_accept=0.1):
         """
-        Designed for use in annealed importance sampler
-        :param n_updates: number of metropolis updates
-        :param noise_scalings: can be sequence e.g. e.g. tensor([2.0, 1.0, 0.1])
+        Args:
+            n_transitions: number of AIS intermediate distributions.
+            n_updates: number of metropolis updates (per overall transition).
+            max_step_size: Step size for the first update.
+            min_step_size: Step size for the last update.
+            adjust_step_size: whether to adjust the step size to get the target_p_accept
+            target_p_accept: desired average acceptance probability
         """
         super(Metropolis, self).__init__()
         self.n_distributions = n_transitions
         self.n_updates = n_updates
         self.adjust_step_size = adjust_step_size
-        self.register_buffer("noise_scaling_ratios", torch.linspace(max_step_size, min_step_size,
+        self.register_buffer("noise_scalings", torch.linspace(max_step_size, min_step_size,
                                                                     n_updates).repeat(
             (n_transitions, 1)))
         self.target_prob_accept = target_p_accept
@@ -26,8 +30,8 @@ class Metropolis(nn.Module, TransitionOperator):
     def get_logging_info(self) -> Dict:
         """Return the first and last noise scaling size for logging."""
         interesting_dict = {}
-        interesting_dict[f"noise_scaling_0_0"] = self.noise_scaling_ratios[0, 0].cpu().item()
-        interesting_dict[f"noise_scaling_0_-1"] = self.noise_scaling_ratios[0, -1].cpu().item()
+        interesting_dict[f"noise_scaling_0_0"] = self.noise_scalings[0, 0].cpu().item()
+        interesting_dict[f"noise_scaling_0_-1"] = self.noise_scalings[0, -1].cpu().item()
         return interesting_dict
 
 
@@ -44,10 +48,10 @@ class Metropolis(nn.Module, TransitionOperator):
                                                           ).to(x.device)).int()
             accept = accept[:, None].repeat(1, x.shape[-1])
             x = accept * x_proposed + (1 - accept) * x
-            if self.auto_adjust:
+            if self.adjust_step_size:
                 p_accept = torch.mean(torch.clamp_max(acceptance_probability, 1))
                 if p_accept > self.target_prob_accept:  # too much accept
-                    self.noise_scaling_ratios[i, n] = self.noise_scaling_ratios[i, n] * 1.1
+                    self.noise_scalings[i, n] = self.noise_scalings[i, n] * 1.05
                 else:
-                    self.noise_scaling_ratios[i, n] = self.noise_scaling_ratios[i, n] * 0.9
+                    self.noise_scalings[i, n] = self.noise_scalings[i, n] / 1.05
         return x

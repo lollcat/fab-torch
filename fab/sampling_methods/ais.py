@@ -1,15 +1,22 @@
-from typing import Tuple
+from typing import Tuple, Dict, Any, NamedTuple
 
 from fab.types import LogProbFunc
 from fab.sampling_methods.transition_operators.base import TransitionOperator
-from fab.learnt_distributions.base import LearntDistribubtion
+from fab.types import Distribution
+from fab.utils.numerical import effective_sample_size
 import torch
 import numpy as np
 
 
+class LoggingInfo(NamedTuple):
+    ess_base: float
+    ess_ais: float
+
+
+
 class AnnealedImportanceSampler:
     def __init__(self,
-                 base_distribution: LearntDistribubtion,
+                 base_distribution: Distribution,
                  target_log_prob: LogProbFunc,
                  transition_operator: TransitionOperator,
                  n_intermediate_distributions: int = 1,
@@ -22,21 +29,46 @@ class AnnealedImportanceSampler:
         self.distribution_spacing_type = distribution_spacing_type
         self.B_space = self.setup_distribution_spacing(distribution_spacing_type,
                                                        n_intermediate_distributions)
-
-    @property
-    def device(self):
-        return self.base_distribution.device
+        self._logging_info: LoggingInfo
 
 
-    def sample_and_log_weights(self, batch_size: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        x_new, log_prob_p0 = self.base_distribution.sample_and_log_prob((batch_size,))
-        log_w = self.intermediate_unnormalised_log_prob(x_new, 1) - log_prob_p0
+    def get_logging_info(self) -> Dict[str, Any]:
+        """Return information saved during the last call to sample_and_log_weights (assuming
+        logging was set to True)."""
+        logging_info = self._logging_info._asdict()
+        logging_info.update(self.transition_operator.get_logging_info())
+        return logging_info
+
+
+    def sample_and_log_weights(self, batch_size: int, logging: bool = True
+                               ) -> Tuple[torch.Tensor, torch.Tensor]:
+
+        # Initialise AIS with samples from the base distribution.
+        x, log_prob_p0 = self.base_distribution.sample_and_log_prob((batch_size,))
+        log_w = self.intermediate_unnormalised_log_prob(x, 1) - log_prob_p0
+
+        # Save effective sample size over samples from base distribution if logging.
+        if logging:
+            with torch.no_grad():
+                log_target_p_x_base_samples = self.target_log_prob(x)
+                log_w_base = log_target_p_x_base_samples - log_prob_p0
+                ess_base = effective_sample_size(log_w_base).detach().cpu().item()
+
+        # Move through sequence of intermediate distributions via MCMC.
         for j in range(1, self.n_intermediate_distributions+1):
-            x_new, log_w = self.perform_transition(x_new, log_w, j)
-        return x_new, log_w
+            x, log_w = self.perform_transition(x, log_w, j)
+
+        # Save effective sample size if logging.
+        if logging:
+            with torch.no_grad():
+                ess_ais = effective_sample_size(log_w).detach().cpu().item()
+                self._logging_info = LoggingInfo(ess_base=ess_base, ess_ais=ess_ais)
+        return x, log_w
 
 
     def perform_transition(self, x_new: torch.Tensor, log_w: torch.Tensor, j: int):
+        """"Transition via MCMC with the j'th intermediate distribution as the target."""
+
         target_p_x = lambda x: self.intermediate_unnormalised_log_prob(x, j)
         x_new = self.transition_operator.transition(x_new, target_p_x, j-1)
         log_w = log_w + self.intermediate_unnormalised_log_prob(x_new, j + 1) - \

@@ -15,9 +15,16 @@ def MC_estimate_true_expectation(distribution: Union[torch.distributions.Distrib
     return torch.mean(f_x)
 
 
-def quadratic_function(x: torch.Tensor, seed: int =0):
+def effective_sample_size(log_w: torch.Tensor, normalised=False):
+    # effective sample size, see https://arxiv.org/abs/1602.03572
+    assert len(log_w.shape) == 1
+    if not normalised:
+        log_w = F.softmax(log_w, dim=0)
+    return 1 / torch.sum(log_w ** 2) / log_w.shape[0]
+
+
+def quadratic_function(x: torch.Tensor):
     # example function that we may want to calculate expectations over
-    torch.manual_seed(seed)
     x_shift = 2*torch.randn(x.shape[-1]).to(x.device)
     A = 2*torch.rand((x.shape[-1], x.shape[-1])).to(x.device)
     b = torch.rand(x.shape[-1]).to(x.device)
@@ -26,10 +33,13 @@ def quadratic_function(x: torch.Tensor, seed: int =0):
 
 
 
-def importance_weighted_expectation(log_w, x, f):
+def importance_weighted_expectation(f: Callable[[torch.Tensor], torch.Tensor], x: torch.Tensor,
+                                    log_w: torch.Tensor) -> torch.Tensor:
     normalised_importance_weights = F.softmax(log_w, dim=-1)
     function_values = f(x)
     expectation = normalised_importance_weights.T @ function_values
     return expectation
+
+
 
 
