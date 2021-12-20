@@ -8,16 +8,19 @@ from fab.utils.logging import Logger, ListLogger
 
 
 Model = Any  # TODO needs to be nn.Module with a .loss function
+lr_scheduler = Any
 Plotter = Callable[[Model], None]
 
 class Trainer:
     def __init__(self,
                  model: Model,
                  optimizer: torch.optim.Optimizer,
+                 optim_schedular: Optional[lr_scheduler],
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None):
         self.model = model
         self.optimizer = optimizer
+        self.optim_schedular = optim_schedular
         self.logger = logger
         self.plot = plot
 
@@ -40,6 +43,8 @@ class Trainer:
             self.logger.write(info)
             loss.backward()
             self.optimizer.step()
+            if self.optim_schedular:
+                self.optim_schedular.step()
             pbar.set_description(f"loss: {loss.cpu().detach().item()}")
 
             if n_eval is not None:

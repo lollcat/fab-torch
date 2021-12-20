@@ -6,22 +6,30 @@ from fab import FABModel, HamiltoneanMonteCarlo, Trainer, Metropolis
 from fab.utils.logging import ListLogger
 from fab.utils.plotting import plot_history, plot_contours, plot_marginal_pair
 
-from examples.make_realnvp import make_wrapped_normflowdist
+from examples.make_flow import make_wrapped_normflowdist, make_wrapped_nflows_dist
 
+FLOW_LIBS = ["normflow", "nflows"]
 
 def train_fab(
         dim: int = 2,
-        n_intermediate_distributions: int = 2,
+        n_intermediate_distributions: int = 3,
         batch_size: int = 256,
-        n_iterations: int = 500,
+        n_iterations: int = 5000,
         n_plots: int = 10,
         lr: float = 1e-4,
         transition_operator_type: str = "hmc",  # "metropolis",  "hmc",
         seed: int = 0,
+        n_flow_layers: int = 5,
+        flow_lib: str = FLOW_LIBS[0],
 ) -> None:
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
-    flow = make_wrapped_normflowdist(dim)
+    if flow_lib == "normflow":
+        flow = make_wrapped_normflowdist(dim)
+    elif flow_lib == "nflows":
+        flow = make_wrapped_nflows_dist(dim, n_flow_layers=n_flow_layers)
+    else:
+        raise NotImplementedError
     target = nf.distributions.target.TwoMoons()
     # setup transition operator
     if transition_operator_type == "hmc":
@@ -41,6 +49,8 @@ def train_fab(
                          n_intermediate_distributions=n_intermediate_distributions,
                          transition_operator=transition_operator)
     optimizer = torch.optim.Adam(flow.parameters(), lr=lr)
+    # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
+    scheduler = None
     logger = ListLogger()
 
 
@@ -71,7 +81,8 @@ def train_fab(
         fig.show()
 
     # Create trainer
-    trainer = Trainer(fab_model, optimizer, logger, plot)
+    trainer = Trainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
+                      optim_schedular=scheduler)
     trainer.run(n_iterations=n_iterations, batch_size=batch_size, n_plot=n_plots)
 
     plot_history(logger.history)

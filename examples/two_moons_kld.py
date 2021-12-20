@@ -7,7 +7,7 @@ import torch
 from fab import Model, Trainer
 from fab.utils.logging import ListLogger
 from fab.utils.plotting import plot_history, plot_contours, plot_marginal_pair
-from examples.make_realnvp import make_normflow_model
+from examples.make_flow.make_realnvp_normflow import make_normflow_model
 
 
 
@@ -55,7 +55,7 @@ def train_kld(
         fig.show()
 
     # Create trainer
-    trainer = Trainer(kld_model, optimizer, logger, plot)
+    trainer = Trainer(model=kld_model, optimizer=optimizer, logger=logger, plot=plot)
     trainer.run(n_iterations=n_iterations, batch_size=batch_size, n_plot=n_plots)
 
     plot_history(logger.history)

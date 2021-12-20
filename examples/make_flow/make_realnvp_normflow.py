@@ -23,20 +23,22 @@ def make_normflow_flow(dim: int,
 
 def make_normflow_model(
         dim: int,
-        target: nf.distributions.Target) \
+        target: nf.distributions.Target,
+        n_flow_layers: int = 5) \
         -> nf.NormalizingFlow:
     """Created Normflow distribution using the example from the normflow page."""
     base = nf.distributions.base.DiagGaussian(dim)
-    flows = make_normflow_flow(dim)
+    flows = make_normflow_flow(dim, n_flow_layers=n_flow_layers)
     model = nf.NormalizingFlow(base, flows, p=target)
     return model
 
 
 def make_wrapped_normflowdist(
-        dim: int = 2) -> TrainableDistribution:
+        dim: int = 2,
+        n_flow_layers: int = 5) -> TrainableDistribution:
     """Created a wrapped Normflow distribution using the example from the normflow page."""
     base = nf.distributions.base.DiagGaussian(dim)
-    flows = make_normflow_flow(dim)
+    flows = make_normflow_flow(dim, n_flow_layers=n_flow_layers)
     model = nf.NormalizingFlow(base, flows)
     wrapped_dist = WrappedNormFlowModel(model)
     return wrapped_dist
