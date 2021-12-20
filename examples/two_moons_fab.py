@@ -11,9 +11,9 @@ from examples.make_realnvp import make_wrapped_normflowdist
 
 def train_fab(
         dim: int = 2,
-        n_intermediate_distributions: int = 3,
-        batch_size: int = 512,
-        n_iterations: int = 10000,
+        n_intermediate_distributions: int = 2,
+        batch_size: int = 256,
+        n_iterations: int = 500,
         n_plots: int = 10,
         lr: float = 1e-4,
         transition_operator_type: str = "hmc",  # "metropolis",  "hmc",
@@ -25,10 +25,11 @@ def train_fab(
     target = nf.distributions.target.TwoMoons()
     # setup transition operator
     if transition_operator_type == "hmc":
+        # very lightweight HMC.
         transition_operator = HamiltoneanMonteCarlo(
             n_ais_intermediate_distributions=n_intermediate_distributions,
             n_outer=1,
-            epsilon=1.0, L=5, dim=dim,
+            epsilon=1.0, L=2, dim=dim,
             step_tuning_method="p_accept")
     elif transition_operator_type == "metropolis":
         transition_operator = Metropolis(n_transitions=n_intermediate_distributions,
@@ -59,10 +60,14 @@ def train_fab(
         samples_flow = fab_model.flow.sample((n_samples,))
         plot_marginal_pair(samples_flow, ax=axs[plot_index, 0])
 
+
         # plot ais samples
         samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(n_samples,
                                                                                    logging=False)[0]
         plot_marginal_pair(samples_ais, ax=axs[plot_index, 1])
+        if plot_index == 0:
+            axs[plot_index, 0].set_title("flow samples")
+            axs[plot_index, 1].set_title("ais samples")
         fig.show()
 
     # Create trainer

@@ -4,15 +4,16 @@ from fab.trainable_distributions import TrainableDistribution
 
 
 def make_normflow_flow(dim: int,
-                       n_flow_layers: int = 20):
+                       n_flow_layers: int = 5):
     # Define list of flows
     flows = []
+    layer_width = dim * 3
     for i in range(n_flow_layers):
         # Neural network with two hidden layers having 32 units each
         # Last layer is initialized by zeros making training more stable
-        param_map = nf.nets.MLP([1, 60, 60, 2], init_zeros=True)
+        param_map = nf.nets.MLP([1, layer_width, layer_width, 2], init_zeros=True)
         # Add flow layer
-        flows.append(nf.flows.AffineCouplingBlock(param_map))
+        flows.append(nf.flows.AffineCouplingBlock(param_map, scale_map="exp"))
         # Swap dimensions
         flows.append(nf.flows.Permute(2, mode='swap'))
         # ActNorm

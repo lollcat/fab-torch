@@ -11,6 +11,7 @@ import numpy as np
 class LoggingInfo(NamedTuple):
     ess_base: float
     ess_ais: float
+    log_Z: float  # normalisation constant
 
 
 
@@ -61,8 +62,11 @@ class AnnealedImportanceSampler:
         # Save effective sample size if logging.
         if logging:
             with torch.no_grad():
-                ess_ais = effective_sample_size(log_w).detach().cpu().item()
-                self._logging_info = LoggingInfo(ess_base=ess_base, ess_ais=ess_ais)
+                ess_ais = effective_sample_size(log_w).cpu().item()
+                log_Z_N = torch.logsumexp(log_w, dim=0)
+                log_Z = log_Z_N - torch.log(torch.ones_like(log_Z_N) * batch_size)
+                self._logging_info = LoggingInfo(ess_base=ess_base, ess_ais=ess_ais,
+                                                 log_Z=log_Z.cpu().item())
         return x, log_w
 
 
