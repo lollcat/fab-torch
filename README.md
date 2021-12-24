@@ -10,8 +10,8 @@ pip install --upgrade .
 ```
 
 ## Examples
-See [examples](examples/fab_various_targets.py) for visualised training of a normalising flow 
-model for various target distributions.
+See [notebook](examples/fab_example.ipynb) and [code](examples/fab_various_targets.py) for 
+visualised training of a  normalising flow model for various target distributions.
 TBD: further description and plots for examples
 
 
