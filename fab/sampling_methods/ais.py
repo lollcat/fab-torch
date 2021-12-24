@@ -1,11 +1,13 @@
 from typing import Tuple, Dict, Any, NamedTuple
 
+import torch
+import numpy as np
+from functools import partial
+
 from fab.types_ import LogProbFunc
 from fab.sampling_methods.transition_operators.base import TransitionOperator
 from fab.types_ import Distribution
 from fab.utils.numerical import effective_sample_size
-import torch
-import numpy as np
 
 
 class LoggingInfo(NamedTuple):
@@ -73,7 +75,7 @@ class AnnealedImportanceSampler:
     def perform_transition(self, x_new: torch.Tensor, log_w: torch.Tensor, j: int):
         """"Transition via MCMC with the j'th intermediate distribution as the target."""
 
-        target_p_x = lambda x: self.intermediate_unnormalised_log_prob(x, j)
+        target_p_x = partial(self.intermediate_unnormalised_log_prob, j=j)
         x_new = self.transition_operator.transition(x_new, target_p_x, j-1)
         log_w = log_w + self.intermediate_unnormalised_log_prob(x_new, j + 1) - \
                 self.intermediate_unnormalised_log_prob(x_new, j)

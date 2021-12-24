@@ -6,12 +6,12 @@ from fab.utils.numerical import MC_estimate_true_expectation, quadratic_function
 import numpy as np
 
 
-class MoG(nn.Module, TargetDistribution):
+class GMM(nn.Module, TargetDistribution):
     # mog with random mean and var
-    def __init__(self, dim: int =2, n_mixes: int =5,
-                 min_cov: float=0.5, loc_scaling: float=3.0, diagonal_covariance=True,
+    def __init__(self, dim: int = 2, n_mixes: int = 5,
+                 min_cov: float = 0.5, loc_scaling: float = 3.0, diagonal_covariance=True,
                  cov_scaling=1.0, uniform_component_probs = False):
-        super(MoG, self).__init__()
+        super(GMM, self).__init__()
         self.dim = dim
         self.n_mixes = n_mixes
         self.distributions = []
@@ -44,7 +44,7 @@ class MoG(nn.Module, TargetDistribution):
         print(f"true expectation is {self.true_expectation}")
 
     def to(self, device):
-        super(MoG, self).to(device)
+        super(GMM, self).to(device)
         self.distribution = self.get_distribution
 
     @property

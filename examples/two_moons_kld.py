@@ -4,9 +4,9 @@ import normflow as nf
 import matplotlib.pyplot as plt
 import torch
 
-from fab import Model, Trainer
-from fab.utils.logging import ListLogger
-from fab.utils.plotting import plot_history, plot_contours, plot_marginal_pair
+from fab_various_targets import Model, Trainer
+from fab_various_targets.utils.logging import ListLogger
+from fab_various_targets.utils.plotting import plot_history, plot_contours, plot_marginal_pair
 from examples.make_flow.make_realnvp_normflow import make_normflow_model
 
 

@@ -9,18 +9,20 @@ from fab.utils.plotting import plot_history, plot_contours, plot_marginal_pair
 from examples.make_flow import make_wrapped_normflowdist, make_wrapped_nflows_dist
 
 FLOW_LIBS = ["normflow", "nflows"]
+TARGET_NAMES = ["TwoMoons", "GMM", "ManyWell"]
 
 def train_fab(
         dim: int = 2,
         n_intermediate_distributions: int = 3,
         batch_size: int = 256,
-        n_iterations: int = 5000,
+        n_iterations: int = 1000,
         n_plots: int = 10,
-        lr: float = 1e-4,
+        lr: float = 1e-3,
         transition_operator_type: str = "hmc",  # "metropolis",  "hmc",
         seed: int = 0,
-        n_flow_layers: int = 5,
+        n_flow_layers: int = 3,
         flow_lib: str = FLOW_LIBS[0],
+        target_name: str = TARGET_NAMES[2],
 ) -> None:
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
@@ -30,7 +32,23 @@ def train_fab(
         flow = make_wrapped_nflows_dist(dim, n_flow_layers=n_flow_layers)
     else:
         raise NotImplementedError
-    target = nf.distributions.target.TwoMoons()
+
+    if target_name == "TwoMoons":
+        target = nf.distributions.target.TwoMoons()
+        plotting_bounds = (-5, 5)
+        assert dim == 2
+    elif target_name == "GMM":
+        from fab.target_distributions import GMM
+        target = GMM(dim, n_mixes=5, min_cov=1, loc_scaling=10)
+        plotting_bounds = (-30, 30)
+    elif target_name == "ManyWell":
+        from fab.target_distributions import ManyWellEnergy
+        assert dim % 2 == 0
+        target = ManyWellEnergy(dim, a=-0.5, b=-6)
+        plotting_bounds = (-5, 5)
+    else:
+        raise NotImplementedError
+
     # setup transition operator
     if transition_operator_type == "hmc":
         # very lightweight HMC.
@@ -55,7 +73,7 @@ def train_fab(
 
 
     # plot target
-    plot_contours(target.log_prob)
+    plot_contours(target.log_prob, bounds=plotting_bounds)
     plt.show()
 
     # set up plotting
@@ -68,13 +86,13 @@ def train_fab(
         plot_index = next(plot_number_iterator)
         # plot flow samples
         samples_flow = fab_model.flow.sample((n_samples,))
-        plot_marginal_pair(samples_flow, ax=axs[plot_index, 0])
+        plot_marginal_pair(samples_flow, ax=axs[plot_index, 0], bounds=plotting_bounds)
 
 
         # plot ais samples
         samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(n_samples,
                                                                                    logging=False)[0]
-        plot_marginal_pair(samples_ais, ax=axs[plot_index, 1])
+        plot_marginal_pair(samples_ais, ax=axs[plot_index, 1], bounds=plotting_bounds)
         if plot_index == 0:
             axs[plot_index, 0].set_title("flow samples")
             axs[plot_index, 1].set_title("ais samples")

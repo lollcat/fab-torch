@@ -38,6 +38,8 @@ def plot_contours(log_prob_func: LogProbFunc,
     x_points = torch.tensor(list(itertools.product(x_points_dim1, x_points_dim2)))
     log_p_x = log_prob_func(x_points)
     log_p_x = log_p_x.reshape((grid_width_n_points, grid_width_n_points))
+    x_points_dim1 = x_points[:, 0].reshape((grid_width_n_points, grid_width_n_points)).numpy()
+    x_points_dim2 = x_points[:, 1].reshape((grid_width_n_points, grid_width_n_points)).numpy()
     ax.contour(x_points_dim1, x_points_dim2, log_p_x, levels=80)
 
 

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from fab.sampling_methods import AnnealedImportanceSampler, Metropolis, HamiltoneanMonteCarlo
 from fab.utils.logging import ListLogger
-from fab.target_distributions.gmm import MoG
+from fab.target_distributions.gmm import GMM
 from fab.wrappers.torch import WrappedTorchDist
 from fab.utils.plotting import plot_history
 
@@ -19,7 +19,7 @@ def test_ais(dim: int = 2,
     # set up key objects
     torch.manual_seed(seed)
     logger = ListLogger()
-    target = MoG(dim=dim, n_mixes=4, loc_scaling=8)
+    target = GMM(dim=dim, n_mixes=4, loc_scaling=8)
     base_dist = WrappedTorchDist(torch.distributions.MultivariateNormal(loc=torch.zeros(dim),
                                                                  scale_tril=3*torch.eye(dim)))
     # setup transition operator

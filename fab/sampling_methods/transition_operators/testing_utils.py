@@ -4,7 +4,7 @@ torch.autograd.set_detect_anomaly(True)
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from fab.target_distributions.gmm import MoG
+from fab.target_distributions.gmm import GMM
 from fab.sampling_methods.transition_operators import TransitionOperator
 from fab.utils.plotting import plot_history
 from fab.utils.logging import ListLogger
@@ -19,7 +19,7 @@ def test_transition_operator(transition_operator: TransitionOperator,
     logger = ListLogger()
     torch.manual_seed(seed)
     # instantiate base and target distribution
-    target = MoG(dim=dim, n_mixes=3, loc_scaling=8)
+    target = GMM(dim=dim, n_mixes=3, loc_scaling=8)
     learnt_sampler = torch.distributions.MultivariateNormal(loc=torch.zeros(dim),
                                                                  scale_tril=2*torch.eye(dim))
     n_intermediate_plots = 2

@@ -37,6 +37,7 @@ class Trainer:
 
         pbar = tqdm(range(n_iterations))
         for i in pbar:
+            self.optimizer.zero_grad()
             loss = self.model.loss(batch_size)
             info = self.model.get_iter_info()
             info.update(loss=loss.cpu().detach().item())
