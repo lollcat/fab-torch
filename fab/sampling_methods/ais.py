@@ -9,6 +9,7 @@ from fab.sampling_methods.transition_operators.base import TransitionOperator
 from fab.types_ import Distribution
 from fab.utils.numerical import effective_sample_size
 
+#TODO add testing for use with GPU
 
 class LoggingInfo(NamedTuple):
     ess_base: float

@@ -11,7 +11,7 @@ def make_normflow_flow(dim: int,
     for i in range(n_flow_layers):
         # Neural network with two hidden layers having 32 units each
         # Last layer is initialized by zeros making training more stable
-        param_map = nf.nets.MLP([1, layer_width, layer_width, 2], init_zeros=True)
+        param_map = nf.nets.MLP([int((dim / 2) + 0.5), layer_width, layer_width, dim], init_zeros=True)
         # Add flow layer
         flows.append(nf.flows.AffineCouplingBlock(param_map, scale_map="exp"))
         # Swap dimensions
