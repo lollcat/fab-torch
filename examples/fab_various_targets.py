@@ -22,7 +22,7 @@ def train_fab(
         seed: int = 0,
         n_flow_layers: int = 3,
         flow_lib: str = FLOW_LIBS[0],
-        target_name: str = TARGET_NAMES[2],
+        target_name: str = TARGET_NAMES[0],
 ) -> None:
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
@@ -39,8 +39,8 @@ def train_fab(
         assert dim == 2
     elif target_name == "GMM":
         from fab.target_distributions import GMM
-        target = GMM(dim, n_mixes=5, min_cov=1, loc_scaling=10)
-        plotting_bounds = (-30, 30)
+        target = GMM(dim, n_mixes=5, min_cov=1, loc_scaling=5)
+        plotting_bounds = (-20, 20)
     elif target_name == "ManyWell":
         from fab.target_distributions import ManyWellEnergy
         assert dim % 2 == 0

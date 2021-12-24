@@ -7,7 +7,6 @@ from nflows import flows
 from fab.trainable_distributions import TrainableDistribution
 
 class WrappedNFlowsModel(TrainableDistribution):
-    # TODO: write
     """Wraps the distribution from nflows library
     (https://github.com/bayesiains/nflows) to work in this fab library."""
 
