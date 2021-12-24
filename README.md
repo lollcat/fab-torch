@@ -10,7 +10,9 @@ pip install --upgrade .
 ```
 
 ## Examples
-TBD: add description and plots for examples
+See [examples](examples/fab_various_targets.py) for visualised training of a normalising flow 
+model for various target distributions.
+TBD: further description and plots for examples
 
 
 ## About the code 

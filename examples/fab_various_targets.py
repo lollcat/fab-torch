@@ -13,16 +13,16 @@ TARGET_NAMES = ["TwoMoons", "GMM", "ManyWell"]
 
 def train_fab(
         dim: int = 2,
-        n_intermediate_distributions: int = 3,
-        batch_size: int = 256,
-        n_iterations: int = 1000,
+        n_intermediate_distributions: int = 2,
+        batch_size: int = 128,
+        n_iterations: int = 5000,
         n_plots: int = 10,
         lr: float = 1e-3,
         transition_operator_type: str = "hmc",  # "metropolis",  "hmc",
         seed: int = 0,
         n_flow_layers: int = 3,
         flow_lib: str = FLOW_LIBS[0],
-        target_name: str = TARGET_NAMES[0],
+        target_name: str = TARGET_NAMES[2],
 ) -> None:
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
@@ -45,7 +45,7 @@ def train_fab(
         from fab.target_distributions import ManyWellEnergy
         assert dim % 2 == 0
         target = ManyWellEnergy(dim, a=-0.5, b=-6)
-        plotting_bounds = (-5, 5)
+        plotting_bounds = (-3, 3)
     else:
         raise NotImplementedError
 
@@ -84,6 +84,10 @@ def train_fab(
 
     def plot(fab_model, n_samples = 300):
         plot_index = next(plot_number_iterator)
+
+        plot_contours(target.log_prob, bounds=plotting_bounds, ax=axs[plot_index, 0])
+        plot_contours(target.log_prob, bounds=plotting_bounds, ax=axs[plot_index, 1])
+
         # plot flow samples
         samples_flow = fab_model.flow.sample((n_samples,))
         plot_marginal_pair(samples_flow, ax=axs[plot_index, 0], bounds=plotting_bounds)
@@ -93,9 +97,8 @@ def train_fab(
         samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(n_samples,
                                                                                    logging=False)[0]
         plot_marginal_pair(samples_ais, ax=axs[plot_index, 1], bounds=plotting_bounds)
-        if plot_index == 0:
-            axs[plot_index, 0].set_title("flow samples")
-            axs[plot_index, 1].set_title("ais samples")
+        axs[plot_index, 0].set_title("flow samples")
+        axs[plot_index, 1].set_title("ais samples")
         fig.show()
 
     # Create trainer
@@ -105,6 +108,24 @@ def train_fab(
 
     plot_history(logger.history)
     plt.show()
+
+
+    # plot samples on top of contours
+    n_samples = 300
+    fig, axs = plt.subplots(1, 2)
+    plot_contours(target.log_prob, bounds=plotting_bounds, ax=axs[0])
+    plot_contours(target.log_prob, bounds=plotting_bounds, ax=axs[1])
+    # plot flow samples
+    samples_flow = fab_model.flow.sample((n_samples,))
+    plot_marginal_pair(samples_flow, ax=axs[0], bounds=plotting_bounds)
+    axs[0].set_title("flow samples vs target contours")
+    # plot ais samples
+    samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(n_samples,
+                                                                               logging=False)[0]
+    plot_marginal_pair(samples_ais, ax=axs[1], bounds=plotting_bounds)
+    plt.show()
+    axs[1].set_title("ais samples vs target contours")
+
 
 
 
