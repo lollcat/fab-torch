@@ -4,10 +4,11 @@ from fab.trainable_distributions import TrainableDistribution
 
 
 def make_normflow_flow(dim: int,
-                       n_flow_layers: int = 5):
+                       n_flow_layers: int,
+                       layer_nodes_per_dim: int):
     # Define list of flows
     flows = []
-    layer_width = dim * 3
+    layer_width = dim * layer_nodes_per_dim
     for i in range(n_flow_layers):
         # Neural network with two hidden layers having 32 units each
         # Last layer is initialized by zeros making training more stable
@@ -15,10 +16,22 @@ def make_normflow_flow(dim: int,
         # Add flow layer
         flows.append(nf.flows.AffineCouplingBlock(param_map, scale_map="exp"))
         # Swap dimensions
-        flows.append(nf.flows.Permute(2, mode='swap'))
+        #flows.append(nf.flows.Permute(2, mode='swap'))
         # ActNorm
-        flows.append(nf.flows.ActNorm(dim))
+        #flows.append(nf.flows.ActNorm(dim))
     return flows
+
+
+def make_wrapped_normflowdist(
+        dim: int,
+        n_flow_layers: int = 5,
+        layer_nodes_per_dim: int = 10) -> TrainableDistribution:
+    """Created a wrapped Normflow distribution using the example from the normflow page."""
+    base = nf.distributions.base.DiagGaussian(dim)
+    flows = make_normflow_flow(dim, n_flow_layers=n_flow_layers, layer_nodes_per_dim=layer_nodes_per_dim)
+    model = nf.NormalizingFlow(base, flows)
+    wrapped_dist = WrappedNormFlowModel(model)
+    return wrapped_dist
 
 
 def make_normflow_model(
@@ -31,14 +44,3 @@ def make_normflow_model(
     flows = make_normflow_flow(dim, n_flow_layers=n_flow_layers)
     model = nf.NormalizingFlow(base, flows, p=target)
     return model
-
-
-def make_wrapped_normflowdist(
-        dim: int = 2,
-        n_flow_layers: int = 5) -> TrainableDistribution:
-    """Created a wrapped Normflow distribution using the example from the normflow page."""
-    base = nf.distributions.base.DiagGaussian(dim)
-    flows = make_normflow_flow(dim, n_flow_layers=n_flow_layers)
-    model = nf.NormalizingFlow(base, flows)
-    wrapped_dist = WrappedNormFlowModel(model)
-    return wrapped_dist
