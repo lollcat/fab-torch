@@ -5,7 +5,8 @@ from fab.trainable_distributions import TrainableDistribution
 
 def make_normflow_flow(dim: int,
                        n_flow_layers: int,
-                       layer_nodes_per_dim: int):
+                       layer_nodes_per_dim: int,
+                       act_norm: bool):
     # Define list of flows
     flows = []
     layer_width = dim * layer_nodes_per_dim
@@ -16,19 +17,23 @@ def make_normflow_flow(dim: int,
         # Add flow layer
         flows.append(nf.flows.AffineCouplingBlock(param_map, scale_map="exp"))
         # Swap dimensions
-        #flows.append(nf.flows.Permute(2, mode='swap'))
+        flows.append(nf.flows.Permute(dim, mode='swap'))
         # ActNorm
-        #flows.append(nf.flows.ActNorm(dim))
+        if act_norm:
+            flows.append(nf.flows.ActNorm(dim))
     return flows
 
 
 def make_wrapped_normflowdist(
         dim: int,
         n_flow_layers: int = 5,
-        layer_nodes_per_dim: int = 10) -> TrainableDistribution:
+        layer_nodes_per_dim: int = 10,
+        act_norm: bool = False) -> TrainableDistribution:
     """Created a wrapped Normflow distribution using the example from the normflow page."""
     base = nf.distributions.base.DiagGaussian(dim)
-    flows = make_normflow_flow(dim, n_flow_layers=n_flow_layers, layer_nodes_per_dim=layer_nodes_per_dim)
+    flows = make_normflow_flow(dim, n_flow_layers=n_flow_layers,
+                               layer_nodes_per_dim=layer_nodes_per_dim,
+                               act_norm=act_norm)
     model = nf.NormalizingFlow(base, flows)
     wrapped_dist = WrappedNormFlowModel(model)
     return wrapped_dist
@@ -37,10 +42,13 @@ def make_wrapped_normflowdist(
 def make_normflow_model(
         dim: int,
         target: nf.distributions.Target,
-        n_flow_layers: int = 5) \
+        n_flow_layers: int = 5,
+        act_norm: bool = False) \
         -> nf.NormalizingFlow:
     """Created Normflow distribution using the example from the normflow page."""
     base = nf.distributions.base.DiagGaussian(dim)
-    flows = make_normflow_flow(dim, n_flow_layers=n_flow_layers)
+    flows = make_normflow_flow(dim,
+                               n_flow_layers=n_flow_layers,
+                               act_norm=act_norm)
     model = nf.NormalizingFlow(base, flows, p=target)
     return model

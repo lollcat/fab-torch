@@ -1,4 +1,4 @@
-from typing import Callable, Tuple, Mapping, Any
+from typing import Callable, Tuple, Mapping, Any, Iterator
 import torch
 import abc
 
@@ -41,6 +41,10 @@ class Model(object):
     def eval(self) -> Mapping[str, Any]:
         """Evaluate the model at the current point in training. This is useful for more expensive
         evaluation metrics than what is computed in get_iter_info."""
+
+    def parameters(self) -> Iterator[torch.nn.Parameter]:
+        """Returns the tunable parameters of the model for use inside the train loop. This is
+        required for gradient norm clipping."""
 
     def save(self):
         raise NotImplementedError

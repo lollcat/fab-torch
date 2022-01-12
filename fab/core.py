@@ -31,6 +31,9 @@ class FABModel(Model):
             n_intermediate_distributions=n_intermediate_distributions,
             distribution_spacing_type=ais_distribution_spacing)
 
+    def parameters(self):
+        return self.flow.parameters()
+
     def loss(self, batch_size: int) -> torch.Tensor:
         # return self.fab_forward_kl(batch_size)
         return self.fab_alpha_div_loss(batch_size)
