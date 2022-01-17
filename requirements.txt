@@ -1,2 +1,5 @@
 numpy
 torch
+git+https://github.com/VincentStimper/normalizing-flows.git
+nflows
+tqdm
