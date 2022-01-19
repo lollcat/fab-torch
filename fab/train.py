@@ -32,10 +32,12 @@ class Trainer:
     def run(self,
             n_iterations: int,
             batch_size: int,
+            eval_batch_size: Optional[int] = None,
             n_eval: Optional[int] = None,
             n_plot: Optional[int] = None) -> None:
         if n_eval is not None:
             eval_iter = list(np.linspace(0, n_iterations - 1, n_eval, dtype="int"))
+            assert eval_batch_size is not None
         if n_plot is not None:
             plot_iter = list(np.linspace(0, n_iterations - 1, n_plot, dtype="int"))
 
@@ -60,7 +62,7 @@ class Trainer:
 
             if n_eval is not None:
                 if i in eval_iter:
-                    eval_info = self.model.eval()
+                    eval_info = self.model.eval(eval_batch_size)
                     self.logger.write(eval_info)
 
             if n_plot is not None:

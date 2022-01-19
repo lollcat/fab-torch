@@ -70,7 +70,7 @@ class FABModel(Model):
         log_Z_N = torch.logsumexp(log_w_ais, dim=0)
         log_w_AIS_normalised = log_w_ais - log_Z_N
         log_q_x = self.flow.log_prob(x_ais)
-        return - torch.sum(torch.exp(log_w_AIS_normalised) * log_q_x)
+        return - torch.mean(torch.exp(log_w_AIS_normalised) * log_q_x)
 
 
     def _remove_nan_and_infs(self, x_ais: torch.Tensor, log_w_ais: torch.Tensor) -> Tuple[
@@ -90,8 +90,13 @@ class FABModel(Model):
     def get_iter_info(self) -> Dict[str, Any]:
         return self.annealed_importance_sampler.get_logging_info()
 
-    def get_eval_info(self) -> Dict[str, Any]:
-        # TODO: big batch effective sample size, metrics from target.
+    def get_eval_info(self, batch_size: int) -> Dict[str, Any]:
+        base_samples, base_log_probs, ais_samples, ais_log_w = \
+            self.annealed_importance_sampler.generate_eval_data(batch_size)
+        flow_info = self.target_distribution.performance_metrics(base_samples, base_log_probs,
+                                                     self.flow.log_prob)
+        ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)
+        # TODO: complete - outer/inner batch size, ESS w.r.t flow and AIS samples
         raise NotImplementedError
 
 
