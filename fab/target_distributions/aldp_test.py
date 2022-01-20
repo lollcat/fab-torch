@@ -29,7 +29,7 @@ def test_aldp():
     vacuum_sim.step(10000)
     del(vacuum_sim)
 
-    # Create distribution
+    # Create distribution with data_path specified
     aldp_boltz = AldpBoltzmann(data_path)
 
     # Load test data
@@ -46,6 +46,27 @@ def test_aldp():
     n_dim = n_atoms * 3
     test_data_npy = test_data.reshape(-1, n_dim)
     test_data = torch.from_numpy(test_data_npy.astype("float64"))
+
+    # Transform coordinates
+    x_test, log_det = aldp_boltz.coordinate_transform.inverse(test_data[::20])
+
+    # Compute probability
+    logp = aldp_boltz.log_prob(x_test)
+    logp_np = logp.cpu().numpy()
+
+    # Tests
+    assert logp.shape == (50,)
+    assert np.all(logp_np < -200)
+    assert np.all(logp_np > -300)
+
+    # Print sample values
+    print("Log prob transformed Boltzmann distribution")
+    print(logp)
+    print("Log prob Boltzmann distribution")
+    print(logp + log_det)
+
+    # Create distribution without data_path specified
+    aldp_boltz = AldpBoltzmann()
 
     # Transform coordinates
     x_test, log_det = aldp_boltz.coordinate_transform.inverse(test_data[::20])

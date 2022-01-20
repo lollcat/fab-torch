@@ -8,13 +8,32 @@ from simtk import openmm as mm
 from simtk import unit
 from simtk.openmm import app
 from openmmtools import testsystems
+from openmmtools.testsystems import AlanineDipeptideVacuum
 import mdtraj
+import tempfile
 
 
 
 class AldpBoltzmann(nn.Module, TargetDistribution):
-    def __init__(self, data_path, temperature=1000, energy_cut=1.e+8, energy_max=1.e+20, n_threads=4):
+    def __init__(self, data_path=None, temperature=1000, energy_cut=1.e+8,
+                 energy_max=1.e+20, n_threads=4):
+        """
+        Boltzmann distribution of Alanine dipeptide
+        :param data_path: Path to the trajectory file used to initialize the
+        transformation, if None, a trajectory is generated
+        :type data_path: String
+        :param temperature: Temperature of the system
+        :type temperature: Integer
+        :param energy_cut: Value after which the energy is logarithmically scaled
+        :type energy_cut: Float
+        :param energy_max: Maximum energy allowed, higher energies are cut
+        :type energy_max: Float
+        :param n_threads: Number of threads used to evaluate the log
+        probability for batches
+        :type n_threads: Integer
+        """
         super(AldpBoltzmann, self).__init__()
+
         # Define molecule parameters
         ndim = 66
         z_matrix = [
@@ -45,6 +64,22 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
                                                    1. / unit.picosecond,
                                                    1. * unit.femtosecond),
                              mm.Platform.getPlatformByName('Reference'))
+
+        # Generate trajectory for coordinate transform if no data path is specified
+        if data_path is None:
+            testsystem = AlanineDipeptideVacuum(constraints=None)
+            vacuum_sim = app.Simulation(testsystem.topology,
+                                        testsystem.system,
+                                        mm.LangevinIntegrator(temperature * unit.kelvin, 1.0 / unit.picosecond,
+                                                              1.0 * unit.femtosecond),
+                                        platform=mm.Platform.getPlatformByName('CPU'))
+            vacuum_sim.context.setPositions(testsystem.positions)
+            vacuum_sim.minimizeEnergy()
+            tmp_dir = tempfile.gettempdir()
+            data_path = tmp_dir + '/aldp.h5'
+            vacuum_sim.reporters.append(mdtraj.reporters.HDF5Reporter(data_path, 10))
+            vacuum_sim.step(10000)
+            del (vacuum_sim)
 
         # Load data for transform
         traj = mdtraj.load(data_path)
