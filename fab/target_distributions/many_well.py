@@ -106,7 +106,10 @@ class ManyWellEnergy(DoubleWellEnergy):
 
     def performance_metrics(self, samples: torch.Tensor, log_w: torch.Tensor,
                             log_q_fn: Optional[LogProbFunc] = None) -> Dict:
-        del samples
-        del log_w
-        info = {"test_set_mean_log_prob": torch.mean(log_q_fn(self.test_set)).item()}
-        return info
+        if log_q_fn is None:
+            return {}
+        else:
+            del samples
+            del log_w
+            info = {"test_set_mean_log_prob": torch.mean(log_q_fn(self.test_set)).item()}
+            return info
