@@ -56,7 +56,7 @@ class GMM(nn.Module, TargetDistribution):
     @property
     def get_distribution(self):
         mix = torch.distributions.Categorical(self.cat_probs)
-        com = torch.distributions.MultivariateNormal(self.locs, scale_tril=self.scale_trils)
+        com = torch.distributions.MultivariateNormal(self.locs, scale_tril=self.scale_trils, )
         return torch.distributions.MixtureSameFamily(mixture_distribution=mix,
                                                      component_distribution=com)
 

@@ -10,8 +10,9 @@ pip install --upgrade .
 ```
 
 ## Examples
-See [notebook](examples/double_well.ipynb) and [code](examples/fab_various_targets.py) for 
-visualised training of a  normalising flow model for various target distributions.
+See [double well boltzmann distribution notebook](examples/double_well.ipynb) and [GMM 
+target distribution notebook](examples/GMM.ipynb)
+for visualised examples of training a normalising flow model.
 TBD: further description and plots for examples
 
 

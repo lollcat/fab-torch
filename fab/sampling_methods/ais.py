@@ -48,6 +48,7 @@ class AnnealedImportanceSampler:
 
         # Initialise AIS with samples from the base distribution.
         x, log_prob_p0 = self.base_distribution.sample_and_log_prob((batch_size,))
+        x, log_prob_p0 = self._remove_nan_and_infs(x, log_prob_p0)
         log_w = self.intermediate_unnormalised_log_prob(x, 1) - log_prob_p0
 
         # Save effective sample size over samples from base distribution if logging.
@@ -138,6 +139,7 @@ class AnnealedImportanceSampler:
         for i in range(n_batches):
             # Initialise AIS with samples from the base distribution.
             x, log_prob_p0 = self.base_distribution.sample_and_log_prob((inner_batch_size,))
+            x, log_prob_p0 = self._remove_nan_and_infs(x, log_prob_p0)
             base_log_w = self.target_log_prob(x) - log_prob_p0
             # append base samples and log probs
             base_samples.append(x.detach().cpu())
@@ -159,3 +161,20 @@ class AnnealedImportanceSampler:
         ais_log_w = torch.cat(ais_log_w, dim=0)
 
         return base_samples, base_log_w_s, ais_samples, ais_log_w
+
+    def _remove_nan_and_infs(self, x: torch.Tensor, log_p: torch.Tensor) -> Tuple[
+        torch.Tensor, torch.Tensor]:
+        """Remove any NaN points or log probs. Sometimes the flow can generate Nan/Infs making
+        this function necessary in the first step of AIS."""
+        # first remove samples that have inf/nan log w
+        valid_indices = ~torch.isinf(log_p) & ~torch.isnan(log_p)
+        if torch.sum(valid_indices) == 0:  # no valid indices
+            raise Exception("No valid points generated in sampling the base distribution")
+        if valid_indices.all():
+            pass
+        else:
+            print(f"{torch.sum(~valid_indices)} nan/inf samples/log-probs encountered at init "
+                  f"of ais chain.")
+            log_p = log_p[valid_indices]
+            x = x[valid_indices, :]
+        return x, log_p
