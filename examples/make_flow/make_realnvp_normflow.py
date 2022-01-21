@@ -28,7 +28,7 @@ def make_wrapped_normflowdist(
         dim: int,
         n_flow_layers: int = 5,
         layer_nodes_per_dim: int = 10,
-        act_norm: bool = False) -> TrainableDistribution:
+        act_norm: bool = True) -> TrainableDistribution:
     """Created a wrapped Normflow distribution using the example from the normflow page."""
     base = nf.distributions.base.DiagGaussian(dim)
     flows = make_normflow_flow(dim, n_flow_layers=n_flow_layers,
@@ -36,6 +36,8 @@ def make_wrapped_normflowdist(
                                act_norm=act_norm)
     model = nf.NormalizingFlow(base, flows)
     wrapped_dist = WrappedNormFlowModel(model)
+    if act_norm:
+        wrapped_dist.sample((500,))  # ensure we call sample to initialise the ActNorm layers
     return wrapped_dist
 
 
@@ -43,12 +45,16 @@ def make_normflow_model(
         dim: int,
         target: nf.distributions.Target,
         n_flow_layers: int = 5,
-        act_norm: bool = False) \
+        layer_nodes_per_dim: int = 10,
+        act_norm: bool = True) \
         -> nf.NormalizingFlow:
     """Created Normflow distribution using the example from the normflow page."""
     base = nf.distributions.base.DiagGaussian(dim)
     flows = make_normflow_flow(dim,
                                n_flow_layers=n_flow_layers,
+                               layer_nodes_per_dim=layer_nodes_per_dim,
                                act_norm=act_norm)
     model = nf.NormalizingFlow(base, flows, p=target)
+    if act_norm:
+        model.sample(500)  # ensure we call sample to initialise the ActNorm layers
     return model

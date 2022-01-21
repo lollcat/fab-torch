@@ -27,7 +27,7 @@ def train_fab(
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
     if flow_lib == "normflow":
-        flow = make_wrapped_normflowdist(dim)
+        flow = make_wrapped_normflowdist(dim, n_flow_layers=n_flow_layers)
     elif flow_lib == "nflows":
         flow = make_wrapped_nflows_dist(dim, n_flow_layers=n_flow_layers)
     else:
