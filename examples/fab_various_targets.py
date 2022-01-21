@@ -17,12 +17,12 @@ def train_fab(
         batch_size: int = 128,
         n_iterations: int = 5000,
         n_plots: int = 10,
-        lr: float = 1e-3,
+        lr: float = 2e-4,
         transition_operator_type: str = "hmc",  # "metropolis",  "hmc",
         seed: int = 0,
         n_flow_layers: int = 3,
         flow_lib: str = FLOW_LIBS[0],
-        target_name: str = TARGET_NAMES[2],
+        target_name: str = TARGET_NAMES[1],
 ) -> None:
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
@@ -36,16 +36,22 @@ def train_fab(
     if target_name == "TwoMoons":
         target = nf.distributions.target.TwoMoons()
         plotting_bounds = (-5, 5)
+        n_eval = None
+        eval_batch_size = None
         assert dim == 2
     elif target_name == "GMM":
         from fab.target_distributions import GMM
         target = GMM(dim, n_mixes=5, min_cov=1, loc_scaling=5)
         plotting_bounds = (-20, 20)
+        n_eval = 100
+        eval_batch_size = batch_size * 10
     elif target_name == "ManyWell":
         from fab.target_distributions import ManyWellEnergy
         assert dim % 2 == 0
         target = ManyWellEnergy(dim, a=-0.5, b=-6)
         plotting_bounds = (-3, 3)
+        n_eval = 100
+        eval_batch_size = batch_size * 10
     else:
         raise NotImplementedError
 
@@ -55,7 +61,7 @@ def train_fab(
         transition_operator = HamiltoneanMonteCarlo(
             n_ais_intermediate_distributions=n_intermediate_distributions,
             n_outer=1,
-            epsilon=1.0, L=2, dim=dim,
+            epsilon=1.0, L=5, dim=dim,
             step_tuning_method="p_accept")
     elif transition_operator_type == "metropolis":
         transition_operator = Metropolis(n_transitions=n_intermediate_distributions,
@@ -104,7 +110,8 @@ def train_fab(
     # Create trainer
     trainer = Trainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
                       optim_schedular=scheduler)
-    trainer.run(n_iterations=n_iterations, batch_size=batch_size, n_plot=n_plots)
+    trainer.run(n_iterations=n_iterations, batch_size=batch_size, n_plot=n_plots,
+                n_eval=n_eval, eval_batch_size=eval_batch_size)
 
     plot_history(logger.history)
     plt.show()

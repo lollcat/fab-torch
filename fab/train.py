@@ -62,7 +62,8 @@ class Trainer:
 
             if n_eval is not None:
                 if i in eval_iter:
-                    eval_info = self.model.eval(eval_batch_size)
+                    eval_info = self.model.get_eval_info(outer_batch_size=eval_batch_size,
+                                                inner_batch_size=batch_size)
                     self.logger.write(eval_info)
 
             if n_plot is not None:

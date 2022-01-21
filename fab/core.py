@@ -1,11 +1,13 @@
 from typing import Optional, Dict, Any, Tuple
+import torch
 
 from fab.types_ import Model
 from fab.target_distributions.base import TargetDistribution
 from fab.sampling_methods import AnnealedImportanceSampler, HamiltoneanMonteCarlo, \
     TransitionOperator
 from fab.trainable_distributions import TrainableDistribution
-import torch
+from fab.utils.numerical import effective_sample_size
+
 
 
 class FABModel(Model):
@@ -90,14 +92,17 @@ class FABModel(Model):
     def get_iter_info(self) -> Dict[str, Any]:
         return self.annealed_importance_sampler.get_logging_info()
 
-    def get_eval_info(self, batch_size: int) -> Dict[str, Any]:
-        base_samples, base_log_probs, ais_samples, ais_log_w = \
-            self.annealed_importance_sampler.generate_eval_data(batch_size)
-        flow_info = self.target_distribution.performance_metrics(base_samples, base_log_probs,
-                                                     self.flow.log_prob)
+    def get_eval_info(self,
+                      outer_batch_size: int,
+                      inner_batch_size: int,
+                      ) -> Dict[str, Any]:
+        base_samples, base_log_w, ais_samples, ais_log_w = \
+            self.annealed_importance_sampler.generate_eval_data(outer_batch_size, inner_batch_size)
+        info = {"ess_flow": effective_sample_size(log_w=base_log_w, normalised=False),
+                "ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False)}
+        flow_info = self.target_distribution.performance_metrics(base_samples, base_log_w,
+                                                                 self.flow.log_prob)
         ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)
-        # TODO: complete - outer/inner batch size, ESS w.r.t flow and AIS samples
-        raise NotImplementedError
-
-
-
+        info.update(flow_info)
+        info.update(ais_info)
+        return info
