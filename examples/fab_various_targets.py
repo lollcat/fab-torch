@@ -17,15 +17,14 @@ def train_fab(
         batch_size: int = 128,
         n_iterations: int = 5000,
         n_plots: int = 10,
-        lr: float = 2e-4,
+        lr: float = 1e-3,
         transition_operator_type: str = "hmc",  # "metropolis",  "hmc",
         seed: int = 0,
-        n_flow_layers: int = 3,
+        n_flow_layers: int = 8,
         flow_lib: str = FLOW_LIBS[0],
         target_name: str = TARGET_NAMES[2],
 ) -> None:
     assert dim == 2, "currently the below plotting functions are only designed for 2 dim targets"
-    torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
     if flow_lib == "normflow":
         flow = make_wrapped_normflowdist(dim, n_flow_layers=n_flow_layers)
