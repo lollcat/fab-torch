@@ -17,7 +17,7 @@ def make_normflow_flow(dim: int,
         # Add flow layer
         flows.append(nf.flows.AffineCouplingBlock(param_map, scale_map="exp"))
         # Swap dimensions
-        flows.append(nf.flows.Permute(dim, mode='swap'))
+        flows.append(nf.flows.InvertibleAffine(dim))
         # ActNorm
         if act_norm:
             flows.append(nf.flows.ActNorm(dim))
