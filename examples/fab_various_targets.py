@@ -22,8 +22,9 @@ def train_fab(
         seed: int = 0,
         n_flow_layers: int = 3,
         flow_lib: str = FLOW_LIBS[0],
-        target_name: str = TARGET_NAMES[1],
+        target_name: str = TARGET_NAMES[2],
 ) -> None:
+    assert dim == 2, "currently the below plotting functions are only designed for 2 dim targets"
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
     if flow_lib == "normflow":

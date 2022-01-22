@@ -3,6 +3,7 @@ from fab.types_ import LogProbFunc
 
 import torch
 import torch.nn as nn
+from fab.target_distributions import TargetDistribution
 
 class Energy(torch.nn.Module):
     """
@@ -45,7 +46,7 @@ class DoubleWellEnergy(Energy, nn.Module):
         return torch.squeeze(-self.energy(x))
 
 
-class ManyWellEnergy(DoubleWellEnergy):
+class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
     """Many Well target distribution create by repeating the Double Well Boltzmann distribution."""
     def __init__(self, dim=4, use_gpu: bool = True, *args, **kwargs):
         assert dim % 2 == 0

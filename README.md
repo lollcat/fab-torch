@@ -10,8 +10,9 @@ pip install --upgrade .
 ```
 
 ## Examples
-See [double well boltzmann distribution notebook](examples/double_well.ipynb) and [GMM 
-target distribution notebook](examples/GMM.ipynb)
+See [double well boltzmann distribution notebook](examples/double_well.ipynb), a [GMM 
+target distribution notebook](examples/gmm.ipynb), and a 16 dimensional [Many Well example colab 
+notebook](https://github.com/lollcat/FAB-TORCH/blob/master/examples/many_well_16.ipynb)
 for visualised examples of training a normalising flow model.
 TBD: further description and plots for examples
 
