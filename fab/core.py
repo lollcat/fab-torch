@@ -46,7 +46,6 @@ class FABModel(Model):
         x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         x_ais = x_ais.detach()
         log_w_ais = log_w_ais.detach()
-        x_ais, log_w_ais = self._remove_nan_and_infs(x_ais, log_w_ais)
         # Estimate log_Z_N where N is the number of samples and Z is the target's normalisation
         # constant to adjust target log probability with. This is to keeping the learning stable
         # (so that we don't have an implicit Z or N constant in the loss that is dependant on the
@@ -68,26 +67,10 @@ class FABModel(Model):
         x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         x_ais = x_ais.detach()
         log_w_ais = log_w_ais.detach()
-        x_ais, log_w_ais = self._remove_nan_and_infs(x_ais, log_w_ais)
         log_Z_N = torch.logsumexp(log_w_ais, dim=0)
         log_w_AIS_normalised = log_w_ais - log_Z_N
         log_q_x = self.flow.log_prob(x_ais)
         return - torch.mean(torch.exp(log_w_AIS_normalised) * log_q_x)
-
-
-    def _remove_nan_and_infs(self, x_ais: torch.Tensor, log_w_ais: torch.Tensor) -> Tuple[
-        torch.Tensor, torch.Tensor]:
-        # first remove samples that have inf/nan log w
-        valid_indices = ~torch.isinf(log_w_ais) & ~torch.isnan(log_w_ais)
-        if torch.sum(valid_indices) == 0:  # no valid indices
-            raise Exception("No valid importance weights")
-        if valid_indices.all():
-            pass
-        else:
-            print(f"{torch.sum(~valid_indices)} nan/inf weights")
-            log_w_ais = log_w_ais[valid_indices]
-            x_ais = x_ais[valid_indices, :]
-        return x_ais, log_w_ais
 
     def get_iter_info(self) -> Dict[str, Any]:
         return self.annealed_importance_sampler.get_logging_info()
