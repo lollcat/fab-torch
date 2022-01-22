@@ -123,7 +123,7 @@ class HamiltoneanMonteCarlo(nn.Module, TransitionOperator):
             p = -p
 
             U_current = U(current_q)
-            U_proposed = torch.nan_to_num(U(q))
+            U_proposed = U(q)
             current_K = torch.sum(current_p**2, dim=-1) / 2
             proposed_K = torch.sum(p**2, dim=-1) / 2
 
@@ -131,7 +131,10 @@ class HamiltoneanMonteCarlo(nn.Module, TransitionOperator):
             # end of the trajectory or the initial position
             acceptance_probability = torch.exp(U_current - U_proposed + current_K - proposed_K)
             # reject samples with nan acceptance probability
-            acceptance_probability = torch.nan_to_num(acceptance_probability, nan=0.0, posinf=0.0, neginf=0.0)
+            acceptance_probability = torch.nan_to_num(acceptance_probability,
+                                                      nan=0.0,
+                                                      posinf=0.0,
+                                                      neginf=0.0)
             acceptance_probability = torch.clamp(acceptance_probability, min=0.0, max=1.0)
             accept = acceptance_probability > torch.rand(acceptance_probability.shape).to(q.device)
             current_q[accept] = q[accept]
