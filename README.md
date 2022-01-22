@@ -14,7 +14,12 @@ See [double well boltzmann distribution notebook](examples/double_well.ipynb), a
 target distribution notebook](examples/gmm.ipynb), and a 16 dimensional [Many Well example colab 
 notebook](https://github.com/lollcat/FAB-TORCH/blob/master/examples/many_well_16.ipynb)
 for visualised examples of training a normalising flow model.
-TBD: further description and plots for examples
+
+**Double Well Boltzmann distribution samples vs contours**
+![Double Well samples vs contours](./examples/images/double_well_samples_vs_contours.png)
+
+**Gaussian Mixture Model samples vs contours**
+![Gaussian Mixture Model samples vs contours](./examples/images/gmm_samples_vs_contours.png)
 
 
 ## About the code 
