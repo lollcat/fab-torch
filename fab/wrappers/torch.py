@@ -18,3 +18,6 @@ class WrappedTorchDist(Distribution):
 
     def log_prob(self, x: torch.Tensor) -> torch.Tensor:
         return self._torch_dist.log_prob(x)
+
+    def event_shape(self) -> Tuple[int, ...]:
+        return self._torch_dist.event_shape

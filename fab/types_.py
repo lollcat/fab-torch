@@ -34,17 +34,21 @@ class Model(object):
     def loss(self, batch_size: int) -> torch.Tensor:
         raise NotImplementedError
 
+
     def get_iter_info(self) -> Mapping[str, Any]:
         """Return information from latest loss iteration, for use in logging."""
         raise NotImplementedError
 
-    def eval(self) -> Mapping[str, Any]:
+    def get_eval_info(self, outer_batch_size: int, inner_batch_size: int) -> Mapping[str, Any]:
         """Evaluate the model at the current point in training. This is useful for more expensive
         evaluation metrics than what is computed in get_iter_info."""
+        raise NotImplementedError
 
+    @abc.abstractmethod
     def parameters(self) -> Iterator[torch.nn.Parameter]:
         """Returns the tunable parameters of the model for use inside the train loop. This is
         required for gradient norm clipping."""
+
 
     def save(self):
         raise NotImplementedError
