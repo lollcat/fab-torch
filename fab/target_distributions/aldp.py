@@ -20,7 +20,7 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
         """
         Boltzmann distribution of Alanine dipeptide
         :param data_path: Path to the trajectory file used to initialize the
-        transformation, if None, a trajectory is generated
+            transformation, if None, a trajectory is generated
         :type data_path: String
         :param temperature: Temperature of the system
         :type temperature: Integer
@@ -29,7 +29,7 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
         :param energy_max: Maximum energy allowed, higher energies are cut
         :type energy_max: Float
         :param n_threads: Number of threads used to evaluate the log
-        probability for batches
+            probability for batches
         :type n_threads: Integer
         """
         super(AldpBoltzmann, self).__init__()
@@ -112,3 +112,6 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
 
     def log_prob(self, x: torch.tensor):
         return self.p.log_prob(x)
+
+    def performance_metrics(self, samples, log_w, log_q_fn=None):
+        return {}
