@@ -1,13 +1,17 @@
+import os
 import torch
 import numpy as np
 
 import mdtraj
+import matplotlib as mpl
 from matplotlib import pyplot as plt
+from openmmtools.testsystems import AlanineDipeptideVacuum
 
 
 
-def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
-                 save_path=None, data_path='.'):
+def evaluateAldp(z_sample, z_test, log_prob, transform,
+                 iter, metric_dir=None, plot_dir=None,
+                 batch_size=1000):
     """
     Evaluate model of the Boltzmann distribution of the Alanine
     Dipeptide
@@ -20,81 +24,38 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
     :param data_path: String, path to data used for transform init
     :return: KL divergences
     """
-    # Set params for transform
-    ndim = 66
-    z_matrix = [
-        (0, [1, 4, 6]),
-        (1, [4, 6, 8]),
-        (2, [1, 4, 0]),
-        (3, [1, 4, 0]),
-        (4, [6, 8, 14]),
-        (5, [4, 6, 8]),
-        (7, [6, 8, 4]),
-        (11, [10, 8, 6]),
-        (12, [10, 8, 11]),
-        (13, [10, 8, 11]),
-        (15, [14, 8, 16]),
-        (16, [14, 8, 6]),
-        (17, [16, 14, 15]),
-        (18, [16, 14, 8]),
-        (19, [18, 16, 14]),
-        (20, [18, 16, 19]),
-        (21, [18, 16, 19])
-    ]
-    cart_indices = [6, 8, 9, 10, 14]
-
-    # Load data for transform
-    # Load the alanine dipeptide trajectory
-    traj = mdtraj.load(data_path)
-    traj.center_coordinates()
-
-    # superpose on the backbone
-    ind = traj.top.select("backbone")
-
-    traj.superpose(traj, 0, atom_indices=ind, ref_atom_indices=ind)
-
-    # Gather the training data into a pytorch Tensor with the right shape
-    training_data = traj.xyz
-    n_atoms = training_data.shape[1]
-    n_dim = n_atoms * 3
-    training_data_npy = training_data.reshape(-1, n_dim)
-    training_data = torch.from_numpy(training_data_npy.astype("float64"))
-
-    # Set up transform
-    transform = bg.flows.CoordinateTransform(training_data, ndim,
-                                             z_matrix, cart_indices)
-
-    # Get test data
-    z_d_np = test_data.cpu().data.numpy()
+    # Determine likelihood of test data and transform it
+    z_d_np = z_test.cpu().data.numpy()
     x_d_np = np.zeros((0, 66))
-
-    # Determine likelihood of test data
     log_p_sum = 0
-    model_device = model.q0.loc.device
-    for i in range(int(np.floor((len(test_data) - 1) / n_samples))):
-        z = test_data[(i * n_samples):((i + 1) * n_samples), :]
+    n_batches = int(np.ceil(len(z_test) / batch_size))
+    for i in range(n_batches):
+        if i == n_batches - 1:
+            end = len(z_test)
+        else:
+            end = (i + 1) * batch_size
+        z = z_test[(i * batch_size):end, :]
         x, log_det = transform(z.cpu().double())
         x_d_np = np.concatenate((x_d_np, x.data.numpy()))
-        log_p = model.log_prob(z.to(model_device))
+        log_p = log_prob(z)
         log_p_sum = log_p_sum + torch.sum(log_p).detach() - torch.sum(log_det).detach().float()
-    z = test_data[((i + 1) * n_samples):, :]
-    x, log_det = transform(z.cpu().double())
-    x_d_np = np.concatenate((x_d_np, x.data.numpy()))
-    log_p = model.log_prob(z.to(model_device))
-    log_p_sum = log_p_sum + torch.sum(log_p).detach() - torch.sum(log_det).detach().float()
-    log_p_avg = log_p_sum.cpu().data.numpy() / len(test_data)
+    log_p_avg = log_p_sum.cpu().data.numpy() / len(z_test)
 
-    # Draw samples
-
+    # Transform samples
     z_np = np.zeros((0, 60))
     x_np = np.zeros((0, 66))
-
+    n_batches = int(np.ceil(len(z_sample) / batch_size))
     for i in range(n_batches):
-        z, _ = model.sample(n_samples)
+        if i == n_batches - 1:
+            end = len(z_sample)
+        else:
+            end = (i + 1) * batch_size
+        z = z_test[(i * batch_size):end, :]
         x, _ = transform(z.cpu().double())
         x_np = np.concatenate((x_np, x.data.numpy()))
         z, _ = transform.inverse(x)
         z_np = np.concatenate((z_np, z.data.numpy()))
+
 
     # Estimate density of marginals
     nbins = 200
@@ -130,8 +91,10 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
     kld_dih = kld_[dih_ind]
 
     # Compute Ramachandran plot angles
-    test_traj = mdtraj.Trajectory(x_d_np.reshape(-1, 22, 3), traj.top)
-    sampled_traj = mdtraj.Trajectory(x_np.reshape(-1, 22, 3), traj.top)
+    aldp = AlanineDipeptideVacuum(constraints=None)
+    topology = mdtraj.Topology.from_openmm(aldp.topology)
+    test_traj = mdtraj.Trajectory(x_d_np.reshape(-1, 22, 3), topology)
+    sampled_traj = mdtraj.Trajectory(x_np.reshape(-1, 22, 3), topology)
     psi_d = mdtraj.compute_psi(test_traj)[1].reshape(-1)
     psi_d[np.isnan(psi_d)] = 0
     phi_d = mdtraj.compute_phi(test_traj)[1].reshape(-1)
@@ -151,8 +114,59 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
     kld_ram = np.mean(hist_ram_test / len(phi) * np.log(hist_ram_test + eps_ram)
                       / np.log(hist_ram_gen + eps_ram))
 
+    # Save metrics
+    if metric_dir is not None:
+        # Calculate and save KLD stats of marginals
+        kld = (kld_cart, kld_bond, kld_angle, kld_dih)
+        kld_ = np.concatenate(kld)
+        kld_append = np.array([[iter + 1, np.median(kld_), np.mean(kld_)]])
+        kld_path = os.path.join(metric_dir, 'kld.csv')
+        if os.path.exists(kld_path):
+            kld_hist = np.loadtxt(kld_path, skiprows=1, delimiter=',')
+            kld_hist = np.concatenate([kld_hist, kld_append])
+        else:
+            kld_hist = kld_append
+        np.savetxt(kld_path, kld_hist, delimiter=',',
+                   header='it,kld_median,kld_mean', comments='')
+        kld_labels = ['cart', 'bond', 'angle', 'dih']
+        for kld_label, kld_ in zip(kld_labels, kld):
+            kld_append = np.concatenate([np.array([iter + 1, np.median(kld_), np.mean(kld_)]), kld_])
+            kld_path = os.path.join(metric_dir, 'kld_' + kld_label + '.csv')
+            if os.path.exists(kld_path):
+                kld_hist = np.loadtxt(kld_path, skiprows=1, delimiter=',')
+                kld_hist = np.concatenate([kld_hist, kld_append])
+            else:
+                kld_hist = kld_append
+            header = 'it,kld_median,kld_mean'
+            for kld_ind in range(len(kld_)):
+                header += ',kld' + str(kld_ind)
+            np.savetxt(kld_path, kld_hist, delimiter=',',
+                       header=header, comments='')
+
+        # Save KLD of Ramachandran and log_p
+        kld_path = os.path.join(metric_dir, 'kld_ram.csv')
+        kld_append = np.array([[iter + 1, kld_ram]])
+        if os.path.exists(kld_path):
+            kld_hist = np.loadtxt(kld_path, skiprows=1, delimiter=',')
+            kld_hist = np.concatenate([kld_hist, kld_append])
+        else:
+            kld_hist = kld_append
+        np.savetxt(kld_path, kld_hist, delimiter=',',
+                   header='it,kld', comments='')
+
+        # Save log probability
+        log_p_append = np.array([[iter + 1, log_p_avg]])
+        log_p_path = os.path.join(metric_dir, 'log_p_test.csv')
+        if os.path.exists(log_p_path):
+            log_p_hist = np.loadtxt(log_p_path, skiprows=1, delimiter=',')
+            log_p_hist = np.concatenate([log_p_hist, log_p_append])
+        else:
+            log_p_hist = log_p_append
+        np.savetxt(log_p_path, log_p_hist, delimiter=',',
+                   header='it,log_p', comments='')
+
     # Create plots
-    if save_path is not None:
+    if plot_dir is not None:
         # Histograms of the groups
         hists_test_cart = hists_test[:, :(3 * ncarts - 6)]
         hists_test_ = np.concatenate([hists_test[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
@@ -183,7 +197,8 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
             for j in range(hists_test_list[i].shape[1]):
                 ax[j // 3, j % 3].plot(x, hists_test_list[i][:, j])
                 ax[j // 3, j % 3].plot(x, hists_gen_list[i][:, j])
-            plt.savefig(save_path + '_marginals_' + label[i] + '.png', dpi=300)
+            plt.savefig(os.path.join(plot_dir, 'marginals_' + label[i] + '_' + str(iter) + '.png'),
+                        dpi=300)
             plt.close()
 
         # Ramachandran plot
@@ -193,10 +208,6 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
         plt.yticks(fontsize=20)
         plt.xlabel('$\phi$', fontsize=24)
         plt.ylabel('$\psi$', fontsize=24)
-        plt.savefig(save_path + '_ramachandran.png', dpi=300)
+        plt.savefig(os.path.join(plot_dir, 'ramachandran_' + str(iter) + '.png'),
+                    dpi=300)
         plt.close()
-
-    # Remove variables
-    del x, z, transform, training_data
-
-    return ((kld_cart, kld_bond, kld_angle, kld_dih), kld_ram, log_p_avg)
