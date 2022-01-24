@@ -1,24 +1,22 @@
+from typing import Tuple
+
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
 from fab.sampling_methods import AnnealedImportanceSampler, Metropolis, HamiltoneanMonteCarlo
 from fab.utils.logging import ListLogger
-from fab.target_distributions.gmm import GMM
+from fab.target_distributions import GMM, TargetDistribution
 from fab.wrappers.torch import WrappedTorchDist
 from fab.utils.plotting import plot_history
 
-
-def test_ais(dim: int = 2,
+def setup_ais(dim: int = 2,
             n_ais_intermediate_distributions: int = 40,
-            n_iterations: int = 40,
-            batch_size: int = 1000,
             seed: int = 0,
             transition_operator_type: str = "hmc",
-             ) -> None:
+             ) -> Tuple[AnnealedImportanceSampler, TargetDistribution]:
     # set up key objects
     torch.manual_seed(seed)
-    logger = ListLogger()
     target = GMM(dim=dim, n_mixes=4, loc_scaling=8)
     base_dist = WrappedTorchDist(torch.distributions.MultivariateNormal(loc=torch.zeros(dim),
                                                                  scale_tril=3*torch.eye(dim)))
@@ -39,6 +37,40 @@ def test_ais(dim: int = 2,
                                     transition_operator=transition_operator,
                                     n_intermediate_distributions=n_ais_intermediate_distributions,
                                     )
+    return ais, target
+
+
+def test_ais__eval_batch(
+        outer_batch_size: int = 100,
+        inner_batch_size: int = 100,
+        dim: int = 2,
+        n_ais_intermediate_distributions: int = 40,
+        seed: int = 0,
+        transition_operator_type: str = "hmc",
+             ):
+    ais, _ = setup_ais(dim=dim, n_ais_intermediate_distributions=n_ais_intermediate_distributions,
+                    seed=seed, transition_operator_type=transition_operator_type)
+    base_samples, base_log_w, ais_samples, ais_log_w = ais.generate_eval_data(outer_batch_size,
+                                                                              inner_batch_size)
+    assert base_samples.shape == (outer_batch_size, dim)
+    assert ais_samples.shape == (outer_batch_size, dim)
+    assert base_log_w.shape == (outer_batch_size,)
+    assert ais_log_w.shape == (outer_batch_size, )
+
+
+
+def test_ais__overall(dim: int = 2,
+            n_ais_intermediate_distributions: int = 40,
+            n_iterations: int = 40,
+            batch_size: int = 1000,
+            seed: int = 0,
+            transition_operator_type: str = "hmc",
+             ) -> None:
+    ais, target = setup_ais(dim=dim,
+                          n_ais_intermediate_distributions=n_ais_intermediate_distributions,
+                    seed=seed, transition_operator_type=transition_operator_type)
+    logger = ListLogger()
+
     # set up plotting
     n_plots = 4
     n_plots_total = n_plots + 2
@@ -51,14 +83,14 @@ def test_ais(dim: int = 2,
     axs[plot_index].plot(true_samples[:, 0], true_samples[:, 1], "o", alpha=0.5)
     axs[plot_index].set_title("target samples")
 
-    sampler_samples = base_dist.sample((batch_size,)).cpu().detach()
+    sampler_samples = ais.base_distribution.sample((batch_size,)).cpu().detach()
     plot_index = next(plot_number_iterator)
     plotting_iterations = list(np.linspace(0, n_iterations-1, n_plots, dtype="int"))
     axs[plot_index].plot(sampler_samples[:, 0], sampler_samples[:, 1], "o", alpha=0.5)
     axs[plot_index].set_title("base samples")
 
     # estimate performance metrics over base distribution
-    x, log_w = base_dist.sample_and_log_prob((batch_size,))
+    x, log_w = ais.base_distribution.sample_and_log_prob((batch_size,))
     performance_metrics = target.performance_metrics(x, log_w, n_batches_stat_aggregation=5)
     print(f"Performance metrics over base distribution {performance_metrics}")
 

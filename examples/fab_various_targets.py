@@ -20,14 +20,14 @@ def train_fab(
         lr: float = 1e-3,
         transition_operator_type: str = "hmc",  # "metropolis",  "hmc",
         seed: int = 0,
-        n_flow_layers: int = 3,
+        n_flow_layers: int = 8,
         flow_lib: str = FLOW_LIBS[0],
         target_name: str = TARGET_NAMES[2],
 ) -> None:
-    torch.set_default_dtype(torch.float64)
+    assert dim == 2, "currently the below plotting functions are only designed for 2 dim targets"
     torch.manual_seed(seed)
     if flow_lib == "normflow":
-        flow = make_wrapped_normflowdist(dim)
+        flow = make_wrapped_normflowdist(dim, n_flow_layers=n_flow_layers)
     elif flow_lib == "nflows":
         flow = make_wrapped_nflows_dist(dim, n_flow_layers=n_flow_layers)
     else:
@@ -36,16 +36,22 @@ def train_fab(
     if target_name == "TwoMoons":
         target = nf.distributions.target.TwoMoons()
         plotting_bounds = (-5, 5)
+        n_eval = None
+        eval_batch_size = None
         assert dim == 2
     elif target_name == "GMM":
         from fab.target_distributions import GMM
         target = GMM(dim, n_mixes=5, min_cov=1, loc_scaling=5)
         plotting_bounds = (-20, 20)
+        n_eval = 100
+        eval_batch_size = batch_size * 10
     elif target_name == "ManyWell":
         from fab.target_distributions import ManyWellEnergy
         assert dim % 2 == 0
         target = ManyWellEnergy(dim, a=-0.5, b=-6)
         plotting_bounds = (-3, 3)
+        n_eval = 100
+        eval_batch_size = batch_size * 10
     else:
         raise NotImplementedError
 
@@ -55,7 +61,7 @@ def train_fab(
         transition_operator = HamiltoneanMonteCarlo(
             n_ais_intermediate_distributions=n_intermediate_distributions,
             n_outer=1,
-            epsilon=1.0, L=2, dim=dim,
+            epsilon=1.0, L=5, dim=dim,
             step_tuning_method="p_accept")
     elif transition_operator_type == "metropolis":
         transition_operator = Metropolis(n_transitions=n_intermediate_distributions,
@@ -104,7 +110,8 @@ def train_fab(
     # Create trainer
     trainer = Trainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
                       optim_schedular=scheduler)
-    trainer.run(n_iterations=n_iterations, batch_size=batch_size, n_plot=n_plots)
+    trainer.run(n_iterations=n_iterations, batch_size=batch_size, n_plot=n_plots,
+                n_eval=n_eval, eval_batch_size=eval_batch_size)
 
     plot_history(logger.history)
     plt.show()

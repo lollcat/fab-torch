@@ -1,3 +1,6 @@
+from typing import Optional, Dict
+from fab.types_ import LogProbFunc
+
 import torch
 import torch.nn as nn
 from fab.target_distributions.base import TargetDistribution
@@ -9,11 +12,13 @@ import numpy as np
 class GMM(nn.Module, TargetDistribution):
     # mog with random mean and var
     def __init__(self, dim: int = 2, n_mixes: int = 5,
-                 min_cov: float = 0.5, loc_scaling: float = 3.0, diagonal_covariance=True,
-                 cov_scaling=1.0, uniform_component_probs = False):
+                 min_cov: float = 0.5, loc_scaling: float = 3.0, diagonal_covariance: bool = True,
+                 cov_scaling: float = 1.0, uniform_component_probs: bool = False,
+                 n_test_set_samples: int = 1000):
         super(GMM, self).__init__()
         self.dim = dim
         self.n_mixes = n_mixes
+        self.n_test_set_samples = n_test_set_samples
         self.distributions = []
         locs = []
         scale_trils = []
@@ -40,8 +45,9 @@ class GMM(nn.Module, TargetDistribution):
         self.register_buffer("scale_trils", scale_trils)
         self.distribution = self.get_distribution
         self.expectation_function = quadratic_function
-        self.true_expectation = MC_estimate_true_expectation(self, self.expectation_function, int(1e6)).item()
-        print(f"true expectation is {self.true_expectation}")
+        self.true_expectation = MC_estimate_true_expectation(self,
+                                                             self.expectation_function,
+                                                             int(1e6)).item()
 
     def to(self, device):
         super(GMM, self).to(device)
@@ -50,7 +56,7 @@ class GMM(nn.Module, TargetDistribution):
     @property
     def get_distribution(self):
         mix = torch.distributions.Categorical(self.cat_probs)
-        com = torch.distributions.MultivariateNormal(self.locs, scale_tril=self.scale_trils)
+        com = torch.distributions.MultivariateNormal(self.locs, scale_tril=self.scale_trils, )
         return torch.distributions.MixtureSameFamily(mixture_distribution=mix,
                                                      component_distribution=com)
 
@@ -60,22 +66,20 @@ class GMM(nn.Module, TargetDistribution):
     def sample(self, shape=(1,)):
         return self.distribution.sample(shape)
 
-    @torch.no_grad()
-    def performance_metrics(self, x_samples, log_w,
-                            n_batches_stat_aggregation=10):
-        samples_per_batch = x_samples.shape[0] // n_batches_stat_aggregation
-        expectations = []
-        for i, batch_number in enumerate(range(n_batches_stat_aggregation)):
-            if i != n_batches_stat_aggregation - 1:
-                log_w_batch = log_w[batch_number * samples_per_batch:(batch_number + 1) * samples_per_batch]
-                x_samples_batch = x_samples[batch_number * samples_per_batch:(batch_number + 1) * samples_per_batch]
-            else:
-                log_w_batch = log_w[batch_number * samples_per_batch:]
-                x_samples_batch = x_samples[batch_number * samples_per_batch:]
-            expectation = importance_weighted_expectation(self.expectation_function,
-                                                             x_samples_batch, log_w_batch).item()
-            expectations.append(expectation)
-        bias_normed = np.abs(np.mean(expectations) - self.true_expectation) / self.true_expectation
-        std_normed = np.std(expectations) / self.true_expectation
-        summary_dict = {"bias_normed": bias_normed, "std_normed": std_normed}
+    @property
+    def test_set(self) -> torch.Tensor:
+        return self.sample((self.n_test_set_samples, ))
+
+
+    def performance_metrics(self, samples: torch.Tensor, log_w: torch.Tensor,
+                            log_q_fn: Optional[LogProbFunc] = None) -> Dict:
+        expectation = importance_weighted_expectation(self.expectation_function,
+                                                         samples, log_w)
+        bias_normed = np.abs(expectation - self.true_expectation) / self.true_expectation
+        if log_q_fn:
+            test_mean_log_prob = torch.mean(log_q_fn(self.test_set))
+            summary_dict = {"test_set_mean_log_prob": test_mean_log_prob.item(),
+                            "bias_normed": bias_normed.item()}
+        else:
+            summary_dict = {"bias_normed": bias_normed.item()}
         return summary_dict

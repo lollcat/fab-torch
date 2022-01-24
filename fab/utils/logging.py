@@ -22,25 +22,31 @@ class Logger(abc.ABC):
 class ListLogger(Logger):
     """Manually save the data to the class in a dict. Currently only supports scalar history
     inputs."""
-
-    history: Dict[str, List[Union[np.ndarray, float, int]]] = {}
-    initialised = False
+    def __init__(self):
+        self.history: Dict[str, List[Union[np.ndarray, float, int]]] = {}
+        self.print_warning: bool = False
 
     def write(self, data: LoggingData) -> None:
-        if not self.initialised:
-            # first iteration we run checks and instantiate lists within for each key
-            for key, value in data.items():
+        for key, value in data.items():
+            if key in self.history:
+                try:
+                    value = float(value)
+                except:
+                    pass
+                self.history[key].append(value)
+            else:  # add key to history for the first time
                 if isinstance(value, np.ndarray):
                     assert np.size(value) == 1
                     value = float(value)
                 else:
-                    assert isinstance(value, float) or isinstance(value, int)
+                    if isinstance(value, float) or isinstance(value, int):
+                        pass
+                    else:
+                        if not self.print_warning:
+                            print("non numeric history values being saved")
+                            self.print_warning = True
                 self.history[key] = [value]
-            self.initialised = True
-        else:
-            for key, value in data.items():
-                value = float(value)
-                self.history[key].append(value)
 
     def close(self) -> None:
         del self
+

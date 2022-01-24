@@ -1,11 +1,13 @@
 from typing import Optional, Dict, Any, Tuple
+import torch
 
 from fab.types_ import Model
 from fab.target_distributions.base import TargetDistribution
 from fab.sampling_methods import AnnealedImportanceSampler, HamiltoneanMonteCarlo, \
     TransitionOperator
 from fab.trainable_distributions import TrainableDistribution
-import torch
+from fab.utils.numerical import effective_sample_size
+
 
 
 class FABModel(Model):
@@ -44,7 +46,6 @@ class FABModel(Model):
         x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         x_ais = x_ais.detach()
         log_w_ais = log_w_ais.detach()
-        x_ais, log_w_ais = self._remove_nan_and_infs(x_ais, log_w_ais)
         # Estimate log_Z_N where N is the number of samples and Z is the target's normalisation
         # constant to adjust target log probability with. This is to keeping the learning stable
         # (so that we don't have an implicit Z or N constant in the loss that is dependant on the
@@ -66,33 +67,25 @@ class FABModel(Model):
         x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         x_ais = x_ais.detach()
         log_w_ais = log_w_ais.detach()
-        x_ais, log_w_ais = self._remove_nan_and_infs(x_ais, log_w_ais)
         log_Z_N = torch.logsumexp(log_w_ais, dim=0)
         log_w_AIS_normalised = log_w_ais - log_Z_N
         log_q_x = self.flow.log_prob(x_ais)
-        return - torch.sum(torch.exp(log_w_AIS_normalised) * log_q_x)
-
-
-    def _remove_nan_and_infs(self, x_ais: torch.Tensor, log_w_ais: torch.Tensor) -> Tuple[
-        torch.Tensor, torch.Tensor]:
-        # first remove samples that have inf/nan log w
-        valid_indices = ~torch.isinf(log_w_ais) & ~torch.isnan(log_w_ais)
-        if torch.sum(valid_indices) == 0:  # no valid indices
-            raise Exception("No valid importance weights")
-        if valid_indices.all():
-            pass
-        else:
-            print(f"{torch.sum(~valid_indices)} nan/inf weights")
-            log_w_ais = log_w_ais[valid_indices]
-            x_ais = x_ais[valid_indices, :]
-        return x_ais, log_w_ais
+        return - torch.mean(torch.exp(log_w_AIS_normalised) * log_q_x)
 
     def get_iter_info(self) -> Dict[str, Any]:
         return self.annealed_importance_sampler.get_logging_info()
 
-    def get_eval_info(self) -> Dict[str, Any]:
-        # TODO: big batch effective sample size, metrics from target.
-        raise NotImplementedError
-
-
-
+    def get_eval_info(self,
+                      outer_batch_size: int,
+                      inner_batch_size: int,
+                      ) -> Dict[str, Any]:
+        base_samples, base_log_w, ais_samples, ais_log_w = \
+            self.annealed_importance_sampler.generate_eval_data(outer_batch_size, inner_batch_size)
+        info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w, normalised=False),
+                "eval_ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False)}
+        flow_info = self.target_distribution.performance_metrics(base_samples, base_log_w,
+                                                                 self.flow.log_prob)
+        ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)
+        info.update(flow_info)
+        info.update(ais_info)
+        return info

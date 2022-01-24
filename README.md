@@ -10,9 +10,20 @@ pip install --upgrade .
 ```
 
 ## Examples
-See [notebook](examples/double_well.ipynb) and [code](examples/fab_various_targets.py) for 
-visualised training of a  normalising flow model for various target distributions.
-TBD: further description and plots for examples
+For visualised examples of training a normalising flow model with FAB see:
+ - Double Well Boltzmann distribution [notebook](examples/double_well.ipynb), a GMM 
+target distribution [notebook](examples/gmm.ipynb) for simple 2D problems that can be run in a few
+minutes locally. 
+ - 16 dimensional Many Well Boltzmann distribution example 
+   [colab notebook](https://github.com/lollcat/FAB-TORCH/blob/master/examples/many_well_16.ipynb) 
+   for a more challenging target distribution (256 modes). We recommend running this with GPU 
+   turned on.
+
+**Double Well Boltzmann distribution samples vs contours**
+![Double Well samples vs contours](./examples/images/double_well_samples_vs_contours.png)
+
+**Gaussian Mixture Model samples vs contours**
+![Gaussian Mixture Model samples vs contours](./examples/images/gmm_samples_vs_contours.png)
 
 
 ## About the code 
