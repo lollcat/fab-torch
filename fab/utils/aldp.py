@@ -13,16 +13,20 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
                  iter, metric_dir=None, plot_dir=None,
                  batch_size=1000):
     """
-    Evaluate model of the Boltzmann distribution of the Alanine
-    Dipeptide
-    :param model: Model to be evaluated
-    :param test_data: Torch array with test data
-    :param n_samples: Int, number of samples to draw per batch
-    :param n_batches: Int, number of batches to sample
-    :param save_path: String, path where to save plots of marginals,
-    if none plots are not created
-    :param data_path: String, path to data used for transform init
-    :return: KL divergences
+    Evaluate model of the Boltzmann distribution of the
+    Alanine Dipeptide
+    :param z_sample: Samples from the model
+    :param z_test: Test data
+    :param log_prob: Function to evaluate the log
+    probability
+    :param transform: Coordinate transformation
+    :param iter: Current iteration count used for
+    labeling of the generated files
+    :param metric_dir: Directory where to store
+    evaluation metrics
+    :param plot_dir: Directory where to store plots
+    :param batch_size: Batch size when processing
+    the data
     """
     # Determine likelihood of test data and transform it
     z_d_np = z_test.cpu().data.numpy()
@@ -185,8 +189,10 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         hists_gen_dih = hists_gen_[:, dih_ind]
 
         label = ['cart', 'bond', 'angle', 'dih']
-        hists_test_list = [hists_test_cart, hists_test_bond, hists_test_angle, hists_test_dih]
-        hists_gen_list = [hists_gen_cart, hists_gen_bond, hists_gen_angle, hists_gen_dih]
+        hists_test_list = [hists_test_cart, hists_test_bond,
+                           hists_test_angle, hists_test_dih]
+        hists_gen_list = [hists_gen_cart, hists_gen_bond,
+                          hists_gen_angle, hists_gen_dih]
         x = np.linspace(*hist_range, nbins)
         for i in range(4):
             if i == 0:
