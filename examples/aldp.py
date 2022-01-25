@@ -4,7 +4,6 @@ import os
 import torch
 import numpy as np
 
-import boltzgen as bg
 import normflow as nf
 
 from time import time
@@ -36,6 +35,10 @@ args = parser.parse_args()
 
 # Load config
 config = load_config(args.config)
+
+# Precision
+if args.precision == 'double':
+    torch.set_default_dtype(torch.float64)
 
 # Set seed
 if 'seed' in config['training'] and config['training']['seed'] is not None:
