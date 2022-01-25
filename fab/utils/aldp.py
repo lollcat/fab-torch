@@ -127,6 +127,8 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         kld_path = os.path.join(metric_dir, 'kld.csv')
         if os.path.exists(kld_path):
             kld_hist = np.loadtxt(kld_path, skiprows=1, delimiter=',')
+            if len(kld_hist.shape) == 1:
+                kld_hist = kld_hist[None, :]
             kld_hist = np.concatenate([kld_hist, kld_append])
         else:
             kld_hist = kld_append
@@ -138,6 +140,8 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
             kld_path = os.path.join(metric_dir, 'kld_' + kld_label + '.csv')
             if os.path.exists(kld_path):
                 kld_hist = np.loadtxt(kld_path, skiprows=1, delimiter=',')
+                if len(kld_hist.shape) == 1:
+                    kld_hist = kld_hist[None, :]
                 kld_hist = np.concatenate([kld_hist, kld_append])
             else:
                 kld_hist = kld_append
@@ -152,6 +156,8 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         kld_append = np.array([[iter + 1, kld_ram]])
         if os.path.exists(kld_path):
             kld_hist = np.loadtxt(kld_path, skiprows=1, delimiter=',')
+            if len(kld_hist.shape) == 1:
+                kld_hist = kld_hist[None, :]
             kld_hist = np.concatenate([kld_hist, kld_append])
         else:
             kld_hist = kld_append
@@ -163,6 +169,8 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         log_p_path = os.path.join(metric_dir, 'log_p_test.csv')
         if os.path.exists(log_p_path):
             log_p_hist = np.loadtxt(log_p_path, skiprows=1, delimiter=',')
+            if len(log_p_hist.shape) == 1:
+                log_p_hist = log_p_hist[None, :]
             log_p_hist = np.concatenate([log_p_hist, log_p_append])
         else:
             log_p_hist = log_p_append
