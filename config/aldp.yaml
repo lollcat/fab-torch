@@ -26,7 +26,7 @@ flow:                               # Properties of the flow model
   actnorm: True                     # Bool, flag whether to include an ActNorm layers
   mixing: affine                    # String, how features are mixed
   coupling: affine                  # String, can be affine or additive
-  scale_map: sigmoid
+  scale_map: sigmoid_inv
   hidden_layers: 2                  # Int, number of hidden layers of the NN in the coupling layers
   hidden_units: 64                  # Int, number of hidden units of the NN in the coupling layers
   init_zeros: True                  # Bool, flag whether to initialize last layer of NNs with zeros
