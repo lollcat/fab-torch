@@ -175,7 +175,7 @@ for it in range(start_iter, max_iter):
         optimizer.step()
 
     # Update Lipschitz constant if flows are residual
-    if model.flow_type == 'residual':
+    if flow_type == 'residual':
         nf.utils.update_lipschitz(model, 5)
 
     # Log loss
