@@ -137,6 +137,7 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         kld_labels = ['cart', 'bond', 'angle', 'dih']
         for kld_label, kld_ in zip(kld_labels, kld):
             kld_append = np.concatenate([np.array([iter + 1, np.median(kld_), np.mean(kld_)]), kld_])
+            kld_append = kld_append[None, :]
             kld_path = os.path.join(metric_dir, 'kld_' + kld_label + '.csv')
             if os.path.exists(kld_path):
                 kld_hist = np.loadtxt(kld_path, skiprows=1, delimiter=',')
@@ -211,7 +212,8 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
             for j in range(hists_test_list[i].shape[1]):
                 ax[j // 3, j % 3].plot(x, hists_test_list[i][:, j])
                 ax[j // 3, j % 3].plot(x, hists_gen_list[i][:, j])
-            plt.savefig(os.path.join(plot_dir, 'marginals_' + label[i] + '_' + str(iter) + '.png'),
+            plt.savefig(os.path.join(plot_dir, 'marginals_' + label[i]
+                                     + '_' + str(iter + 1) + '.png'),
                         dpi=300)
             plt.close()
 
@@ -222,6 +224,7 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         plt.yticks(fontsize=20)
         plt.xlabel('$\phi$', fontsize=24)
         plt.ylabel('$\psi$', fontsize=24)
-        plt.savefig(os.path.join(plot_dir, 'ramachandran_' + str(iter) + '.png'),
+        plt.savefig(os.path.join(plot_dir, 'ramachandran_'
+                                 + str(iter + 1) + '.png'),
                     dpi=300)
         plt.close()

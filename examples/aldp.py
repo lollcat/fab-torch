@@ -225,7 +225,7 @@ for it in range(start_iter, max_iter):
 
         # Evaluate model and save plots
         evaluateAldp(z_samples, test_data, model.flow.log_prob,
-                     target.coordinate_transform, it + 1, metric_dir=log_dir,
+                     target.coordinate_transform, it, metric_dir=log_dir,
                      plot_dir=plot_dir)
 
     # End job if necessary
