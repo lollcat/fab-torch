@@ -82,10 +82,10 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
 
     # Split KLD into groups
     ncarts = transform.mixed_transform.len_cart_inds
-    permute_inv = transform.mixed_transform.permute_inv
-    bond_ind = transform.mixed_transform.ic_transform.bond_indices
-    angle_ind = transform.mixed_transform.ic_transform.angle_indices
-    dih_ind = transform.mixed_transform.ic_transform.dih_indices
+    permute_inv = transform.mixed_transform.permute_inv.cpu().data.numpy()
+    bond_ind = transform.mixed_transform.ic_transform.bond_indices.cpu().data.numpy()
+    angle_ind = transform.mixed_transform.ic_transform.angle_indices.cpu().data.numpy()
+    dih_ind = transform.mixed_transform.ic_transform.dih_indices.cpu().data.numpy()
 
     kld_cart = kld[:(3 * ncarts - 6)]
     kld_ = np.concatenate([kld[:(3 * ncarts - 6)], np.zeros(6), kld[(3 * ncarts - 6):]])
