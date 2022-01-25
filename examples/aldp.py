@@ -11,6 +11,7 @@ from time import time
 from fab.utils.training import load_config
 from fab.target_distributions import AldpBoltzmann
 from fab import FABModel
+from fab.wrappers.normflow import WrappedNormFlowModel
 from fab.sampling_methods.transition_operators import HamiltoneanMonteCarlo, Metropolis
 from fab.utils.aldp import evaluateAldp
 
@@ -87,6 +88,7 @@ else:
     raise NotImplementedError('The base distribution ' + config['flow']['base']['type']
                               + ' is not implemented')
 flow = nf.NormalizingFlow(base, layers)
+wrapped_flow = WrappedNormFlowModel(flow)
 
 # Transition operator
 if config['fab']['transition_type'] == 'hmc':
@@ -108,7 +110,7 @@ target = AldpBoltzmann(data_path=config['data']['transform'],
                        n_threads=config['system']['n_threads'])
 
 # FAB model
-model = FABModel(flow=flow,
+model = FABModel(flow=wrapped_flow,
                  target_distribution=target,
                  n_intermediate_distributions=config['fab']['n_int_dist'],
                  transition_operator=transition_operator)
