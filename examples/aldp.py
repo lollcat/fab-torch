@@ -218,10 +218,9 @@ for it in range(start_iter, max_iter):
                 ns = ((eval_samples - 1) % batch_size) + 1
             else:
                 ns = batch_size
-            with torch.no_grad():
-                z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
-                                                                              logging=False)[0]
-                z_samples = torch.concat((z_samples, z_.detach()))
+            z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
+                                                                          logging=False)[0]
+            z_samples = torch.concat((z_samples, z_.detach()))
 
         # Evaluate model and save plots
         evaluateAldp(z_samples, test_data, model.flow.log_prob,
