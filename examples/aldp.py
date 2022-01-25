@@ -27,7 +27,7 @@ parser.add_argument("--tlimit", type=float, default=None,
                     help='Number of hours after which to stop training')
 parser.add_argument('--mode', type=str, default='gpu',
                     help='Compute mode, can be cpu, or gpu')
-parser.add_argument('--precision', type=str, default='float',
+parser.add_argument('--precision', type=str, default='double',
                     help='Precision to be used for computation, '
                          'can be float, double, or mixed')
 
