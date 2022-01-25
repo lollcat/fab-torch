@@ -39,8 +39,8 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         else:
             end = (i + 1) * batch_size
         z = z_test[(i * batch_size):end, :]
-        x, log_det = transform(z.cpu().double())
-        x_d_np = np.concatenate((x_d_np, x.data.numpy()))
+        x, log_det = transform(z.double())
+        x_d_np = np.concatenate((x_d_np, x.cpu().data.numpy()))
         log_p = log_prob(z)
         log_p_sum = log_p_sum + torch.sum(log_p).detach() - torch.sum(log_det).detach().float()
     log_p_avg = log_p_sum.cpu().data.numpy() / len(z_test)
@@ -55,10 +55,10 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         else:
             end = (i + 1) * batch_size
         z = z_test[(i * batch_size):end, :]
-        x, _ = transform(z.cpu().double())
-        x_np = np.concatenate((x_np, x.data.numpy()))
+        x, _ = transform(z.double())
+        x_np = np.concatenate((x_np, x.cpu().data.numpy()))
         z, _ = transform.inverse(x)
-        z_np = np.concatenate((z_np, z.data.numpy()))
+        z_np = np.concatenate((z_np, z.cpu().data.numpy()))
 
 
     # Estimate density of marginals

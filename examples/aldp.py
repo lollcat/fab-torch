@@ -212,7 +212,7 @@ for it in range(start_iter, max_iter):
         """
 
         # Draw samples
-        z_samples = torch.zeros(0, 1)
+        z_samples = torch.zeros(0, 1).to(device)
         for i in range(eval_batches):
             if i == eval_batches - 1:
                 ns = ((eval_samples - 1) % batch_size) + 1
