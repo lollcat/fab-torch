@@ -88,7 +88,7 @@ else:
     raise NotImplementedError('The base distribution ' + config['flow']['base']['type']
                               + ' is not implemented')
 flow = nf.NormalizingFlow(base, layers)
-wrapped_flow = WrappedNormFlowModel(flow)
+wrapped_flow = WrappedNormFlowModel(flow).to(device)
 
 # Transition operator
 if config['fab']['transition_type'] == 'hmc':
@@ -101,6 +101,7 @@ elif config['fab']['transition_type'] == 'metropolis':
 else:
     raise NotImplementedError('The transition operator ' + config['fab']['transition_type']
                               + ' is not implemented')
+transition_operator = transition_operator.to(device)
 
 # Target distribution
 target = AldpBoltzmann(data_path=config['data']['transform'],
@@ -108,13 +109,13 @@ target = AldpBoltzmann(data_path=config['data']['transform'],
                        energy_cut=config['system']['energy_cut'],
                        energy_max=config['system']['energy_max'],
                        n_threads=config['system']['n_threads'])
+target = target.to(device)
 
 # FAB model
 model = FABModel(flow=wrapped_flow,
                  target_distribution=target,
                  n_intermediate_distributions=config['fab']['n_int_dist'],
                  transition_operator=transition_operator)
-model = model.to(device)
 
 # Prepare output directories
 root = config['training']['save_root']
