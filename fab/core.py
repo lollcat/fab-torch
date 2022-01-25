@@ -54,12 +54,8 @@ class FABModel(Model):
         log_w_AIS_normalised = log_w_ais - log_Z_N
         log_q_x = self.flow.log_prob(x_ais)
         log_p_x = self.target_distribution.log_prob(x_ais)
-        # TODO: we may want to investigate using a running average for log_Z to normalise log_p_x.
-        # N = log_w_ais.shape[0]
-        # log_p_x = self.target_distribution.log_prob(x_ais) - log_Z
-        # log_Z = log_Z_N - torch.log(torch.ones_like(log_Z_N) * N)
-        log_w = log_p_x - log_q_x
-        return torch.logsumexp(log_w_AIS_normalised + log_w, dim=0)
+        log_w_normalised = log_p_x - log_q_x - log_Z_N
+        return torch.logsumexp(log_w_AIS_normalised + log_w_normalised, dim=0)
 
 
     def fab_forward_kl(self, batch_size: int) -> torch.Tensor:
