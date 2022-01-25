@@ -55,6 +55,7 @@ if args.precision == 'double':
     test_data = test_data.double()
 else:
     test_data = test_data.float()
+test_data = test_data.to(device)
 
 
 # Set up model
