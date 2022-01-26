@@ -125,9 +125,14 @@ model = FABModel(flow=wrapped_flow,
 root = config['training']['save_root']
 cp_dir = os.path.join(root, 'checkpoints')
 plot_dir = os.path.join(root, 'plots')
+plot_dir_flow = os.path.join(plot_dir, 'flow')
+plot_dir_ais = os.path.join(plot_dir, 'ais')
 log_dir = os.path.join(root, 'log')
+log_dir_flow = os.path.join(log_dir, 'flow')
+log_dir_ais = os.path.join(log_dir, 'ais')
 # Create dirs if not existent
-for dir in [cp_dir, plot_dir, log_dir]:
+for dir in [cp_dir, plot_dir, log_dir, plot_dir_flow,
+            plot_dir_ais, log_dir_flow, log_dir_ais]:
     if not os.path.isdir(dir):
         os.mkdir(dir)
 
@@ -219,14 +224,29 @@ for it in range(start_iter, max_iter):
                 ns = ((eval_samples - 1) % batch_size) + 1
             else:
                 ns = batch_size
+            z_ = model.flow.sample(ns)
+            z_samples = torch.cat((z_samples, z_.detach()))
+
+        # Evaluate model and save plots
+        evaluateAldp(z_samples, test_data, model.flow.log_prob,
+                     target.coordinate_transform, it, metric_dir=log_dir_flow,
+                     plot_dir=plot_dir_flow)
+
+        # Draw samples
+        z_samples = torch.zeros(0, ndim).to(device)
+        for i in range(eval_batches):
+            if i == eval_batches - 1:
+                ns = ((eval_samples - 1) % batch_size) + 1
+            else:
+                ns = batch_size
             z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
                                                                           logging=False)[0]
             z_samples = torch.cat((z_samples, z_.detach()))
 
         # Evaluate model and save plots
         evaluateAldp(z_samples, test_data, model.flow.log_prob,
-                     target.coordinate_transform, it, metric_dir=log_dir,
-                     plot_dir=plot_dir)
+                     target.coordinate_transform, it, metric_dir=log_dir_ais,
+                     plot_dir=plot_dir_ais)
 
     # End job if necessary
     if it % checkpoint_iter == 0 and args.tlimit is not None:
