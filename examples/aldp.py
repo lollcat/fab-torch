@@ -224,7 +224,7 @@ for it in range(start_iter, max_iter):
                 ns = ((eval_samples - 1) % batch_size) + 1
             else:
                 ns = batch_size
-            z_ = model.flow.sample(ns)
+            z_ = model.flow.sample((ns,))
             z_samples = torch.cat((z_samples, z_.detach()))
 
         # Evaluate model and save plots
