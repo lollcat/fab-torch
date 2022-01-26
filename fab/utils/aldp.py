@@ -54,7 +54,7 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
             end = len(z_sample)
         else:
             end = (i + 1) * batch_size
-        z = z_test[(i * batch_size):end, :]
+        z = z_sample[(i * batch_size):end, :]
         x, _ = transform(z.double())
         x_np = np.concatenate((x_np, x.cpu().data.numpy()))
         z, _ = transform.inverse(x)
@@ -112,11 +112,14 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
     nbins_ram = 64
     eps_ram = 1e-10
     hist_ram_test = np.histogram2d(phi_d, psi_d, nbins_ram,
-                                   range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
+                                   range=[[-np.pi, np.pi], [-np.pi, np.pi]],
+                                   density=True)[0]
     hist_ram_gen = np.histogram2d(phi, psi, nbins_ram,
-                                  range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
-    kld_ram = np.mean(hist_ram_test / len(phi) * np.log(hist_ram_test + eps_ram)
-                      / np.log(hist_ram_gen + eps_ram))
+                                  range=[[-np.pi, np.pi], [-np.pi, np.pi]],
+                                  density=True)[0]
+    kld_ram = np.sum(hist_ram_test * np.log(hist_ram_test + eps_ram)
+                     / np.log(hist_ram_gen + eps_ram)) \
+              * (np.pi / nbins_ram) ** 2
 
     # Save metrics
     if metric_dir is not None:
