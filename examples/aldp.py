@@ -1,4 +1,3 @@
-import normflow as nf
 import matplotlib.pyplot as plt
 import torch
 
@@ -12,12 +11,12 @@ if __name__ == '__main__':
     dim: int = 60
     n_intermediate_distributions: int = 2
     layer_nodes_per_dim = 5
-    batch_size: int = 32
-    n_iterations: int = 5000
+    batch_size: int = 64
+    n_iterations: int = int(1e4)
     n_eval = 100
     eval_batch_size = batch_size * 10
     n_plots: int = 0 # number of plots shows throughout tranining
-    lr: float = 2e-4
+    lr: float = 1e-4
     transition_operator_type: str = "hmc"  # "metropolis" or "hmc"
     seed: int = 0
     n_flow_layers: int = 10
@@ -34,7 +33,7 @@ if __name__ == '__main__':
         transition_operator = HamiltoneanMonteCarlo(
             n_ais_intermediate_distributions=n_intermediate_distributions,
             n_outer=1,
-            epsilon=1.0, L=2, dim=dim,
+            epsilon=1.0, L=5, dim=dim,
             step_tuning_method="p_accept")
     elif transition_operator_type == "metropolis":
         transition_operator = Metropolis(n_transitions=n_intermediate_distributions,
