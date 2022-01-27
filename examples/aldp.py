@@ -168,6 +168,12 @@ loss_hist = np.zeros((0, 2))
 eval_samples = config['training']['eval_samples']
 eval_batches = (eval_samples - 1) // batch_size + 1
 
+max_grad_norm = None if not 'max_grad_norm' in config['training'] \
+    else config['training']['max_grad_norm']
+grad_clipping = max_grad_norm is not None
+if grad_clipping:
+    grad_norm_hist = np.zeros((0, 2))
+
 # Start training
 start_time = time()
 
@@ -178,6 +184,12 @@ for it in range(start_iter, max_iter):
     # Make step
     if not torch.isnan(loss) and not torch.isinf(loss):
         loss.backward()
+        if grad_clipping:
+            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(),
+                                                       max_grad_norm)
+            grad_norm_append = np.array([[it + 1, grad_norm.item()]])
+            grad_norm_hist = np.concatenate([grad_norm_hist,
+                                             grad_norm_append])
         optimizer.step()
 
     # Update Lipschitz constant if flows are residual
@@ -203,6 +215,10 @@ for it in range(start_iter, max_iter):
     if (it + 1) % log_iter == 0:
         np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist,
                    delimiter=',', header='it,loss', comments='')
+        if grad_clipping:
+            np.savetxt(os.path.join(log_dir, 'grad_norm.csv'),
+                       grad_norm_hist, delimiter=',',
+                       header='it,grad_norm', comments='')
         if use_gpu:
             torch.cuda.empty_cache()
 

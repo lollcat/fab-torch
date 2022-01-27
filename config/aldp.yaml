@@ -45,6 +45,7 @@ training:                           # Properties of the training procedure
   warmup_iter: 100                  # Int, number of iterations of linearly warm up learning rate
   batch_size: 512                   # Int, batch size used during training
   learning_rate: 1.e-3              # Double, learning rate used during training
+  max_grad_norm: 10.                # Double, limit for gradient clipping
   rate_decay: 0.1                   # Double, learning rate decay factor
   decay_iter: 250000                # Int, number of iteration after which the learning rate should be
                                     # decreased
