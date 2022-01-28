@@ -46,8 +46,6 @@ class FABModel(Model):
             return self.fab_forward_kl(batch_size)
         elif self.loss_type == "sample_log_prob":
             return self.fab_sample_log_prob(batch_size)
-        elif self.loss_type == "log_expected_prob":
-            return self.fab_log_expected_prob(batch_size)
         else:
             raise NotImplementedError
 
