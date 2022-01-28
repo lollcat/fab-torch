@@ -40,13 +40,13 @@ def train_fab(
         eval_batch_size = None
         assert dim == 2
     elif target_name == "GMM":
-        from fab.target_distributions import GMM
+        from fab.target_distributions.gmm import GMM
         target = GMM(dim, n_mixes=5, min_cov=1, loc_scaling=5)
         plotting_bounds = (-20, 20)
         n_eval = 100
         eval_batch_size = batch_size * 10
     elif target_name == "ManyWell":
-        from fab.target_distributions import ManyWellEnergy
+        from fab.target_distributions.many_well import ManyWellEnergy
         assert dim % 2 == 0
         target = ManyWellEnergy(dim, a=-0.5, b=-6)
         plotting_bounds = (-3, 3)
