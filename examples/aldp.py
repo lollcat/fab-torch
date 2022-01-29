@@ -8,7 +8,7 @@ import normflow as nf
 
 from time import time
 from fab.utils.training import load_config
-from fab.target_distributions import AldpBoltzmann
+from fab.target_distributions.aldp import AldpBoltzmann
 from fab import FABModel
 from fab.wrappers.normflow import WrappedNormFlowModel
 from fab.sampling_methods.transition_operators import HamiltoneanMonteCarlo, Metropolis
