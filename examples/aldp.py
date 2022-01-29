@@ -15,6 +15,8 @@ from fab.sampling_methods.transition_operators import HamiltoneanMonteCarlo, Met
 from fab.utils.aldp import evaluateAldp
 from fab.utils.numerical import effective_sample_size
 
+print('\n1\n')
+
 # Parse input arguments
 parser = argparse.ArgumentParser(description='Train Boltzmann Generator with varying '
                                              'base distribution')
@@ -48,6 +50,8 @@ if 'seed' in config['training'] and config['training']['seed'] is not None:
 # GPU usage
 use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
 device = torch.device('cuda' if use_gpu else 'cpu')
+
+print('\n2\n')
 
 # Load data
 path = config['data']['test']
@@ -107,6 +111,8 @@ else:
     raise NotImplementedError('The transition operator ' + config['fab']['transition_type']
                               + ' is not implemented')
 transition_operator = transition_operator.to(device)
+
+print('\n3\n')
 
 # Target distribution
 target = AldpBoltzmann(data_path=config['data']['transform'],
