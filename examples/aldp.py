@@ -109,6 +109,7 @@ else:
 transition_operator = transition_operator.to(device)
 
 # Target distribution
+loss_type =
 target = AldpBoltzmann(data_path=config['data']['transform'],
                        temperature=config['system']['temperature'],
                        energy_cut=config['system']['energy_cut'],
@@ -117,12 +118,13 @@ target = AldpBoltzmann(data_path=config['data']['transform'],
 target = target.to(device)
 
 # FAB model
+loss_type = 'alpha_2_div' if 'loss_type' not in config['fab'] \
+    else config['fab']['loss_type']
 model = FABModel(flow=wrapped_flow,
                  target_distribution=target,
                  n_intermediate_distributions=config['fab']['n_int_dist'],
                  transition_operator=transition_operator,
-                 loss_type='alpha_2_div' if 'loss_type' not in config['fab']
-                 else config['fab']['loss_type'])
+                 loss_type=loss_type)
 
 # Prepare output directories
 root = config['training']['save_root']
