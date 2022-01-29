@@ -109,7 +109,6 @@ else:
 transition_operator = transition_operator.to(device)
 
 # Target distribution
-loss_type =
 target = AldpBoltzmann(data_path=config['data']['transform'],
                        temperature=config['system']['temperature'],
                        energy_cut=config['system']['energy_cut'],
