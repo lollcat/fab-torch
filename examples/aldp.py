@@ -13,6 +13,7 @@ from fab import FABModel
 from fab.wrappers.normflow import WrappedNormFlowModel
 from fab.sampling_methods.transition_operators import HamiltoneanMonteCarlo, Metropolis
 from fab.utils.aldp import evaluateAldp
+from fab.utils.numerical import effective_sample_size
 
 # Parse input arguments
 parser = argparse.ArgumentParser(description='Train Boltzmann Generator with varying '
@@ -119,7 +120,9 @@ target = target.to(device)
 model = FABModel(flow=wrapped_flow,
                  target_distribution=target,
                  n_intermediate_distributions=config['fab']['n_int_dist'],
-                 transition_operator=transition_operator)
+                 transition_operator=transition_operator,
+                 loss_type='alpha_2_div' if 'loss_type' not in config['fab']
+                 else config['fab']['loss_type'])
 
 # Prepare output directories
 root = config['training']['save_root']
@@ -213,12 +216,30 @@ for it in range(start_iter, max_iter):
 
     # Save loss
     if (it + 1) % log_iter == 0:
+        # Loss
         np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist,
                    delimiter=',', header='it,loss', comments='')
+        # Gradient clipping
         if grad_clipping:
             np.savetxt(os.path.join(log_dir, 'grad_norm.csv'),
                        grad_norm_hist, delimiter=',',
                        header='it,grad_norm', comments='')
+        # Effective sample size
+        base_samples, base_log_w, ais_samples, ais_log_w = \
+            model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
+                                                                 batch_size)
+        ess_append = np.array([[it + 1, effective_sample_size(base_log_w, normalised=False),
+                                effective_sample_size(ais_log_w, normalised=False)]])
+        ess_path = os.path.join(log_dir, 'ess.csv')
+        if os.path.exists(ess_path):
+            ess_hist = np.loadtxt(ess_path, skiprows=1, delimiter=',')
+            if len(ess_hist.shape) == 1:
+                ess_hist = ess_hist[None, :]
+            ess_hist = np.concatenate([ess_hist, ess_append])
+        else:
+            ess_hist = ess_append
+        np.savetxt(ess_path, ess_hist, delimiter=',',
+                   header='it,flow,ais', comments='')
         if use_gpu:
             torch.cuda.empty_cache()
 
