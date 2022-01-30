@@ -10,6 +10,7 @@ from examples.make_flow import make_wrapped_normflowdist, make_wrapped_nflows_di
 
 FLOW_LIBS = ["normflow", "nflows"]
 TARGET_NAMES = ["TwoMoons", "GMM", "ManyWell"]
+LOSS_TYPES = ["alpha_2_div", "forward_kl", "sample_log_prob"]
 
 def train_fab(
         dim: int = 2,
@@ -23,6 +24,7 @@ def train_fab(
         n_flow_layers: int = 8,
         flow_lib: str = FLOW_LIBS[0],
         target_name: str = TARGET_NAMES[2],
+        loss_type: str = LOSS_TYPES[2],
 ) -> None:
     assert dim == 2, "currently the below plotting functions are only designed for 2 dim targets"
     torch.manual_seed(seed)
@@ -40,13 +42,13 @@ def train_fab(
         eval_batch_size = None
         assert dim == 2
     elif target_name == "GMM":
-        from fab.target_distributions import GMM
+        from fab.target_distributions.gmm import GMM
         target = GMM(dim, n_mixes=5, min_cov=1, loc_scaling=5)
         plotting_bounds = (-20, 20)
         n_eval = 100
         eval_batch_size = batch_size * 10
     elif target_name == "ManyWell":
-        from fab.target_distributions import ManyWellEnergy
+        from fab.target_distributions.many_well import ManyWellEnergy
         assert dim % 2 == 0
         target = ManyWellEnergy(dim, a=-0.5, b=-6)
         plotting_bounds = (-3, 3)
@@ -71,7 +73,8 @@ def train_fab(
     fab_model = FABModel(flow=flow,
                          target_distribution=target,
                          n_intermediate_distributions=n_intermediate_distributions,
-                         transition_operator=transition_operator)
+                         transition_operator=transition_operator,
+                         loss_type=loss_type)
     optimizer = torch.optim.Adam(flow.parameters(), lr=lr)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
     scheduler = None
