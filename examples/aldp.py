@@ -5,6 +5,7 @@ import torch
 import numpy as np
 
 import normflow as nf
+import boltzgen as bg
 
 from time import time
 from fab.utils.training import load_config
@@ -162,12 +163,24 @@ if lr_warmup:
 lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
                                                       gamma=config['training']['rate_decay'])
 
+# Resume training if needed
+start_iter = 0
+if args.resume:
+    latest_cp = bg.utils.get_latest_checkpoint(cp_dir, 'model')
+    if latest_cp is not None:
+        model.load(latest_cp)
+        start_iter = int(latest_cp[-10:-3])
+        optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
+        if os.path.exists(optimizer_path):
+            optimizer.load_state_dict(torch.load(optimizer_path))
+        warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
+        if os.path.exists(warmup_scheduler_path):
+            warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
 
 # Train model
 max_iter = config['training']['max_iter']
 log_iter = config['training']['log_iter']
 checkpoint_iter = config['training']['checkpoint_iter']
-start_iter = 0
 
 batch_size = config['training']['batch_size']
 loss_hist = np.zeros((0, 2))
@@ -248,14 +261,12 @@ for it in range(start_iter, max_iter):
 
     if (it + 1) % checkpoint_iter == 0:
         # Save checkpoint
-        """
         model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(),
                    os.path.join(cp_dir, 'optimizer.pt'))
         if lr_warmup:
             torch.save(warmup_scheduler.state_dict(),
                        os.path.join(cp_dir, 'warmup_scheduler.pt'))
-        """
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)

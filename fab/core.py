@@ -25,16 +25,19 @@ class FABModel(Model):
         self.flow = flow
         self.target_distribution = target_distribution
         self.n_intermediate_distributions = n_intermediate_distributions
+        self.ais_distribution_spacing = ais_distribution_spacing
         assert len(flow.event_shape) == 1, "Currently only 1D distributions are supported"
         if transition_operator is None:
-            transition_operator = HamiltoneanMonteCarlo(n_intermediate_distributions,
-                                                        flow.event_shape[0])
+            self.transition_operator = HamiltoneanMonteCarlo(self.n_intermediate_distributions,
+                                                             self.flow.event_shape[0])
+        else:
+            self.transition_operator = transition_operator
         self.annealed_importance_sampler = AnnealedImportanceSampler(
-            base_distribution=flow,
-            target_log_prob=target_distribution.log_prob,
-            transition_operator=transition_operator,
-            n_intermediate_distributions=n_intermediate_distributions,
-            distribution_spacing_type=ais_distribution_spacing)
+            base_distribution=self.flow,
+            target_log_prob=self.target_distribution.log_prob,
+            transition_operator=self.transition_operator,
+            n_intermediate_distributions=self.n_intermediate_distributions,
+            distribution_spacing_type=self.ais_distribution_spacing)
 
     def parameters(self):
         return self.flow.parameters()
@@ -91,3 +94,26 @@ class FABModel(Model):
         info.update(flow_info)
         info.update(ais_info)
         return info
+
+    def save(self,
+             path: "str"
+             ):
+        """Save FAB model to file."""
+        torch.save({'flow': self.flow._nf_model.state_dict(),
+                    'trans_op': self.transition_operator.state_dict()},
+                   path)
+
+    def load(self,
+             path: "str"
+             ):
+        """Load FAB model from file."""
+        checkpoint = torch.load(path)
+        self.flow._nf_model.load_state_dict(checkpoint['flow'])
+        self.transition_operator.load_state_dict(checkpoint['trans_op'])
+        self.annealed_importance_sampler = AnnealedImportanceSampler(
+            base_distribution=self.flow,
+            target_log_prob=self.target_distribution.log_prob,
+            transition_operator=self.transition_operator,
+            n_intermediate_distributions=self.n_intermediate_distributions,
+            distribution_spacing_type=self.ais_distribution_spacing)
+

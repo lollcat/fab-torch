@@ -215,8 +215,7 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
             for j in range(hists_test_list[i].shape[1]):
                 ax[j // 3, j % 3].plot(x, hists_test_list[i][:, j])
                 ax[j // 3, j % 3].plot(x, hists_gen_list[i][:, j])
-            plt.savefig(os.path.join(plot_dir, 'marginals_' + label[i]
-                                     + '_' + str(iter + 1) + '.png'),
+            plt.savefig(os.path.join(plot_dir, 'marginals_%s_%07i.png' % (label[i], iter + 1)),
                         dpi=300)
             plt.close()
 
@@ -227,7 +226,6 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         plt.yticks(fontsize=20)
         plt.xlabel('$\phi$', fontsize=24)
         plt.ylabel('$\psi$', fontsize=24)
-        plt.savefig(os.path.join(plot_dir, 'ramachandran_'
-                                 + str(iter + 1) + '.png'),
+        plt.savefig(os.path.join(plot_dir, 'ramachandran_%07i.png' % (iter + 1)),
                     dpi=300)
         plt.close()
