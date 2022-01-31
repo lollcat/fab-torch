@@ -2,6 +2,7 @@ import abc
 from typing import Any, Dict, List, Mapping, Union
 
 import numpy as np
+import wandb
 
 LoggingData = Mapping[str, Any]
 
