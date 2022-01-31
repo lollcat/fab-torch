@@ -36,6 +36,7 @@ fab:
 
   transition_type: hmc              # String, type of transition operator used
   n_int_dist: 5                     # Int, number of intermediate distributions
+  n_inner: 5                        # Int, umber of steps between intermediate distributions
   loss_type: alpha_2_div            # String, loss to be used
 
 

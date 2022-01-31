@@ -102,10 +102,11 @@ wrapped_flow = WrappedNormFlowModel(flow).to(device)
 if config['fab']['transition_type'] == 'hmc':
     # very lightweight HMC.
     transition_operator = HamiltoneanMonteCarlo(
-        n_ais_intermediate_distributions=config['fab']['n_int_dist'], dim=ndim)
+        n_ais_intermediate_distributions=config['fab']['n_int_dist'],
+        dim=ndim, L=config['fab']['n_inner'])
 elif config['fab']['transition_type'] == 'metropolis':
     transition_operator = Metropolis(n_transitions=config['fab']['n_int_dist'],
-                                     n_updates=5)
+                                     n_updates=config['fab']['n_inner'])
 else:
     raise NotImplementedError('The transition operator ' + config['fab']['transition_type']
                               + ' is not implemented')
