@@ -163,20 +163,6 @@ if lr_warmup:
 lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
                                                       gamma=config['training']['rate_decay'])
 
-# Resume training if needed
-start_iter = 0
-if args.resume:
-    latest_cp = bg.utils.get_latest_checkpoint(cp_dir, 'model')
-    if latest_cp is not None:
-        model.load(latest_cp)
-        start_iter = int(latest_cp[-10:-3])
-        optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
-        if os.path.exists(optimizer_path):
-            optimizer.load_state_dict(torch.load(optimizer_path))
-        warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
-        if os.path.exists(warmup_scheduler_path):
-            warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
-
 # Train model
 max_iter = config['training']['max_iter']
 log_iter = config['training']['log_iter']
@@ -184,6 +170,7 @@ checkpoint_iter = config['training']['checkpoint_iter']
 
 batch_size = config['training']['batch_size']
 loss_hist = np.zeros((0, 2))
+ess_hist = np.zeros((0, 3))
 eval_samples = config['training']['eval_samples']
 eval_batches = (eval_samples - 1) // batch_size + 1
 
@@ -192,6 +179,39 @@ max_grad_norm = None if not 'max_grad_norm' in config['training'] \
 grad_clipping = max_grad_norm is not None
 if grad_clipping:
     grad_norm_hist = np.zeros((0, 2))
+
+# Resume training if needed
+start_iter = 0
+if args.resume:
+    latest_cp = bg.utils.get_latest_checkpoint(cp_dir, 'model')
+    if latest_cp is not None:
+        # Load model
+        model.load(latest_cp)
+        start_iter = int(latest_cp[-10:-3])
+        # Load optimizer
+        optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
+        if os.path.exists(optimizer_path):
+            optimizer.load_state_dict(torch.load(optimizer_path))
+        # Load scheduler
+        warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
+        if os.path.exists(warmup_scheduler_path):
+            warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
+        # Load logs
+        log_labels = ['loss', 'ess']
+        log_hists = [loss_hist, ess_hist]
+        if grad_clipping:
+            log_labels.append('grad_norm')
+            log_hists.append(grad_norm_hist)
+        for log_label, log_hist in zip(log_labels, log_hists):
+            log_path = os.path.join(log_dir, log_label + '.csv')
+            if os.path.exists(log_path):
+                log_hist_ = np.loadtxt(log_path, delimiter=',', skiprows=1)
+                if log_hist_.ndim == 1:
+                    log_hist_ = log_hist_[None, :]
+                log_hist.resize(*log_hist_.shape, refcheck=False)
+                log_hist[:, :] = log_hist_
+                log_hist.resize(np.sum(log_hist_[:, 0] <= start_iter), log_hist_.shape[1],
+                                refcheck=False)
 
 # Start training
 start_time = time()
@@ -246,16 +266,9 @@ for it in range(start_iter, max_iter):
                                                                  batch_size)
         ess_append = np.array([[it + 1, effective_sample_size(base_log_w, normalised=False),
                                 effective_sample_size(ais_log_w, normalised=False)]])
-        ess_path = os.path.join(log_dir, 'ess.csv')
-        if os.path.exists(ess_path):
-            ess_hist = np.loadtxt(ess_path, skiprows=1, delimiter=',')
-            if len(ess_hist.shape) == 1:
-                ess_hist = ess_hist[None, :]
-            ess_hist = np.concatenate([ess_hist, ess_append])
-        else:
-            ess_hist = ess_append
-        np.savetxt(ess_path, ess_hist, delimiter=',',
-                   header='it,flow,ais', comments='')
+        ess_hist = np.concatenate([ess_hist, ess_append])
+        np.savetxt(os.path.join(log_dir, 'ess.csv'), ess_hist,
+                   delimiter=',', header='it,flow,ais', comments='')
         if use_gpu:
             torch.cuda.empty_cache()
 
