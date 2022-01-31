@@ -50,3 +50,17 @@ class ListLogger(Logger):
     def close(self) -> None:
         del self
 
+
+class WandbLogger(Logger):
+    def __init__(self, log_dir: str = "tmp", **kwargs: Any):
+        self.run = wandb.init(dir=log_dir, **kwargs)  # type: ignore
+        self._iter: int = 0
+
+    def write(self, data: Dict[str, Any]) -> None:
+        data = {f"{key}": metric for key, metric in data.items()}
+        self.run.log(data, step=self._iter, commit=False)
+        self._iter += 1
+
+    def close(self) -> None:
+        self.run.finish()
+
