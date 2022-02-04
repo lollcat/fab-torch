@@ -20,7 +20,8 @@ class FABModel(Model):
                  ais_distribution_spacing: "str" = "linear",
                  loss_type: "str" = "alpha_2_div",
                  ):
-        assert loss_type in ["alpha_2_div", "forward_kl", "sample_log_prob"]
+        assert loss_type in ["alpha_2_div", "forward_kl", "sample_log_prob",
+                             "flow_forward_kl"]
         self.loss_type = loss_type
         self.flow = flow
         self.target_distribution = target_distribution
@@ -42,13 +43,15 @@ class FABModel(Model):
     def parameters(self):
         return self.flow.parameters()
 
-    def loss(self, batch_size: int) -> torch.Tensor:
+    def loss(self, args) -> torch.Tensor:
         if self.loss_type == "alpha_2_div":
-            return self.fab_alpha_div_loss(batch_size)
+            return self.fab_alpha_div_loss(args)
         elif self.loss_type == "forward_kl":
-            return self.fab_forward_kl(batch_size)
+            return self.fab_forward_kl(args)
         elif self.loss_type == "sample_log_prob":
-            return self.fab_sample_log_prob(batch_size)
+            return self.fab_sample_log_prob(args)
+        elif self.loss_type == "flow_forward_kl":
+            return self.flow_forward_kl(args)
         else:
             raise NotImplementedError
 
@@ -62,6 +65,9 @@ class FABModel(Model):
         log_w = log_p_x - log_q_x
         return torch.logsumexp(log_w_ais + log_w, dim=0)
 
+    def flow_forward_kl(self, x: torch.Tensor) -> torch.Tensor:
+        """Compute forward KL-divergence of flow"""
+        return -torch.mean(self.flow.log_prob(x))
 
     def fab_forward_kl(self, batch_size: int) -> torch.Tensor:
         """Compute FAB estimate of forward kl-divergence."""

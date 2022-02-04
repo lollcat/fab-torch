@@ -186,6 +186,20 @@ grad_clipping = max_grad_norm is not None
 if grad_clipping:
     grad_norm_hist = np.zeros((0, 2))
 
+# Load train data if needed
+if loss_type == 'flow_forward_kl':
+    path = config['data']['train']
+    train_data = torch.load(path)
+    if args.precision == 'double':
+        train_data = train_data.double()
+    else:
+        train_data = train_data.float()
+    train_data = train_data.to(device)
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
+                                               shuffle=True, pin_memory=True,
+                                               drop_last=True, num_workers=4)
+    train_iter = iter(train_loader)
+
 # Resume training if needed
 start_iter = 0
 if args.resume:
@@ -224,7 +238,15 @@ start_time = time()
 
 for it in range(start_iter, max_iter):
     # Get loss
-    loss = model.loss(batch_size)
+    if loss_type == 'flow_forward_kl':
+        try:
+            x = next(train_iter)
+        except StopIteration:
+            train_iter = iter(train_loader)
+            x = next(train_iter)
+        loss = model.loss(x)
+    else:
+        loss = model.loss(batch_size)
 
     # Make step
     if not torch.isnan(loss) and not torch.isinf(loss):
