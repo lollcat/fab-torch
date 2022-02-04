@@ -194,7 +194,6 @@ if loss_type == 'flow_forward_kl':
         train_data = train_data.double()
     else:
         train_data = train_data.float()
-    train_data = train_data.to(device)
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
                                                shuffle=True, pin_memory=True,
                                                drop_last=True, num_workers=4)
@@ -244,6 +243,7 @@ for it in range(start_iter, max_iter):
         except StopIteration:
             train_iter = iter(train_loader)
             x = next(train_iter)
+        x = x.to(device, non_blocking=True)
         loss = model.loss(x)
     else:
         loss = model.loss(batch_size)
