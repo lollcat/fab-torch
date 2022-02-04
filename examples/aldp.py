@@ -74,7 +74,11 @@ for i in range(config['flow']['blocks']):
         hl = config['flow']['hidden_layers'] * [config['flow']['hidden_units']]
         scale_map = config['flow']['scale_map']
         scale = scale_map is not None
-        output_fn = 'tanh' if config['flow']['scale_map'] == 'tanh' else None
+        if scale_map == 'tanh':
+            output_fn = 'tanh'
+            scale_map = 'exp'
+        else:
+            output_fn = None
         param_map = nf.nets.MLP([(ndim + 1) // 2] + hl + [(ndim // 2) * (2 if scale else 1)],
                                 init_zeros=config['flow']['init_zeros'], output_fn=output_fn)
         layers.append(nf.flows.AffineCouplingBlock(param_map, scale=scale,
