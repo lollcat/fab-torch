@@ -114,7 +114,7 @@ def train_fab(
     trainer = Trainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
                       optim_schedular=scheduler)
     trainer.run(n_iterations=n_iterations, batch_size=batch_size, n_plot=n_plots,
-                n_eval=n_eval, eval_batch_size=eval_batch_size)
+                n_eval=n_eval, eval_batch_size=eval_batch_size, save=False)
 
     plot_history(logger.history)
     plt.show()

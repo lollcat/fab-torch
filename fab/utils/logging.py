@@ -30,6 +30,8 @@ class ListLogger(Logger):
                  save_period: int = 100):
         self.save = save
         self.save_path = save_path
+        if save:
+            pathlib.Path(self.save_path).parent.mkdir(exist_ok=True)
         self.save_period = save_period  # how often to save the logging history
         self.history: Dict[str, List[Union[np.ndarray, float, int]]] = {}
         self.print_warning: bool = False
@@ -58,11 +60,11 @@ class ListLogger(Logger):
 
         self.iter += 1
         if self.save and (self.iter + 1) % self.save_period == 0:
-            pickle.dump(self.history, open(self.save_path, "w")) # overwrite with latest version
+            pickle.dump(self.history, open(self.save_path, "wb")) # overwrite with latest version
 
     def close(self) -> None:
         if self.save:
-            pickle.dump(self.history, open(self.save_path, "w"))
+            pickle.dump(self.history, open(self.save_path, "wb"))
 
 
 class WandbLogger(Logger):
@@ -84,7 +86,8 @@ class PandasLogger(Logger):
                  save_path: str ="/tmp/logging_history.csv",
                  save_period: int = 100):
         self.save_path = save_path
-        pathlib.Path(self.save_path).parent.mkdir(exist_ok=True)
+        if save:
+            pathlib.Path(self.save_path).parent.mkdir(exist_ok=True)
         self.save = save
         self.save_period = save_period
         self.dataframe = pd.DataFrame()

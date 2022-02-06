@@ -21,7 +21,7 @@ class Trainer:
                  plot: Optional[Plotter] = None,
                  gradient_clipping: bool = True,
                  max_gradient_norm: bool = 5.0,
-                 save_path: str = "/temp/"):
+                 save_path: str = ""):
         self.model = model
         self.optimizer = optimizer
         self.optim_schedular = optim_schedular
@@ -32,8 +32,6 @@ class Trainer:
         self.save_dir = save_path
         self.plots_dir = self.save_dir + f"plots/"
         self.checkpoints_dir = "model_checkpoints/"
-        pathlib.Path(self.plots_dir).mkdir(exist_ok=True)
-        pathlib.Path(self.checkpoints_dir).mkdir(exist_ok=True)
 
 
     def run(self,
@@ -44,6 +42,9 @@ class Trainer:
             n_plot: Optional[int] = None,
             n_checkpoints: Optional[int] = None,
             save: bool = True) -> None:
+        if save:
+            pathlib.Path(self.plots_dir).mkdir(exist_ok=True)
+            pathlib.Path(self.checkpoints_dir).mkdir(exist_ok=True)
         if n_checkpoints:
             checkpoint_iter = list(np.linspace(0, n_iterations - 1, n_checkpoints, dtype="int"))
         if n_eval is not None:

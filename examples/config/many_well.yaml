@@ -32,9 +32,9 @@ evaluation:
 
 
 logger:
-#  pandas_logger:
-#    save_period: 100 # how often to save the pandas dataframe as a csv
-  wandb:
-    name: ManyWell32
-    tags: [alpha_2_loss,ManyWell32]
+  pandas_logger:
+    save_period: 100 # how often to save the pandas dataframe as a csv
+#  wandb:
+#    name: ManyWell32
+#    tags: [alpha_2_loss,ManyWell32]
 
