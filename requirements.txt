@@ -6,3 +6,6 @@ mdtraj
 nflows
 tqdm
 wandb
+hydra-core
+hydra-joblib-launcher
+joblib

@@ -28,7 +28,6 @@ class Distribution(abc.ABC):
 
 
 class Model(object):
-    # TODO: define signatures of save and load, add docstring
 
     @abc.abstractmethod
     def loss(self, batch_size: int) -> torch.Tensor:
@@ -50,8 +49,10 @@ class Model(object):
         required for gradient norm clipping."""
 
 
-    def save(self):
+    def save(self, file_path) -> None:
+        """Save model to file_path."""
         raise NotImplementedError
 
-    def load(self):
+    def load(self, file_path) -> None:
+        """Load model from file_path."""
         raise NotImplementedError
