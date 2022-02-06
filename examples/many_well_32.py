@@ -27,8 +27,8 @@ def setup_logger(cfg: DictConfig, save_path: str) -> Logger:
 
 
 
-@hydra.main(config_path="./config", config_name="many_well.yaml")
-def run(cfg: DictConfig):
+
+def _run(cfg: DictConfig):
     dim = cfg.target.dim  # applies to flow and target
     if cfg.training.use_64_bit:
         torch.set_default_dtype(torch.float64)
@@ -116,6 +116,10 @@ def run(cfg: DictConfig):
                 n_eval=cfg.evaluation.n_eval, eval_batch_size=cfg.evaluation.eval_batch_size,
                 save=True, n_checkpoints=cfg.evaluation.n_checkpoints)
 
+
+@hydra.main(config_path="./config", config_name="many_well.yaml")
+def run(cfg: DictConfig):
+    _run(cfg)
 
 if __name__ == '__main__':
     run()
