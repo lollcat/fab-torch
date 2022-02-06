@@ -64,7 +64,7 @@ def _run(cfg: DictConfig):
 
 
     # use GPU if available
-    if torch.cuda.is_available() and cfg.training.use_GPU:
+    if torch.cuda.is_available() and cfg.training.use_gpu:
       flow.cuda()
       transition_operator.cuda()
       print("utilising GPU")
