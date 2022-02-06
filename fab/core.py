@@ -71,13 +71,10 @@ class FABModel(Model):
         log_q_x = self.flow.log_prob(x_ais)
         return - torch.mean(torch.exp(log_w_ais) * log_q_x)
 
-    def fab_sample_log_prob(self, batch_size: int, sample_frac: float = 0.5) -> torch.Tensor:
-        """Compute FAB loss by maximising the log prob of ais samples under the flow. Choose the
-        top batch_size * sample_frac samples based on their AIS importance weights."""
+    def fab_sample_log_prob(self, batch_size: int, sample_frac: float = 1.0) -> torch.Tensor:
+        """Compute FAB loss by maximising the log prob of ais samples under the flow."""
         x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
-        top_k = torch.topk(log_w_ais.detach(), int(batch_size*sample_frac))
-        x_selected = x_ais.detach()[top_k.indices]
-        log_q_x = self.flow.log_prob(x_selected)
+        log_q_x = self.flow.log_prob(x_ais.detach())
         return - torch.mean(log_q_x)
 
     def get_iter_info(self) -> Dict[str, Any]:

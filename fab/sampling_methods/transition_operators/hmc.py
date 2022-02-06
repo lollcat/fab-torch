@@ -6,7 +6,7 @@ from fab.types_ import LogProbFunc
 
 HMC_STEP_TUNING_METHODS = ["p_accept", "Expected_target_prob", "No-U", "No-U-unscaled"]
 
-class HamiltoneanMonteCarlo(nn.Module, TransitionOperator):
+class HamiltoneanMonteCarlo(TransitionOperator):
     def __init__(self, n_ais_intermediate_distributions: int,
                  dim: int,
                  epsilon: float = 1.0,

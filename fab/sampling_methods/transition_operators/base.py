@@ -1,17 +1,15 @@
 from typing import Mapping, Any
-
-import abc
 import torch
 
 from fab.types_ import LogProbFunc
 
-class TransitionOperator(abc.ABC):
+class TransitionOperator(torch.nn.Module):
 
     def get_logging_info(self) -> Mapping[str, Any]:
         """Returns a dictionary of relevant information for logging."""
         raise NotImplementedError
 
-    @abc.abstractmethod
+
     def transition(self, x: torch.Tensor, log_p_x: LogProbFunc, i: int) -> torch.Tensor:
         """
         Returns x generated from transition with log_q_x, as the invariant
