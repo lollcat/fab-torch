@@ -71,7 +71,7 @@ class WandbLogger(Logger):
         self.iter: int = 0
 
     def write(self, data: Dict[str, Any]) -> None:
-        self.run.log(data, step=self._iter, commit=False)
+        self.run.log(data, step=self.iter, commit=False)
         self.iter += 1
 
     def close(self) -> None:
