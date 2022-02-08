@@ -8,6 +8,7 @@ import itertools
 
 from fab.types_ import LogProbFunc, Distribution
 
+
 def plot_history(history):
     """Agnostic history plotter for quickly plotting a dictionary of logging info."""
     figure, axs = plt.subplots(len(history), 1, figsize=(7, 3*len(history.keys())))

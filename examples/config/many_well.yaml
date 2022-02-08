@@ -1,0 +1,40 @@
+target:
+  dim: 32
+
+flow:
+  layer_nodes_per_dim: 10
+  n_layers: 10
+
+fab:
+  loss_type: alpha_2_div
+  transition_operator:
+    type: hmc
+    n_inner_steps: 5
+  n_intermediate_distributions: 4
+
+
+training:
+  seed: 0
+  lr: 2e-4
+  batch_size: 1024
+  n_iterations: 200_000
+  use_gpu: true
+  use_64_bit: true
+
+
+
+evaluation:
+  n_plots: 100 # number of times we visualise the model throughout training.
+  n_eval: 200 # for calculating metrics of flow w.r.t target.
+  eval_batch_size: 10240 # must be a multiple of inner batch size
+  n_checkpoints: 10 # number of model checkpoints saved
+  save_path:  results/many_well32/
+
+
+logger:
+  pandas_logger:
+    save_period: 100 # how often to save the pandas dataframe as a csv
+#  wandb:
+#    name: ManyWell32
+#    tags: [alpha_2_loss,ManyWell32]
+

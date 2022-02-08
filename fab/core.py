@@ -25,16 +25,19 @@ class FABModel(Model):
         self.flow = flow
         self.target_distribution = target_distribution
         self.n_intermediate_distributions = n_intermediate_distributions
+        self.ais_distribution_spacing = ais_distribution_spacing
         assert len(flow.event_shape) == 1, "Currently only 1D distributions are supported"
         if transition_operator is None:
-            transition_operator = HamiltoneanMonteCarlo(n_intermediate_distributions,
+            self.transition_operator = HamiltoneanMonteCarlo(n_intermediate_distributions,
                                                         flow.event_shape[0])
+        else:
+            self.transition_operator = transition_operator
         self.annealed_importance_sampler = AnnealedImportanceSampler(
-            base_distribution=flow,
-            target_log_prob=target_distribution.log_prob,
-            transition_operator=transition_operator,
-            n_intermediate_distributions=n_intermediate_distributions,
-            distribution_spacing_type=ais_distribution_spacing)
+            base_distribution=self.flow,
+            target_log_prob=self.target_distribution.log_prob,
+            transition_operator=self.transition_operator,
+            n_intermediate_distributions=self.n_intermediate_distributions,
+            distribution_spacing_type=self.ais_distribution_spacing)
 
     def parameters(self):
         return self.flow.parameters()
@@ -68,7 +71,7 @@ class FABModel(Model):
         log_q_x = self.flow.log_prob(x_ais)
         return - torch.mean(torch.exp(log_w_ais) * log_q_x)
 
-    def fab_sample_log_prob(self, batch_size: int) -> torch.Tensor:
+    def fab_sample_log_prob(self, batch_size: int, sample_frac: float = 1.0) -> torch.Tensor:
         """Compute FAB loss by maximising the log prob of ais samples under the flow."""
         x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         log_q_x = self.flow.log_prob(x_ais.detach())
@@ -83,11 +86,33 @@ class FABModel(Model):
                       ) -> Dict[str, Any]:
         base_samples, base_log_w, ais_samples, ais_log_w = \
             self.annealed_importance_sampler.generate_eval_data(outer_batch_size, inner_batch_size)
-        info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w, normalised=False),
-                "eval_ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False)}
+        info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w, normalised=False).item(),
+                "eval_ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False).item()}
         flow_info = self.target_distribution.performance_metrics(base_samples, base_log_w,
                                                                  self.flow.log_prob)
         ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)
         info.update(flow_info)
         info.update(ais_info)
         return info
+
+    def save(self,
+             path: "str"
+             ):
+        """Save FAB model to file."""
+        torch.save({'flow': self.flow._nf_model.state_dict(),
+                    'trans_op': self.transition_operator.state_dict()},
+                   path)
+
+    def load(self,
+             path: "str"
+             ):
+        """Load FAB model from file."""
+        checkpoint = torch.load(path)
+        self.flow._nf_model.load_state_dict(checkpoint['flow'])
+        self.transition_operator.load_state_dict(checkpoint['trans_op'])
+        self.annealed_importance_sampler = AnnealedImportanceSampler(
+            base_distribution=self.flow,
+            target_log_prob=self.target_distribution.log_prob,
+            transition_operator=self.transition_operator,
+            n_intermediate_distributions=self.n_intermediate_distributions,
+            distribution_spacing_type=self.ais_distribution_spacing)

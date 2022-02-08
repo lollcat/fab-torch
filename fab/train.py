@@ -1,25 +1,27 @@
-from typing import Callable, Any, Optional
+from typing import Callable, Any, Optional, List
 
 import torch.optim.optimizer
 from tqdm import tqdm
 import numpy as np
+import matplotlib.pyplot as plt
 
 from fab.utils.logging import Logger, ListLogger
+from fab.types_ import Model
+import pathlib
 
-
-Model = Any  # TODO needs to be nn.Module with a .loss function
-lr_scheduler = Any
-Plotter = Callable[[Model], None]
+lr_scheduler = Any  # a learning rate schedular from torch.optim.lr_scheduler
+Plotter = Callable[[Model], List[plt.Figure]]
 
 class Trainer:
     def __init__(self,
                  model: Model,
                  optimizer: torch.optim.Optimizer,
-                 optim_schedular: Optional[lr_scheduler],
+                 optim_schedular: Optional[lr_scheduler] = None,
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None,
                  gradient_clipping: bool = True,
-                 max_gradient_norm: bool = 5.0):
+                 max_gradient_norm: bool = 5.0,
+                 save_path: str = ""):
         self.model = model
         self.optimizer = optimizer
         self.optim_schedular = optim_schedular
@@ -27,6 +29,9 @@ class Trainer:
         self.plot = plot
         self.gradient_clipping = gradient_clipping
         self.max_gradient_norm = max_gradient_norm
+        self.save_dir = save_path
+        self.plots_dir = self.save_dir + f"plots/"
+        self.checkpoints_dir = "model_checkpoints/"
 
 
     def run(self,
@@ -34,7 +39,14 @@ class Trainer:
             batch_size: int,
             eval_batch_size: Optional[int] = None,
             n_eval: Optional[int] = None,
-            n_plot: Optional[int] = None) -> None:
+            n_plot: Optional[int] = None,
+            n_checkpoints: Optional[int] = None,
+            save: bool = True) -> None:
+        if save:
+            pathlib.Path(self.plots_dir).mkdir(exist_ok=True)
+            pathlib.Path(self.checkpoints_dir).mkdir(exist_ok=True)
+        if n_checkpoints:
+            checkpoint_iter = list(np.linspace(0, n_iterations - 1, n_checkpoints, dtype="int"))
         if n_eval is not None:
             eval_iter = list(np.linspace(0, n_iterations - 1, n_eval, dtype="int"))
             assert eval_batch_size is not None
@@ -54,7 +66,8 @@ class Trainer:
                 self.optim_schedular.step()
 
             info = self.model.get_iter_info()
-            info.update(loss=loss.cpu().detach().item())
+            info.update(loss=loss.cpu().detach().item(),
+                        step=i)
             if self.gradient_clipping:
                 info.update(grad_norm=grad_norm.cpu().detach().item())
             self.logger.write(info)
@@ -64,8 +77,24 @@ class Trainer:
                 if i in eval_iter:
                     eval_info = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                 inner_batch_size=batch_size)
+                    eval_info.update(step=i)
                     self.logger.write(eval_info)
 
             if n_plot is not None:
                 if i in plot_iter:
-                    self.plot(self.model)
+                    figures = self.plot(self.model)
+                    if save:
+                        for j, figure in enumerate(figures):
+                            figure.savefig(self.plots_dir + f"{j}_iter_{i}.png")
+
+            if n_checkpoints is not None:
+                if i in checkpoint_iter:
+                    checkpoint_path = self.checkpoints_dir + f"iter_{i}/"
+                    pathlib.Path(checkpoint_path).mkdir(exist_ok=False)
+                    self.model.save(checkpoint_path + "model.pt")
+                    torch.save(self.optimizer.state_dict(), checkpoint_path + 'optimizer.pt')
+                    if self.optim_schedular:
+                        torch.save(self.optim_schedular.state_dict(), self.checkpoints_dir +
+                                   'scheduler.pt')
+
+        self.logger.close()

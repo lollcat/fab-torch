@@ -5,3 +5,7 @@ boltzgen @ git+https://github.com/VincentStimper/boltzmann-generators.git
 mdtraj
 nflows
 tqdm
+wandb
+hydra-core
+hydra-joblib-launcher
+joblib
