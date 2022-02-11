@@ -114,8 +114,16 @@ class FABModel(Model):
              ):
         """Load FAB model from file."""
         checkpoint = torch.load(path)
-        self.flow._nf_model.load_state_dict(checkpoint['flow'])
-        self.transition_operator.load_state_dict(checkpoint['trans_op'])
+        try:
+            self.flow._nf_model.load_state_dict(checkpoint['flow'])
+        except RuntimeError:
+            print('Flow could not be loaded. '
+                  'Perhaps there is a mismatch in the architectures.')
+        try:
+            self.transition_operator.load_state_dict(checkpoint['trans_op'])
+        except RuntimeError:
+            print('Transition operator could not be loaded. '
+                  'Perhaps there is a mismatch in the architectures.')
         self.annealed_importance_sampler = AnnealedImportanceSampler(
             base_distribution=self.flow,
             target_log_prob=self.target_distribution.log_prob,
