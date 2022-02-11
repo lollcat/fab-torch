@@ -29,13 +29,8 @@ class FABModel(Model):
         self.ais_distribution_spacing = ais_distribution_spacing
         assert len(flow.event_shape) == 1, "Currently only 1D distributions are supported"
         if transition_operator is None:
-<<<<<<< HEAD
             self.transition_operator = HamiltoneanMonteCarlo(self.n_intermediate_distributions,
                                                              self.flow.event_shape[0])
-=======
-            self.transition_operator = HamiltoneanMonteCarlo(n_intermediate_distributions,
-                                                        flow.event_shape[0])
->>>>>>> master
         else:
             self.transition_operator = transition_operator
         self.annealed_importance_sampler = AnnealedImportanceSampler(
