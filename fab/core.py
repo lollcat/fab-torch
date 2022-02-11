@@ -29,8 +29,13 @@ class FABModel(Model):
         self.ais_distribution_spacing = ais_distribution_spacing
         assert len(flow.event_shape) == 1, "Currently only 1D distributions are supported"
         if transition_operator is None:
+<<<<<<< HEAD
             self.transition_operator = HamiltoneanMonteCarlo(self.n_intermediate_distributions,
                                                              self.flow.event_shape[0])
+=======
+            self.transition_operator = HamiltoneanMonteCarlo(n_intermediate_distributions,
+                                                        flow.event_shape[0])
+>>>>>>> master
         else:
             self.transition_operator = transition_operator
         self.annealed_importance_sampler = AnnealedImportanceSampler(
@@ -77,7 +82,7 @@ class FABModel(Model):
         log_q_x = self.flow.log_prob(x_ais)
         return - torch.mean(torch.exp(log_w_ais) * log_q_x)
 
-    def fab_sample_log_prob(self, batch_size: int) -> torch.Tensor:
+    def fab_sample_log_prob(self, batch_size: int, sample_frac: float = 1.0) -> torch.Tensor:
         """Compute FAB loss by maximising the log prob of ais samples under the flow."""
         x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         log_q_x = self.flow.log_prob(x_ais.detach())
@@ -92,8 +97,8 @@ class FABModel(Model):
                       ) -> Dict[str, Any]:
         base_samples, base_log_w, ais_samples, ais_log_w = \
             self.annealed_importance_sampler.generate_eval_data(outer_batch_size, inner_batch_size)
-        info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w, normalised=False),
-                "eval_ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False)}
+        info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w, normalised=False).item(),
+                "eval_ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False).item()}
         flow_info = self.target_distribution.performance_metrics(base_samples, base_log_w,
                                                                  self.flow.log_prob)
         ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)

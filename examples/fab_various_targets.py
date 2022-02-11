@@ -10,6 +10,7 @@ from examples.make_flow import make_wrapped_normflowdist, make_wrapped_nflows_di
 
 FLOW_LIBS = ["normflow", "nflows"]
 TARGET_NAMES = ["TwoMoons", "GMM", "ManyWell"]
+LOSS_TYPES = ["alpha_2_div", "forward_kl", "sample_log_prob"]
 
 def train_fab(
         dim: int = 2,
@@ -23,6 +24,7 @@ def train_fab(
         n_flow_layers: int = 8,
         flow_lib: str = FLOW_LIBS[0],
         target_name: str = TARGET_NAMES[2],
+        loss_type: str = LOSS_TYPES[2],
 ) -> None:
     assert dim == 2, "currently the below plotting functions are only designed for 2 dim targets"
     torch.manual_seed(seed)
@@ -71,7 +73,8 @@ def train_fab(
     fab_model = FABModel(flow=flow,
                          target_distribution=target,
                          n_intermediate_distributions=n_intermediate_distributions,
-                         transition_operator=transition_operator)
+                         transition_operator=transition_operator,
+                         loss_type=loss_type)
     optimizer = torch.optim.Adam(flow.parameters(), lr=lr)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
     scheduler = None
@@ -111,7 +114,7 @@ def train_fab(
     trainer = Trainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
                       optim_schedular=scheduler)
     trainer.run(n_iterations=n_iterations, batch_size=batch_size, n_plot=n_plots,
-                n_eval=n_eval, eval_batch_size=eval_batch_size)
+                n_eval=n_eval, eval_batch_size=eval_batch_size, save=False)
 
     plot_history(logger.history)
     plt.show()
