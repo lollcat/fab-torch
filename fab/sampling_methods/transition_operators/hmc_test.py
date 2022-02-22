@@ -8,7 +8,7 @@ from fab.sampling_methods.transition_operators.testing_utils import test_transit
 # HMC_STEP_TUNING_METHODS = ["p_accept", "Expected_target_prob", "No-U", "No-U-unscaled"]
 
 def test_hmc_(
-        step_tuning_method: str = HMC_STEP_TUNING_METHODS[1],
+        step_tuning_method: str = HMC_STEP_TUNING_METHODS[0],
         dim: int = 2,
         n_ais_intermediate_distributions: int = 2,
         n_iterations: int = 50,

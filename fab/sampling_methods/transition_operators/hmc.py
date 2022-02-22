@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Union
+from typing import Union, Tuple
 
 from fab.sampling_methods.transition_operators.base import TransitionOperator
 from fab.types_ import LogProbFunc
@@ -74,6 +74,7 @@ class HamiltoneanMonteCarlo(TransitionOperator):
         self.average_distance: torch.Tensor
 
     def get_logging_info(self) -> dict:
+        """Log the total distance moved during HMC, as well as some of the tuned parameters."""
         interesting_dict = {}
         for i, val in enumerate(self.first_dist_p_accepts):
             interesting_dict[f"dist1_p_accept_{i}"] = val.item()
@@ -108,6 +109,14 @@ class HamiltoneanMonteCarlo(TransitionOperator):
         return interesting_dict
 
     def get_epsilon(self, i: int, n: int) -> torch.Tensor:
+        """
+        Args:
+            i: AIS intermediate distribution number
+            n: HMC outer loop step number
+
+        Returns: The HMC step size hyper-parameter, either a vector or scalar.
+
+        """
         if self.train_params:
             return torch.exp(self.epsilons[f"{i}_{n}"]) + torch.exp(self.epsilons["common"])
         else:
@@ -115,19 +124,36 @@ class HamiltoneanMonteCarlo(TransitionOperator):
 
 
     def get_mass(self, i: int, n: int) -> torch.Tensor:
-        """The HMC mass (or Metric) hyper-parameter, of the same length as the
-        dimension of the position vector."""
+        """
+        Args:
+            i: AIS intermediate distribution number
+            n: HMC outer loop step number
+
+        Returns: The HMC mass (or Metric) hyper-parameter, of the same length as the
+        dimension of the position vector.
+        """
         if self.train_params:
             return F.softplus(self.mass_vector[f"{i}_{n}"])
         else:
             return self.mass_vector
+
+    def setup_inner_step_mass_and_epsilon(self, l, i, n) -> Tuple[torch.Tensor, torch.Tensor]:
+        """For No-U based methods we only backpropogate through the final step. For maximising
+        expected target log prob we backpropogate through all the steps"""
+        epsilon = self.get_epsilon(i, n)
+        mass_matrix = self.get_mass(i, n)
+        if (l != self.L - 1 and self.step_tuning_method in ["No-U", "No-U-unscaled"]) or \
+                not self.train_params:
+            epsilon = epsilon.detach()
+            mass_matrix = mass_matrix.detach()
+        return epsilon, mass_matrix
 
 
     def HMC_func(self, U, current_theta, grad_U, i):
         if self.step_tuning_method == "Expected_target_prob":
             # need this for grad function
             current_theta = current_theta.clone().detach().requires_grad_(True)
-            current_theta = torch.clone(current_theta)  # so we can do in place operations, kinda weird hac
+            current_theta = torch.clone(current_theta)  # so we can do in place operations
         else:
             current_theta = current_theta.detach()  # otherwise just need to block grad flow
         loss = 0
@@ -137,34 +163,27 @@ class HamiltoneanMonteCarlo(TransitionOperator):
             original_theta = torch.clone(current_theta).detach()
             if self.train_params:
                 self.optimizer.zero_grad()
-            epsilon = self.get_epsilon(i, n).detach()
-            mass_matrix = self.get_mass(i, n).detach()
             theta = current_theta
+            mass_matrix = self.get_mass(i, n)
+            if mass_matrix not in ["Expected_target_prob"]:
+                mass_matrix = mass_matrix.detach()
             p = torch.randn_like(theta) * mass_matrix
             current_p = p
-            # make momentum half step
-            p = p - epsilon * grad_U(theta) / 2
+            grad_u = grad_U(theta)
 
             # Now loop through position and momentum leapfrogs
             for l in range(self.L):
-                epsilon = self.get_epsilon(i, n)
-                mass_matrix = self.get_mass(i, n)
-                if not self.step_tuning_method == "Expected_target_prob":
-                    # TODO: for No-U based method need to add tuning
-                    mass_matrix = mass_matrix.detach()
-                if (l != self.L - 1 and self.step_tuning_method in ["No-U", "No-U-unscaled"]) or\
-                        not self.train_params:
-                    epsilon = epsilon.detach()
+                epsilon, mass_matrix = self.setup_inner_step_mass_and_epsilon(l=l, i=i, n=n)
+                # make momentum half step
+                p = p - epsilon * grad_u / 2
                 # Make full step for position
                 theta = theta + epsilon / mass_matrix * p
+                # update grad_u
+                grad_u = grad_U(theta)
                 # Make a full step for the momentum if not at end of trajectory
-                if l != self.L-1:
-                    p = p - epsilon * grad_U(theta)
+                # make momentum half step
+                p = p - epsilon * grad_u / 2
 
-            # make a half step for momentum at the end
-            p = p - epsilon * grad_U(theta) / 2
-            # Negate momentum at end of trajectory to make proposal symmetric
-            p = -p
 
             U_current = U(current_theta)
             U_proposed = U(theta)
