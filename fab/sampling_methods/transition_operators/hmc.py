@@ -220,7 +220,7 @@ class HamiltoneanMonteCarlo(TransitionOperator):
                             original_theta=original_theta)
             if self.eval_mode:
                 # in eval mode we don't perform any tuning of the step size.
-                return current_theta.detach()  # stop gradient flow
+                continue
             else:
                 if self.step_tuning_method == "p_accept":
                     self.adjust_step_size_p_accept(p_accept_mean=p_accept_mean, i=i, n=n)
@@ -230,7 +230,7 @@ class HamiltoneanMonteCarlo(TransitionOperator):
                         loss = loss + self.no_u_turn_loss(
                             i=i, current_theta=current_theta, original_theta=original_theta,
                             acceptance_probability=acceptance_probability)
-        if self.train_params:
+        if self.train_params and not self.eval_mode:
             if self.tune_period is False or self.counter < self.tune_period:
                 if self.step_tuning_method == "Expected_target_prob":
                     loss = torch.mean(U(current_theta))
@@ -242,7 +242,7 @@ class HamiltoneanMonteCarlo(TransitionOperator):
                     # torch.autograd.grad(loss, self.epsilons["0_1"], retain_graph=True)
                     self.optimizer.step()
 
-        if self.step_tuning_method == "No-U":
+        if self.step_tuning_method == "No-U" and not self.eval_mode:
             # set next characteristc lengths
             self.characteristic_length.data[i, :] = torch.std(current_theta.detach(), dim=0)
         return current_theta.detach()  # stop gradient flow
