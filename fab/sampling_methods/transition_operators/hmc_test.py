@@ -8,14 +8,14 @@ from fab.sampling_methods.transition_operators.testing_utils import test_transit
 # HMC_STEP_TUNING_METHODS = ["p_accept", "Expected_target_prob", "No-U", "No-U-unscaled"]
 
 def test_hmc_(
-        step_tuning_method: str = HMC_STEP_TUNING_METHODS[0],
+        step_tuning_method: str = HMC_STEP_TUNING_METHODS[2],
         dim: int = 2,
         n_ais_intermediate_distributions: int = 2,
-        n_iterations: int = 50,
-        batch_size: int = 126):
+        n_iterations: int = 100,
+        batch_size: int = 64):
     mass_init = torch.ones(dim)
     hmc = HamiltoneanMonteCarlo(n_ais_intermediate_distributions=n_ais_intermediate_distributions,
-                                n_outer=5,
+                                n_outer=2,
                                 epsilon=1.0, L=5, dim=dim,
                                 step_tuning_method=step_tuning_method,
                                 mass_init=mass_init)

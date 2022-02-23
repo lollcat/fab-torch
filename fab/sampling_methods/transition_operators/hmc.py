@@ -148,25 +148,37 @@ class HamiltoneanMonteCarlo(TransitionOperator):
             mass_matrix = mass_matrix.detach()
         return epsilon, mass_matrix
 
+    def joint_log_prob(self, theta, p, mass_matrix, U):
+        return - U(theta) - self.kinetic_energy(p, mass_matrix)
+
+    def metropolis_acceptance_prob(self, theta_proposed, theta_current, p_proposed, p_current,
+                                   mass_matrix, U):
+        log_prob_current = self.joint_log_prob(theta_current, p_current, mass_matrix, U)
+        log_prob_proposed = self.joint_log_prob(theta_proposed, p_proposed, mass_matrix, U)
+        acceptance_prob = torch.exp(log_prob_proposed - log_prob_current)
+        # reject samples with nan acceptance probability
+        acceptance_probability = torch.nan_to_num(acceptance_prob,
+                                                  nan=0.0,
+                                                  posinf=0.0,
+                                                  neginf=0.0)
+        acceptance_prob = torch.clamp(acceptance_probability, min=0.0, max=1.0)
+        return acceptance_prob.detach()
+
+    def kinetic_energy(self, p, mass_matrix):
+        return torch.sum(p**2 / mass_matrix, dim=-1) / 2
 
     def HMC_func(self, U, current_theta, grad_U, i):
-        if self.step_tuning_method == "Expected_target_prob":
-            # need this for grad function
-            current_theta = current_theta.clone().detach().requires_grad_(True)
-            current_theta = torch.clone(current_theta)  # so we can do in place operations
-        else:
-            current_theta = current_theta.detach()  # otherwise just need to block grad flow
+        current_theta = current_theta.detach()  # block grads from previous HMC steps
         loss = 0
-        # need this for grad function
-        # base function for HMC written in terms of potential energy function U
+        if self.train_params:
+            self.optimizer.zero_grad()
         for n in range(self.n_outer):
             original_theta = torch.clone(current_theta).detach()
-            if self.train_params:
-                self.optimizer.zero_grad()
             theta = current_theta
             mass_matrix = self.get_mass(i, n)
-            if mass_matrix not in ["Expected_target_prob"]:
+            if self.step_tuning_method not in ["Expected_target_prob"]:
                 mass_matrix = mass_matrix.detach()
+                theta = theta.detach()  # only backprop through final step to theta.
             p = torch.randn_like(theta) * mass_matrix
             current_p = p
             grad_u = grad_U(theta)
@@ -184,24 +196,15 @@ class HamiltoneanMonteCarlo(TransitionOperator):
                 # make momentum half step
                 p = p - epsilon * grad_u / 2
 
-
-            U_current = U(current_theta)
-            U_proposed = U(theta)
-            current_K = torch.sum(current_p**2, dim=-1) / 2
-            proposed_K = torch.sum(p**2, dim=-1) / 2
-
-            # Accept or reject the state at the end of the trajectory, returning either the position at the
-            # end of the trajectory or the initial position
-            acceptance_probability = torch.exp(U_current - U_proposed + current_K - proposed_K)
-            # reject samples with nan acceptance probability
-            acceptance_probability = torch.nan_to_num(acceptance_probability,
-                                                      nan=0.0,
-                                                      posinf=0.0,
-                                                      neginf=0.0)
-            acceptance_probability = torch.clamp(acceptance_probability, min=0.0, max=1.0)
+            acceptance_probability = self.metropolis_acceptance_prob(
+                theta_proposed=theta, theta_current=current_theta,
+                p_proposed=p, p_current=current_p,
+                U=U, mass_matrix=mass_matrix
+            )
             accept = acceptance_probability > torch.rand(acceptance_probability.shape).to(theta.device)
             current_theta[accept] = theta[accept]
             p_accept = torch.mean(acceptance_probability)
+            # TODO: make the below code more modular
             if self.step_tuning_method == "p_accept":
                 if p_accept > self.target_p_accept: # too much accept
                     self.epsilons[i, n] = self.epsilons[i, n] * 1.05
@@ -209,8 +212,9 @@ class HamiltoneanMonteCarlo(TransitionOperator):
                 else:
                     self.epsilons[i, n] = self.epsilons[i, n] / 1.05
                     self.common_epsilon = self.common_epsilon / 1.02
-            else: # self.step_tuning_method == "No-U":
-                if p_accept < 0.01: # or (self.counter < 100 and p_accept < 0.4):
+            else:
+                # for gradient based tuning methods, we make sure that p_accept is at least 0.1
+                if p_accept < 0.2:
                     # if p_accept is very low manually decrease step size, as this means that no acceptances so no
                     # gradient flow to use
                     self.epsilons[f"{i}_{n}"].data = self.epsilons[f"{i}_{n}"].data - 0.05
@@ -235,7 +239,8 @@ class HamiltoneanMonteCarlo(TransitionOperator):
             if self.step_tuning_method == "No-U":
                 distance_scaled = torch.linalg.norm((original_theta - current_theta) / self.characteristic_length[i, :], ord=2, dim=-1)
                 weighted_scaled_mean_square_distance = acceptance_probability * distance_scaled ** 2
-                if (self.tune_period is False or self.counter < self.tune_period) and self.step_tuning_method == "No-U":
+                if (self.tune_period is False or self.counter < self.tune_period) and \
+                        self.step_tuning_method == "No-U":
                     # remove zeros so we don't get infs when we divide
                     weighted_scaled_mean_square_distance[weighted_scaled_mean_square_distance == 0.0] = 1.0
                     loss = loss + torch.mean(1.0/weighted_scaled_mean_square_distance -
@@ -248,6 +253,7 @@ class HamiltoneanMonteCarlo(TransitionOperator):
                 if not (torch.isinf(loss) or torch.isnan(loss)):
                     loss.backward()
                     grad_norm = torch.nn.utils.clip_grad_norm_(self.parameters(), 1)
+                    assert torch.isfinite(grad_norm)
                     torch.nn.utils.clip_grad_value_(self.parameters(), 1)
                     # torch.autograd.grad(loss, self.epsilons["0_1"], retain_graph=True)
                     self.optimizer.step()

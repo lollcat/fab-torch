@@ -39,8 +39,3 @@ def importance_weighted_expectation(f: Callable[[torch.Tensor], torch.Tensor], x
     function_values = f(x)
     expectation = normalised_importance_weights.T @ function_values
     return expectation
-
-
-
-
-
