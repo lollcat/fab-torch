@@ -6,7 +6,7 @@ from typing import Union, Tuple
 from fab.sampling_methods.transition_operators.base import TransitionOperator
 from fab.types_ import LogProbFunc
 
-HMC_STEP_TUNING_METHODS = ["p_accept", "Expected_target_prob", "No-U", "No-U-unscaled"]
+HMC_STEP_TUNING_METHODS = ["p_accept", "Expected_target_prob", "No-U"]
 
 class HamiltoneanMonteCarlo(TransitionOperator):
     def __init__(self, n_ais_intermediate_distributions: int,
@@ -20,15 +20,15 @@ class HamiltoneanMonteCarlo(TransitionOperator):
                  lr: float = 1e-3,
                  tune_period: bool = False,
                  common_epsilon_init_weight: float = 0.1,
-                 max_grad: float = 1e3):
+                 max_grad: float = 1e3,
+                 eval_mode: bool = False):
         """
         The options for the step_uning_method are as follows:
             - p_accept: Tune the step size (epsilon) to obtain an average acceptance probability of
                 65%.
-            - No-U-unscaled: Maximise expected distance moved, using gradient descent based on
-                the last HMC inner step.
-            - No-U: Like No-U-unscaled with scaling of the distance moved according to the standard
-                deviation of samples w.r.t each dimension.
+            - No-U: Maximise expected distance moved, using gradient descent based on
+                the last HMC inner step. Additionally with scaling of the distance moved according
+                to the standard deviation of samples w.r.t each dimension.
                 Following ideas from https://arxiv.org/pdf/1711.09268.pdf.
             - Expected_target_prob: Maximise the expected target prob by gradient descent, from
                 http://proceedings.mlr.press/v139/campbell21a/campbell21a.pdf
@@ -41,7 +41,7 @@ class HamiltoneanMonteCarlo(TransitionOperator):
         self.tune_period = tune_period
         self.max_grad = max_grad
         self.step_tuning_method = step_tuning_method
-        if step_tuning_method in ["Expected_target_prob", "No-U", "No-U-unscaled"]:
+        if step_tuning_method in ["Expected_target_prob", "No-U"]:
             self.train_params = True
             self.counter = 0
             self.mass_vector = nn.ParameterDict()
@@ -53,7 +53,10 @@ class HamiltoneanMonteCarlo(TransitionOperator):
                 for n in range(n_outer):
                     self.epsilons[f"{i}_{n}"] = nn.Parameter(torch.log(
                         torch.ones(dim)*epsilon*(1 - common_epsilon_init_weight)))
-                    self.mass_vector[f"{i}_{n}"] = nn.Parameter(torch.ones(dim) * mass_init)
+                    mass_after_softplus = torch.ones(dim) * mass_init
+                    # now invert the softplus
+                    self.mass_vector[f"{i}_{n}"] = nn.Parameter(
+                        torch.log(torch.exp(mass_after_softplus) - 1.))
             if self.step_tuning_method == "No-U":
                 self.register_buffer("characteristic_length",
                                      torch.ones(n_ais_intermediate_distributions, dim))
@@ -71,13 +74,19 @@ class HamiltoneanMonteCarlo(TransitionOperator):
         self.target_p_accept = target_p_accept
         self.first_dist_p_accepts = [torch.tensor([0.0]) for _ in range(n_outer)]
         self.last_dist_p_accepts = [torch.tensor([0.0]) for _ in range(n_outer)]
-        self.average_distance: torch.Tensor
+        self.average_distance_first_dist: torch.Tensor
+        self.average_distance_last_dist: torch.Tensor
+        self.eval_mode = eval_mode  # turn off step size tuning
+
+    def set_eval_mode(self, eval_setting: bool):
+        """When eval_mode is turned on, no tuning of epsilon or the mass matrix occurs."""
+        self.eval_mode = eval_setting
 
     def get_logging_info(self) -> dict:
         """Log the total distance moved during HMC, as well as some of the tuned parameters."""
         interesting_dict = {}
         for i, val in enumerate(self.first_dist_p_accepts):
-            interesting_dict[f"dist1_p_accept_{i}"] = val.item()
+            interesting_dict[f"dist0_p_accept_{i}"] = val.item()
         if self.n_intermediate_ais_distributions > 1:
             for i, val in enumerate(self.last_dist_p_accepts):
                 interesting_dict[f"dist{self.n_intermediate_ais_distributions - 1}_p_accept_{i}"]\
@@ -105,7 +114,10 @@ class HamiltoneanMonteCarlo(TransitionOperator):
             interesting_dict[f"mass_dist{last_dist_n}_0_dim0"] = mass_last_dist_first_loop[0].cpu().item()
             interesting_dict[f"mass_dist{last_dist_n}_0_dim-1"] = mass_last_dist_first_loop[-1].cpu().item()
 
-        interesting_dict["average_distance"] = self.average_distance.cpu().item()
+        interesting_dict["average_distance_dist0"] = self.average_distance_first_dist.cpu().item()
+        if hasattr(self, f"average_distance_last_dist"):
+            interesting_dict[f"average_distance_dist_{self.n_intermediate_ais_distributions - 1}"] \
+                = self.average_distance_last_dist.cpu().item()
         return interesting_dict
 
     def get_epsilon(self, i: int, n: int) -> torch.Tensor:
@@ -143,7 +155,7 @@ class HamiltoneanMonteCarlo(TransitionOperator):
         epsilon = self.get_epsilon(i, n)
         mass_matrix = self.get_mass(i, n)
         if (l != self.L - 1 and self.step_tuning_method in ["No-U", "No-U-unscaled"]) or \
-                not self.train_params:
+                not self.train_params or self.eval_mode:
             epsilon = epsilon.detach()
             mass_matrix = mass_matrix.detach()
         return epsilon, mass_matrix
@@ -176,7 +188,7 @@ class HamiltoneanMonteCarlo(TransitionOperator):
             original_theta = torch.clone(current_theta).detach()
             theta = current_theta
             mass_matrix = self.get_mass(i, n)
-            if self.step_tuning_method not in ["Expected_target_prob"]:
+            if self.step_tuning_method not in ["Expected_target_prob"] or self.eval_mode:
                 mass_matrix = mass_matrix.detach()
                 theta = theta.detach()  # only backprop through final step to theta.
             p = torch.randn_like(theta) * mass_matrix
@@ -203,49 +215,21 @@ class HamiltoneanMonteCarlo(TransitionOperator):
             )
             accept = acceptance_probability > torch.rand(acceptance_probability.shape).to(theta.device)
             current_theta[accept] = theta[accept]
-            p_accept = torch.mean(acceptance_probability)
-            # TODO: make the below code more modular
-            if self.step_tuning_method == "p_accept":
-                if p_accept > self.target_p_accept: # too much accept
-                    self.epsilons[i, n] = self.epsilons[i, n] * 1.05
-                    self.common_epsilon = self.common_epsilon * 1.02
-                else:
-                    self.epsilons[i, n] = self.epsilons[i, n] / 1.05
-                    self.common_epsilon = self.common_epsilon / 1.02
+            p_accept_mean = torch.mean(acceptance_probability)
+            self.store_info(i=i, n=n, p_accept_mean=p_accept_mean, current_theta=current_theta,
+                            original_theta=original_theta)
+            if self.eval_mode:
+                # in eval mode we don't perform any tuning of the step size.
+                return current_theta.detach()  # stop gradient flow
             else:
-                # for gradient based tuning methods, we make sure that p_accept is at least 0.1
-                if p_accept < 0.2:
-                    # if p_accept is very low manually decrease step size, as this means that no acceptances so no
-                    # gradient flow to use
-                    self.epsilons[f"{i}_{n}"].data = self.epsilons[f"{i}_{n}"].data - 0.05
-                    self.epsilons["common"].data = self.epsilons["common"].data - 0.05
-                if i == 0:
-                    self.counter += 1
-            if i == 0: # save fist and last distribution info
-                # save as interesting info for plotting
-                self.first_dist_p_accepts[n] = torch.mean(acceptance_probability).cpu().detach()
-            elif i == self.n_intermediate_ais_distributions - 1:
-                self.last_dist_p_accepts[n] = torch.mean(acceptance_probability).cpu().detach()
-
-            if i == 0 or self.step_tuning_method == "No-U-unscaled":
-                distance = torch.linalg.norm((original_theta - current_theta), ord=2, dim=-1)
-                if i == 0:
-                    self.average_distance = torch.mean(distance).detach().cpu()
-                if self.step_tuning_method == "No-U-unscaled":
-                    # torch.autograd.grad(torch.mean(weighted_mean_square_distance), self.epsilons[f"{i}_{n}"], retain_graph=True)
-                    # torch.autograd.grad(loss, self.epsilons[f"{i}_{n}"], retain_graph=True)
-                    weighted_mean_square_distance = acceptance_probability * distance ** 2
-                    loss = loss - torch.mean(weighted_mean_square_distance)
-            if self.step_tuning_method == "No-U":
-                distance_scaled = torch.linalg.norm((original_theta - current_theta) / self.characteristic_length[i, :], ord=2, dim=-1)
-                weighted_scaled_mean_square_distance = acceptance_probability * distance_scaled ** 2
-                if (self.tune_period is False or self.counter < self.tune_period) and \
-                        self.step_tuning_method == "No-U":
-                    # remove zeros so we don't get infs when we divide
-                    weighted_scaled_mean_square_distance[weighted_scaled_mean_square_distance == 0.0] = 1.0
-                    loss = loss + torch.mean(1.0/weighted_scaled_mean_square_distance -
-                                             weighted_scaled_mean_square_distance)
-
+                if self.step_tuning_method == "p_accept":
+                    self.adjust_step_size_p_accept(p_accept_mean=p_accept_mean, i=i, n=n)
+                else:
+                    self.adjust_step_size_min_p_accept(p_accept_mean=p_accept_mean, i=i, n=n)
+                    if self.step_tuning_method == "No-U":
+                        loss = loss + self.no_u_turn_loss(
+                            i=i, current_theta=current_theta, original_theta=original_theta,
+                            acceptance_probability=acceptance_probability)
         if self.train_params:
             if self.tune_period is False or self.counter < self.tune_period:
                 if self.step_tuning_method == "Expected_target_prob":
@@ -257,10 +241,57 @@ class HamiltoneanMonteCarlo(TransitionOperator):
                     torch.nn.utils.clip_grad_value_(self.parameters(), 1)
                     # torch.autograd.grad(loss, self.epsilons["0_1"], retain_graph=True)
                     self.optimizer.step()
+
         if self.step_tuning_method == "No-U":
             # set next characteristc lengths
             self.characteristic_length.data[i, :] = torch.std(current_theta.detach(), dim=0)
         return current_theta.detach()  # stop gradient flow
+
+    def adjust_step_size_p_accept(self, p_accept_mean, i, n):
+        """Adjust step size to reach the target p-accept."""
+        if p_accept_mean > self.target_p_accept:  # too much accept
+            self.epsilons[i, n] = self.epsilons[i, n] * 1.05
+            self.common_epsilon = self.common_epsilon * 1.02
+        else:
+            self.epsilons[i, n] = self.epsilons[i, n] / 1.05
+            self.common_epsilon = self.common_epsilon / 1.02
+
+    def adjust_step_size_min_p_accept(self, p_accept_mean, i, n):
+        """ For gradient based tuning methods, we make sure that p_accept is at least 0.1."""
+        if p_accept_mean < 0.2:
+            # if p_accept is very low manually decrease step size, as this means that no acceptances so no
+            # gradient flow to use
+            self.epsilons[f"{i}_{n}"].data = self.epsilons[f"{i}_{n}"].data - 0.05
+            self.epsilons["common"].data = self.epsilons["common"].data - 0.05
+        if i == 0:
+            self.counter += 1
+
+    def no_u_turn_loss(self, i, current_theta, original_theta, acceptance_probability):
+        """Estimate loss based on maximising expected distance moved."""
+        distance_scaled = torch.linalg.norm(
+            (original_theta - current_theta) / self.characteristic_length[i, :], ord=2, dim=-1)
+        weighted_scaled_mean_square_distance = acceptance_probability * distance_scaled ** 2
+        if (self.tune_period is False or self.counter < self.tune_period) and \
+                self.step_tuning_method == "No-U":
+            # remove zeros so we don't get infs when we divide
+            weighted_scaled_mean_square_distance[weighted_scaled_mean_square_distance == 0.0] = 1.0
+            loss = torch.mean(1.0 / weighted_scaled_mean_square_distance -
+                                     weighted_scaled_mean_square_distance)
+        else:
+            loss = 0.0
+        return loss
+
+    def store_info(self, i, n, p_accept_mean, current_theta, original_theta):
+        """Store info that will be retrieved for logging."""
+        if i == 0:  # save info from the first AIS distribution.
+            # save as interesting info for plotting
+            self.first_dist_p_accepts[n] = p_accept_mean.cpu().detach()
+            distance = torch.linalg.norm((original_theta - current_theta), ord=2, dim=-1)
+            self.average_distance_first_dist = torch.mean(distance).detach().cpu()
+        elif i == self.n_intermediate_ais_distributions - 1:
+            self.last_dist_p_accepts[n] = p_accept_mean.cpu().detach()
+            distance = torch.linalg.norm((original_theta - current_theta), ord=2, dim=-1)
+            self.average_distance_last_dist = torch.mean(distance).detach().cpu()
 
     def transition(self, x: torch.Tensor, log_p_x: LogProbFunc, i: int) -> torch.Tensor:
         # currently mainly written with grad_log_q_x = None in mind

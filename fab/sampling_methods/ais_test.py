@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 
 from fab.sampling_methods import AnnealedImportanceSampler, Metropolis, HamiltoneanMonteCarlo
 from fab.utils.logging import ListLogger
-from fab.target_distributions import GMM, TargetDistribution
+from fab.target_distributions import TargetDistribution
+from fab.target_distributions.gmm import GMM
 from fab.wrappers.torch import WrappedTorchDist
 from fab.utils.plotting import plot_history
 

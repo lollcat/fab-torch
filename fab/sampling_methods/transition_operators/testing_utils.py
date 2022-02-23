@@ -16,13 +16,16 @@ def test_transition_operator(transition_operator: TransitionOperator,
                              n_iterations: int = 20,
                              n_samples: int = 1000,
                              dim: int = 2,
-                             seed: int = 0) -> None:
+                             seed: int = 0,
+                             base_scale: float = 1.0) -> None:
     logger = ListLogger()
     torch.manual_seed(seed)
     # instantiate base and target distribution
-    target = GMM(dim=dim, n_mixes=3, loc_scaling=6)
+    target_scale = 5.0
+    target = GMM(dim=dim, n_mixes=3, loc_scaling=target_scale)
+    base_scale = base_scale * target_scale
     learnt_sampler = torch.distributions.MultivariateNormal(loc=torch.zeros(dim),
-                                                                 scale_tril=2*torch.eye(dim))
+                                                                 scale_tril=base_scale*torch.eye(dim))
     n_intermediate_plots = 4  # plots of samples over different HMC iterations
     n_plots = 2 + n_intermediate_plots
     fig, axs = plt.subplots(n_plots, figsize=(3, n_plots*3), sharex=True, sharey=True)

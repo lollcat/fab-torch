@@ -1,0 +1,1 @@
+from fab.target_distributions.base import TargetDistribution

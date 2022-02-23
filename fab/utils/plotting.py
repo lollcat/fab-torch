@@ -29,7 +29,7 @@ def plot_history(history):
 
 def plot_contours(log_prob_func: LogProbFunc,
                   ax: Optional[plt.Axes] = None,
-                  bounds: Tuple[int, int] = (-5, 5),
+                  bounds: Tuple[float, float] = (-5.0, 5.0),
                   grid_width_n_points: int = 20,
                   n_contour_levels: Optional[int] = None):
     """Plot contours of a log_prob_func that is defined on 2D"""
@@ -51,10 +51,11 @@ def plot_contours(log_prob_func: LogProbFunc,
 def plot_marginal_pair(samples: torch.Tensor,
                   ax: Optional[plt.Axes] = None,
                   marginal_dims: Tuple[int, int] = (0, 1),
-                  bounds: Tuple[int, int] = (-5, 5),):
+                  bounds: Tuple[float, float] = (-5.0, 5.0),
+                  alpha: float = 0.5):
     """Plot samples from marginal of distribution for a given pair of dimensions."""
     if not ax:
         fig, ax = plt.subplots(1)
     samples = torch.clamp(samples, bounds[0], bounds[1])
     samples = samples.cpu().detach()
-    ax.plot(samples[:, marginal_dims[0]], samples[:, marginal_dims[1]], "o", alpha=0.5)
+    ax.plot(samples[:, marginal_dims[0]], samples[:, marginal_dims[1]], "o", alpha=alpha)
