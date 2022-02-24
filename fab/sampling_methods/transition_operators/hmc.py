@@ -204,7 +204,6 @@ class HamiltoneanMonteCarlo(TransitionOperator):
                 theta = theta + epsilon / mass_matrix * p
                 # update grad_u
                 grad_u = grad_U(theta)
-                # Make a full step for the momentum if not at end of trajectory
                 # make momentum half step
                 p = p - epsilon * grad_u / 2
 
