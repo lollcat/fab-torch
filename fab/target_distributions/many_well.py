@@ -1,9 +1,11 @@
 from typing import Optional, Dict
+
 from fab.types_ import LogProbFunc
 
 import torch
 import torch.nn as nn
 from fab.target_distributions.base import TargetDistribution
+from fab.utils.training import DatasetIterator
 
 class Energy(torch.nn.Module):
     """
@@ -79,20 +81,18 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
             self.device = "cpu"
 
 
-    @property
-    def test_set(self):
-        """Test set created from points manually placed near each mode."""
+    def get_test_set_iterator(self, batch_size: int):
+        """Test set created from points manually placed near each mode. We """
         if self.dim < self.max_dim_for_all_modes:
-            return self._test_set.to(self.device)
+            test_set = self._test_set
         else:
-            batch_size = int(1e3)
-            test_set = torch.zeros((batch_size, self.dim), device=self.device)
+            outer_batch_size = int(1e4)
+            test_set = torch.zeros((outer_batch_size, self.dim))
             test_set[:, torch.arange(self.dim) % 2 == 0] = \
-                -self.centre + self.centre * 2 * torch.randint(high=2,
-                                                               size=(batch_size, int(self.dim/2)),
-                                                               device=self.device)
-            return test_set
-
+                -self.centre + self.centre * 2 * \
+                torch.randint(high=2, size=(outer_batch_size, int(self.dim/2)))
+        return DatasetIterator(batch_size=batch_size, dataset=test_set,
+                               device=self.device)
 
     def log_prob(self, x):
         return torch.sum(
@@ -106,11 +106,16 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
         return super(ManyWellEnergy, self).log_prob(x)
 
     def performance_metrics(self, samples: torch.Tensor, log_w: torch.Tensor,
-                            log_q_fn: Optional[LogProbFunc] = None) -> Dict:
+                            log_q_fn: Optional[LogProbFunc] = None,
+                            batch_size: Optional[int] = None) -> Dict:
         if log_q_fn is None:
             return {}
         else:
             del samples
             del log_w
-            info = {"test_set_mean_log_prob": torch.mean(log_q_fn(self.test_set)).item()}
+            sum_log_prob = 0.0
+            test_set_iterator = self.get_test_set_iterator(batch_size=batch_size)
+            for x in test_set_iterator:
+                sum_log_prob += torch.sum(log_q_fn(x)).item()
+            info = {"test_set_mean_log_prob": sum_log_prob / test_set_iterator.test_set_n_points}
             return info
