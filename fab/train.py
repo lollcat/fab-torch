@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from fab.utils.logging import Logger, ListLogger
 from fab.types_ import Model
 import pathlib
+import os
 
 lr_scheduler = Any  # a learning rate schedular from torch.optim.lr_scheduler
 Plotter = Callable[[Model], List[plt.Figure]]
@@ -30,8 +31,8 @@ class Trainer:
         self.gradient_clipping = gradient_clipping
         self.max_gradient_norm = max_gradient_norm
         self.save_dir = save_path
-        self.plots_dir = self.save_dir + f"plots/"
-        self.checkpoints_dir = "model_checkpoints/"
+        self.plots_dir = os.path.join(self.save_dir, f"plots")
+        self.checkpoints_dir = os.path.join(self.save_dir, f"model_checkpoints")
 
 
     def run(self,
@@ -85,16 +86,17 @@ class Trainer:
                     figures = self.plot(self.model)
                     if save:
                         for j, figure in enumerate(figures):
-                            figure.savefig(self.plots_dir + f"{j}_iter_{i}.png")
+                            figure.savefig(os.path.join(self.plots_dir, f"{j}_iter_{i}.png"))
 
             if n_checkpoints is not None:
                 if i in checkpoint_iter:
-                    checkpoint_path = self.checkpoints_dir + f"iter_{i}/"
+                    checkpoint_path = os.path.join(self.checkpoints_dir, f"iter_{i}/")
                     pathlib.Path(checkpoint_path).mkdir(exist_ok=False)
-                    self.model.save(checkpoint_path + "model.pt")
-                    torch.save(self.optimizer.state_dict(), checkpoint_path + 'optimizer.pt')
+                    self.model.save(os.path.join(checkpoint_path, "model.pt"))
+                    torch.save(self.optimizer.state_dict(),
+                               os.path.join(checkpoint_path, 'optimizer.pt'))
                     if self.optim_schedular:
-                        torch.save(self.optim_schedular.state_dict(), self.checkpoints_dir +
-                                   'scheduler.pt')
+                        torch.save(self.optim_schedular.state_dict(),
+                                   os.path.join(self.checkpoints_dir, 'scheduler.pt'))
 
         self.logger.close()

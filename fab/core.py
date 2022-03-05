@@ -95,7 +95,8 @@ class FABModel(Model):
         info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w, normalised=False).item(),
                 "eval_ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False).item()}
         flow_info = self.target_distribution.performance_metrics(base_samples, base_log_w,
-                                                                 self.flow.log_prob)
+                                                                 self.flow.log_prob,
+                                                                 batch_size=inner_batch_size)
         ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)
         info.update(flow_info)
         info.update(ais_info)

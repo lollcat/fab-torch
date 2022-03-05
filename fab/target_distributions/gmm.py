@@ -72,7 +72,8 @@ class GMM(nn.Module, TargetDistribution):
 
 
     def performance_metrics(self, samples: torch.Tensor, log_w: torch.Tensor,
-                            log_q_fn: Optional[LogProbFunc] = None) -> Dict:
+                            log_q_fn: Optional[LogProbFunc] = None,
+                            batch_size: Optional[int] = None) -> Dict:
         expectation = importance_weighted_expectation(self.expectation_function,
                                                          samples, log_w)
         bias_normed = np.abs(expectation - self.true_expectation) / self.true_expectation

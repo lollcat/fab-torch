@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
 import torch
+import os
 import pathlib
 import hydra
+import wandb
 from omegaconf import DictConfig
 
 from datetime import datetime
@@ -35,10 +37,13 @@ def _run(cfg: DictConfig):
     torch.manual_seed(cfg.training.seed)
     current_time = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
     save_path = cfg.evaluation.save_path + current_time + "/"
+    logger = setup_logger(cfg, save_path)
+    if hasattr(cfg.logger, "wandb"):
+        # if using wandb then save to wandb path
+        save_path = os.path.join(wandb.run.dir, save_path)
     pathlib.Path(save_path).mkdir(parents=True, exist_ok=False)
     with open(save_path + "config.txt", "w") as file:
         file.write(str(cfg))
-
     from fab.target_distributions.many_well import ManyWellEnergy
     assert dim % 2 == 0
     target = ManyWellEnergy(dim, a=-0.5, b=-6)
@@ -78,7 +83,6 @@ def _run(cfg: DictConfig):
     optimizer = torch.optim.AdamW(flow.parameters(), lr=cfg.training.lr)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
     scheduler = None
-    logger = setup_logger(cfg, save_path)
 
     def plot(fab_model, n_samples: int = cfg.training.batch_size, dim: int = dim):
         n_rows = dim // 2
