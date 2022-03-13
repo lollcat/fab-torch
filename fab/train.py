@@ -72,7 +72,8 @@ class Trainer:
             if self.gradient_clipping:
                 info.update(grad_norm=grad_norm.cpu().detach().item())
             self.logger.write(info)
-            pbar.set_description(f"loss: {loss.cpu().detach().item()}")
+            pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"
+                                 f"ess ais: {info['ess_ais']}")
 
             if n_eval is not None:
                 if i in eval_iter:
