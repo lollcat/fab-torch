@@ -105,10 +105,11 @@ class AnnealedImportanceSampler:
             distribution_spacing_type = "linear"
         if distribution_spacing_type == "geometric":
             # rough heuristic, copying ratio used in example in AIS paper
-            n_linspace_points = max(int(n_intermediate_distributions / 5), 2)
+            n_linspace_points = max(int(n_intermediate_distributions / 4), 2)
             n_geomspace_points = n_intermediate_distributions - n_linspace_points
-            B_space = np.concatenate([np.linspace(0, 0.1, n_linspace_points + 3)[:-1],
-                                   np.geomspace(0.1, 1, n_geomspace_points)])
+            B_space = np.concatenate([np.linspace(0, 0.01, n_linspace_points + 3)[:-1],
+                                   np.geomspace(0.01, 1, n_geomspace_points)])
+            B_space = np.flip(1 - B_space)
         elif distribution_spacing_type == "linear":
             B_space = np.linspace(0.0, 1.0, n_intermediate_distributions+2)
         else:
