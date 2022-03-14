@@ -1,7 +1,8 @@
 import os
 
 import yaml
-
+import numpy as np
+import torch
 
 
 def load_config(path):
@@ -30,3 +31,23 @@ def get_latest_checkpoint(dir_path, key=''):
         return None
     checkpoints.sort()
     return checkpoints[-1]
+
+
+class DatasetIterator:
+    """Create an iterator that returns batches of data. This is useful for iterating through
+    a dataset and performing multiple forward passes without overloading the GPU."""
+    def __init__(self, batch_size: int, dataset: torch.Tensor, device):
+        self.batch_size = batch_size
+        self.n_splits = int(np.ceil(dataset.shape[0] / batch_size))  # roundup
+        self.dataset_iter = iter(torch.split(dataset, self.n_splits))
+        self.device = device
+        self.test_set_n_points = dataset.shape[0]
+
+    def __next__(self):
+        return next(self.dataset_iter).to(self.device)
+
+    def __iter__(self):
+        return self
+
+    def __len__(self):
+        return self.n_splits

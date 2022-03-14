@@ -113,5 +113,5 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
     def log_prob(self, x: torch.tensor):
         return self.p.log_prob(x)
 
-    def performance_metrics(self, samples, log_w, log_q_fn=None):
+    def performance_metrics(self, samples, log_w, log_q_fn, batch_size):
         return {}
