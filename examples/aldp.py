@@ -137,7 +137,9 @@ if config['flow']['base']['type'] == 'gauss':
     base = nf.distributions.DiagGaussian(ndim,
                                          trainable=config['flow']['base']['learn_mean_var'])
 elif config['flow']['base']['type'] == 'gauss-uni':
-    base = nf.distributions.UniformGaussian(ndim, ind_circ, scale=bound_circ * 2)
+    base_scale = torch.ones(ndim)
+    base_scale[ind_circ] = bound_circ * 2
+    base = nf.distributions.UniformGaussian(ndim, ind_circ, scale=base_scale)
     base.shape = (ndim,)
 else:
     raise NotImplementedError('The base distribution ' + config['flow']['base']['type']
