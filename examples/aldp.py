@@ -96,7 +96,7 @@ for i in range(config['flow']['blocks']):
         ncarts = target.coordinate_transform.mixed_transform.len_cart_inds
         permute_inv = target.coordinate_transform.mixed_transform.permute_inv.cpu().numpy()
         dih_ind_ = target.coordinate_transform.mixed_transform.ic_transform.dih_indices.cpu().numpy()
-        std_dih = target.coordinate_transform.mixed_transform.ic_transform.std_dih
+        std_dih = target.coordinate_transform.mixed_transform.ic_transform.std_dih.cpu()
 
         ind = np.arange(ndim)
         ind = np.concatenate([ind[:3*ncarts - 6], -np.ones(6, dtype=np.int), ind[3*ncarts - 6:]])
