@@ -1,0 +1,58 @@
+# Config file specifying the setup of a Boltzmann Generator
+
+
+data:
+  transform: datasets/boltzmann-generators/aldp_train.h5
+  test: datasets/boltzmann-generators/aldp_test_transformed.pt
+
+
+system:                             # Properties of molecular system
+
+  temperature: 1000                 # Double, temperature of the system
+  energy_cut: 1.e+8                 # Double, energy level at which regularization shall be applied
+  energy_max: 1.e+20                # Double, maximum level at which energies will be clamped
+  n_threads: 4                      # Int, number of threads to be used, number of cores if null
+
+
+flow:                               # Properties of the flow model
+
+  type: circular-nsf                # String, type of the flow
+  base:                             # Base distribution
+    type: gauss-uni                 # Type of the base dist
+    params: null
+  blocks: 16                        # Int, number of Real NVP blocks, consisting of an ActNorm layer
+                                    # if specified, a permutation, and a affine coupling layer
+  actnorm: False                    # Bool, flag whether to include an ActNorm layers
+  mixing: null                      # String, how features are mixed
+  blocks_per_layer: 1               # Int, number of blocks per layer
+  hidden_units: 128                 # Int, number of hidden units of the NN in neural spline layers
+  num_bins: 8                       # Int, number of bins of the neural splines
+  init_identity: True               # Bool, flag whether to initialize layers as identity map
+  dropout: 0.                       # Float, dropout probability for the NN layers
+
+
+fab:
+
+  transition_type: hmc              # String, type of transition operator used
+  n_int_dist: 5                     # Int, number of intermediate distributions
+  n_inner: 5                        # Int, number of steps between intermediate distributions
+  loss_type: alpha_2_div            # String, loss to be used
+
+
+
+training:                           # Properties of the training procedure
+  max_iter: 500000                  # Int, maximum number of iteration
+  optimizer: adam                   # String, name of the optimizer
+  warmup_iter: 100                  # Int, number of iterations of linearly warm up learning rate
+  batch_size: 512                   # Int, batch size used during training
+  learning_rate: 1.e-3              # Double, learning rate used during training
+  max_grad_norm: 10.                # Double, limit for gradient clipping
+  rate_decay: 0.1                   # Double, learning rate decay factor
+  decay_iter: 250000                # Int, number of iteration after which the learning rate should be
+                                    # decreased
+  weight_decay: 1.e-5               # Double, regularization parameter
+  log_iter: 1000                    # Int, number of iterations after which loss is saved
+  checkpoint_iter: 5000             # Int, number of iterations after which checkpoint is saved
+  eval_samples: 1000000             # Int, number of samples to draw when evaluating the model
+  seed: 0                           # Int, seed to be used for the random number generator
+  save_root: out
