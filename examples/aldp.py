@@ -77,23 +77,23 @@ flow_type = config['flow']['type']
 ndim = 60
 # Flow layers
 layers = []
-if flow_type == 'circular-nsf':
-    ncarts = target.coordinate_transform.mixed_transform.len_cart_inds
-    permute_inv = target.coordinate_transform.mixed_transform.permute_inv.cpu().numpy()
-    dih_ind_ = target.coordinate_transform.mixed_transform.ic_transform.dih_indices.cpu().numpy()
-    std_dih = target.coordinate_transform.mixed_transform.ic_transform.std_dih.cpu()
 
-    ind = np.arange(ndim)
-    ind = np.concatenate([ind[:3 * ncarts - 6], -np.ones(6, dtype=np.int), ind[3 * ncarts - 6:]])
-    ind = ind[permute_inv]
-    dih_ind = ind[dih_ind_]
+ncarts = target.coordinate_transform.mixed_transform.len_cart_inds
+permute_inv = target.coordinate_transform.mixed_transform.permute_inv.cpu().numpy()
+dih_ind_ = target.coordinate_transform.mixed_transform.ic_transform.dih_indices.cpu().numpy()
+std_dih = target.coordinate_transform.mixed_transform.ic_transform.std_dih.cpu()
 
-    ind_circ_ = std_dih > 0.5
-    ind_circ = dih_ind[ind_circ_]
-    bound_circ = np.pi / std_dih[ind_circ_]
+ind = np.arange(ndim)
+ind = np.concatenate([ind[:3 * ncarts - 6], -np.ones(6, dtype=np.int), ind[3 * ncarts - 6:]])
+ind = ind[permute_inv]
+dih_ind = ind[dih_ind_]
 
-    tail_bound = 5. * torch.ones(ndim)
-    tail_bound[ind_circ] = bound_circ
+ind_circ_ = std_dih > 0.5
+ind_circ = dih_ind[ind_circ_]
+bound_circ = np.pi / std_dih[ind_circ_]
+
+tail_bound = 5. * torch.ones(ndim)
+tail_bound[ind_circ] = bound_circ
 
 for i in range(config['flow']['blocks']):
     if flow_type == 'rnvp':
@@ -119,9 +119,6 @@ for i in range(config['flow']['blocks']):
         layers.append(nf.flows.CircularAutoregressiveRationalQuadraticSpline(ndim,
             bl, hu, ind_circ, tail_bound=tail_bound, num_bins=nb, permute_mask=True,
             init_identity=ii, dropout_probability=dropout))
-
-        if i == config['flow']['blocks'] - 1:
-            layers.append(nf.flows.Periodic(ind_circ, bound_circ))
     else:
         raise NotImplementedError('The flow type ' + flow_type + ' is not implemented.')
 
@@ -132,6 +129,10 @@ for i in range(config['flow']['blocks']):
 
     if config['flow']['actnorm']:
         layers.append(nf.flows.ActNorm(ndim))
+
+# Map input to periodic interval
+layers.append(nf.flows.Periodic(ind_circ, bound_circ))
+
 # Base distribution
 if config['flow']['base']['type'] == 'gauss':
     base = nf.distributions.DiagGaussian(ndim,
@@ -387,6 +388,7 @@ for it in range(start_iter, max_iter):
                 with torch.no_grad():
                     z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
                                                                                   logging=False)[0]
+            z_, _ = model.flow._nf_model.flows[-1].inverse(z_.detach())
             z_samples = torch.cat((z_samples, z_.detach()))
 
         # Evaluate model and save plots
