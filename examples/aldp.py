@@ -155,7 +155,10 @@ if config['fab']['transition_type'] == 'hmc':
         dim=ndim, L=config['fab']['n_inner'])
 elif config['fab']['transition_type'] == 'metropolis':
     transition_operator = Metropolis(n_transitions=config['fab']['n_int_dist'],
-                                     n_updates=config['fab']['n_inner'])
+                                     n_updates=config['fab']['n_inner'],
+                                     max_step_size=config['fab']['max_step_size'],
+                                     min_step_size=config['fab']['min_step_size'],
+                                     adjust_step_size=config['fab']['adjust_step_size'])
 else:
     raise NotImplementedError('The transition operator ' + config['fab']['transition_type']
                               + ' is not implemented')
@@ -325,9 +328,15 @@ for it in range(start_iter, max_iter):
                        grad_norm_hist, delimiter=',',
                        header='it,grad_norm', comments='')
         # Effective sample size
-        base_samples, base_log_w, ais_samples, ais_log_w = \
-            model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
-                                                                 batch_size)
+        if config['fab']['transition_type'] == 'hmc':
+            base_samples, base_log_w, ais_samples, ais_log_w = \
+                model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
+                                                                     batch_size)
+        else:
+            with torch.no_grad():
+                base_samples, base_log_w, ais_samples, ais_log_w = \
+                    model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
+                                                                         batch_size)
         ess_append = np.array([[it + 1, effective_sample_size(base_log_w, normalised=False),
                                 effective_sample_size(ais_log_w, normalised=False)]])
         ess_hist = np.concatenate([ess_hist, ess_append])
@@ -352,7 +361,11 @@ for it in range(start_iter, max_iter):
                 ns = ((eval_samples - 1) % batch_size) + 1
             else:
                 ns = batch_size
-            z_ = model.flow.sample((ns,))
+            if config['fab']['transition_type'] == 'hmc':
+                z_ = model.flow.sample((ns,))
+            else:
+                with torch.no_grad():
+                    z_ = model.flow.sample((ns,))
             z_samples = torch.cat((z_samples, z_.detach()))
 
         # Evaluate model and save plots
@@ -367,8 +380,13 @@ for it in range(start_iter, max_iter):
                 ns = ((eval_samples - 1) % batch_size) + 1
             else:
                 ns = batch_size
-            z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
-                                                                          logging=False)[0]
+            if config['fab']['transition_type'] == 'hmc':
+                z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
+                                                                              logging=False)[0]
+            else:
+                with torch.no_grad():
+                    z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
+                                                                                  logging=False)[0]
             z_samples = torch.cat((z_samples, z_.detach()))
 
         # Evaluate model and save plots
