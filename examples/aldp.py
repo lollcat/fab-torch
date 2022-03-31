@@ -206,8 +206,18 @@ lr_warmup = 'warmup_iter' in config['training'] \
 if lr_warmup:
     warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
                                                          lambda s: min(1., s / config['training']['warmup_iter']))
-lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
-                                                      gamma=config['training']['rate_decay'])
+if 'lr_scheduler' in config['training']:
+    if config['training']['lr_scheduler']['type'] == 'exponential':
+        lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
+            gamma=config['training']['lr_scheduler']['rate_decay'])
+        lr_step = config['training']['lr_scheduler']['decay_iter']
+    elif config['training']['lr_scheduler']['type'] == 'cosine':
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer,
+            T_max=config['training']['lr_scheduler']['T_max'])
+        lr_step = 1
+else:
+    lr_scheduler = None
+
 
 # Train model
 max_iter = config['training']['max_iter']
@@ -255,6 +265,9 @@ if args.resume:
         warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
         if os.path.exists(warmup_scheduler_path):
             warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
+        lr_scheduler_path = os.path.join(cp_dir, 'lr_scheduler.pt')
+        if lr_scheduler is not None and os.path.exists(lr_scheduler_path):
+            lr_scheduler.load_state_dict(torch.load(lr_scheduler_path))
         # Load logs
         log_labels = ['loss', 'ess']
         log_hists = [loss_hist, ess_hist]
@@ -315,7 +328,7 @@ for it in range(start_iter, max_iter):
         warmup_scheduler.step()
 
     # Update lr scheduler
-    if (it + 1) % config['training']['decay_iter'] == 0:
+    if lr_scheduler is not None and (it + 1) % lr_step == 0:
         lr_scheduler.step()
 
     # Save loss
@@ -354,6 +367,9 @@ for it in range(start_iter, max_iter):
         if lr_warmup:
             torch.save(warmup_scheduler.state_dict(),
                        os.path.join(cp_dir, 'warmup_scheduler.pt'))
+        if lr_scheduler is not None:
+            torch.save(lr_scheduler.state_dict(),
+                       os.path.join(cp_dir, 'lr_scheduler.pt'))
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
