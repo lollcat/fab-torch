@@ -213,7 +213,11 @@ if 'lr_scheduler' in config['training']:
         lr_step = config['training']['lr_scheduler']['decay_iter']
     elif config['training']['lr_scheduler']['type'] == 'cosine':
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer,
-            T_max=config['training']['lr_scheduler']['T_max'])
+            T_max=config['training']['max_iter'])
+        lr_step = 1
+    elif config['training']['lr_scheduler']['type'] == 'cosine_restart':
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer=optimizer,
+            T_0=config['training']['lr_scheduler']['restart_iter'])
         lr_step = 1
 else:
     lr_scheduler = None
