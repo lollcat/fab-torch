@@ -241,7 +241,8 @@ if grad_clipping:
     grad_norm_hist = np.zeros((0, 2))
 
 # Load train data if needed
-if loss_type == 'flow_forward_kl':
+lam_fkld = None if not 'lam_fkld' in config['fab'] else config['fab']['lam_fkld']
+if loss_type == 'flow_forward_kl' or lam_fkld is not None:
     path = config['data']['train']
     train_data = torch.load(path)
     if args.precision == 'double':
@@ -294,14 +295,17 @@ start_time = time()
 
 for it in range(start_iter, max_iter):
     # Get loss
-    if loss_type == 'flow_forward_kl':
+    if loss_type == 'flow_forward_kl' or lam_fkld is not None:
         try:
             x = next(train_iter)
         except StopIteration:
             train_iter = iter(train_loader)
             x = next(train_iter)
         x = x.to(device, non_blocking=True)
-        loss = model.loss(x)
+        if lam_fkld is None:
+            loss = model.loss(x)
+        else:
+            loss = model.loss(batch_size) + lam_fkld * model.flow_forward_kl(x)
     else:
         loss = model.loss(batch_size)
 
