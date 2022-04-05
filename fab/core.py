@@ -57,7 +57,11 @@ class FABModel(Model):
 
     def fab_alpha_div_loss(self, batch_size: int) -> torch.Tensor:
         """Compute the FAB loss based on lower-bound of alpha-divergence with alpha=2."""
-        x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
+        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltoneanMonteCarlo):
+            x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
+        else:
+            with torch.no_grad():
+                x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         x_ais = x_ais.detach()
         log_w_ais = log_w_ais.detach()
         log_q_x = self.flow.log_prob(x_ais)
@@ -71,7 +75,11 @@ class FABModel(Model):
 
     def fab_forward_kl(self, batch_size: int) -> torch.Tensor:
         """Compute FAB estimate of forward kl-divergence."""
-        x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
+        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltoneanMonteCarlo):
+            x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
+        else:
+            with torch.no_grad():
+                x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         x_ais = x_ais.detach()
         log_w_ais = log_w_ais.detach()
         log_q_x = self.flow.log_prob(x_ais)
@@ -79,7 +87,11 @@ class FABModel(Model):
 
     def fab_sample_log_prob(self, batch_size: int, sample_frac: float = 1.0) -> torch.Tensor:
         """Compute FAB loss by maximising the log prob of ais samples under the flow."""
-        x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
+        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltoneanMonteCarlo):
+            x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
+        else:
+            with torch.no_grad():
+                x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         log_q_x = self.flow.log_prob(x_ais.detach())
         return - torch.mean(log_q_x)
 
