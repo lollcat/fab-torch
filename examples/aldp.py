@@ -65,11 +65,14 @@ test_data = test_data.to(device)
 # Set up model
 
 # Target distribution
+transform_mode = 'mixed' if not 'transform' in config['system'] \
+    else config['system']['transform']
 target = AldpBoltzmann(data_path=config['data']['transform'],
                        temperature=config['system']['temperature'],
                        energy_cut=config['system']['energy_cut'],
                        energy_max=config['system']['energy_max'],
-                       n_threads=config['system']['n_threads'])
+                       n_threads=config['system']['n_threads'],
+                       transform=transform_mode)
 target = target.to(device)
 
 # Flow
@@ -78,10 +81,10 @@ ndim = 60
 # Flow layers
 layers = []
 
-ncarts = target.coordinate_transform.mixed_transform.len_cart_inds
-permute_inv = target.coordinate_transform.mixed_transform.permute_inv.cpu().numpy()
-dih_ind_ = target.coordinate_transform.mixed_transform.ic_transform.dih_indices.cpu().numpy()
-std_dih = target.coordinate_transform.mixed_transform.ic_transform.std_dih.cpu()
+ncarts = target.coordinate_transform.transform.len_cart_inds
+permute_inv = target.coordinate_transform.transform.permute_inv.cpu().numpy()
+dih_ind_ = target.coordinate_transform.transform.ic_transform.dih_indices.cpu().numpy()
+std_dih = target.coordinate_transform.transform.ic_transform.std_dih.cpu()
 
 ind = np.arange(ndim)
 ind = np.concatenate([ind[:3 * ncarts - 6], -np.ones(6, dtype=np.int), ind[3 * ncarts - 6:]])
