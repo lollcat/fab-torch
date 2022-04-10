@@ -219,13 +219,13 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
 
         if transform_mode == 'internal':
             hists_test_bond = np.concatenate((hists_test_cart[:, :2],
-                                              hists_test_bond), 0)
+                                              hists_test_bond), 1)
             hists_gen_bond = np.concatenate((hists_gen_cart[:, :2],
-                                             hists_gen_bond), 0)
+                                             hists_gen_bond), 1)
             hists_test_angle = np.concatenate((hists_test_cart[:, 2:],
-                                               hists_test_angle), 0)
+                                               hists_test_angle), 1)
             hists_gen_angle = np.concatenate((hists_gen_cart[:, 2:],
-                                              hists_gen_angle), 0)
+                                              hists_gen_angle), 1)
 
         label = ['bond', 'angle', 'dih']
         hists_test_list = [hists_test_bond, hists_test_angle,
