@@ -132,7 +132,7 @@ for i in range(config['flow']['blocks']):
             mask = nf.utils.masks.create_random_binary_mask(ndim)
         else:
             mask = 1 - mask
-        layers.append(nf.flows.CircularAutoregressiveRationalQuadraticSpline(ndim,
+        layers.append(nf.flows.CircularCoupledRationalQuadraticSpline(ndim,
             bl, hu, ind_circ, tail_bound=tail_bound, num_bins=nb, init_identity=ii,
             dropout_probability=dropout, mask=mask))
     else:
