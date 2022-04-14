@@ -113,7 +113,7 @@ for i in range(config['flow']['blocks']):
                                 init_zeros=config['flow']['init_zeros'], output_fn=output_fn)
         layers.append(nf.flows.AffineCouplingBlock(param_map, scale=scale,
                                                    scale_map=scale_map))
-    elif flow_type == 'circular-nsf':
+    elif flow_type == 'circular-ar-nsf':
         bl = config['flow']['blocks_per_layer']
         hu = config['flow']['hidden_units']
         nb = config['flow']['num_bins']
@@ -122,6 +122,19 @@ for i in range(config['flow']['blocks']):
         layers.append(nf.flows.CircularAutoregressiveRationalQuadraticSpline(ndim,
             bl, hu, ind_circ, tail_bound=tail_bound, num_bins=nb, permute_mask=True,
             init_identity=ii, dropout_probability=dropout))
+    elif flow_type == 'circular-coup-nsf':
+        bl = config['flow']['blocks_per_layer']
+        hu = config['flow']['hidden_units']
+        nb = config['flow']['num_bins']
+        ii = config['flow']['init_identity']
+        dropout = config['flow']['dropout']
+        if i % 2 == 0:
+            mask = nf.utils.masks.create_random_binary_mask(ndim)
+        else:
+            mask = 1 - mask
+        layers.append(nf.flows.CircularAutoregressiveRationalQuadraticSpline(ndim,
+            bl, hu, ind_circ, tail_bound=tail_bound, num_bins=nb, init_identity=ii,
+            dropout_probability=dropout, mask=mask))
     else:
         raise NotImplementedError('The flow type ' + flow_type + ' is not implemented.')
 
