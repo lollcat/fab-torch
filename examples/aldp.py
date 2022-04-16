@@ -249,6 +249,7 @@ loss_hist = np.zeros((0, 2))
 ess_hist = np.zeros((0, 3))
 eval_samples = config['training']['eval_samples']
 eval_batches = (eval_samples - 1) // batch_size + 1
+eval_batches_flow = (len(test_data) - 1) // batch_size + 1
 
 max_grad_norm = None if not 'max_grad_norm' in config['training'] \
     else config['training']['max_grad_norm']
@@ -397,8 +398,8 @@ for it in range(start_iter, max_iter):
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
-        for i in range(eval_batches):
-            if i == eval_batches - 1:
+        for i in range(eval_batches_flow):
+            if i == eval_batches_flow - 1:
                 ns = ((eval_samples - 1) % batch_size) + 1
             else:
                 ns = batch_size
