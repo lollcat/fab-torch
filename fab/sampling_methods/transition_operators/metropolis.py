@@ -45,9 +45,12 @@ class Metropolis(TransitionOperator):
             # acceptance
             accept = (acceptance_probability > torch.rand(acceptance_probability.shape
                                                           ).to(x.device)).int()
-            accept = accept[:, None]
-            x = accept * x_proposed + (1 - accept) * x
             x_prev_log_prob = accept * x_proposed_log_prob + (1 - accept) * x_prev_log_prob
+            accept = accept[:, None]
+            print(accept.shape)
+            print(x.shape)
+            print(x_proposed.shape)
+            x = accept * x_proposed + (1 - accept) * x
             if self.adjust_step_size:
                 p_accept = torch.mean(torch.clamp_max(acceptance_probability, 1))
                 if p_accept > self.target_prob_accept:  # too much accept
