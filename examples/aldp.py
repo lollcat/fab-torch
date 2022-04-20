@@ -217,11 +217,7 @@ elif optimizer_name == 'adamax':
     optimizer = torch.optim.Adamax(optimizer_param, lr=lr, weight_decay=weight_decay)
 else:
     raise NotImplementedError('The optimizer ' + optimizer_name + ' is not implemented.')
-lr_warmup = 'warmup_iter' in config['training'] \
-            and config['training']['warmup_iter'] is not None
-if lr_warmup:
-    warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
-                                                         lambda s: min(1., s / config['training']['warmup_iter']))
+
 if 'lr_scheduler' in config['training']:
     if config['training']['lr_scheduler']['type'] == 'exponential':
         lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
@@ -237,6 +233,12 @@ if 'lr_scheduler' in config['training']:
         lr_step = 1
 else:
     lr_scheduler = None
+
+lr_warmup = 'warmup_iter' in config['training'] \
+            and config['training']['warmup_iter'] is not None
+if lr_warmup:
+    warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
+                                                         lambda s: min(1., s / config['training']['warmup_iter']))
 
 
 # Train model
@@ -284,12 +286,12 @@ if args.resume:
         if os.path.exists(optimizer_path):
             optimizer.load_state_dict(torch.load(optimizer_path))
         # Load scheduler
-        warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
-        if os.path.exists(warmup_scheduler_path):
-            warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
         lr_scheduler_path = os.path.join(cp_dir, 'lr_scheduler.pt')
         if lr_scheduler is not None and os.path.exists(lr_scheduler_path):
             lr_scheduler.load_state_dict(torch.load(lr_scheduler_path))
+        warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
+        if os.path.exists(warmup_scheduler_path):
+            warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
         # Load logs
         log_labels = ['loss', 'ess']
         log_hists = [loss_hist, ess_hist]
@@ -348,13 +350,13 @@ for it in range(start_iter, max_iter):
     # Clear gradients
     nf.utils.clear_grad(model)
 
-    # Do lr warmup if needed
-    if lr_warmup and it <= config['training']['warmup_iter']:
-        warmup_scheduler.step()
-
     # Update lr scheduler
     if lr_scheduler is not None and (it + 1) % lr_step == 0:
         lr_scheduler.step()
+
+    # Do lr warmup if needed
+    if lr_warmup and it <= config['training']['warmup_iter']:
+        warmup_scheduler.step()
 
     # Save loss
     if (it + 1) % log_iter == 0:
@@ -389,12 +391,12 @@ for it in range(start_iter, max_iter):
         model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(),
                    os.path.join(cp_dir, 'optimizer.pt'))
-        if lr_warmup:
-            torch.save(warmup_scheduler.state_dict(),
-                       os.path.join(cp_dir, 'warmup_scheduler.pt'))
         if lr_scheduler is not None:
             torch.save(lr_scheduler.state_dict(),
                        os.path.join(cp_dir, 'lr_scheduler.pt'))
+        if lr_warmup:
+            torch.save(warmup_scheduler.state_dict(),
+                       os.path.join(cp_dir, 'warmup_scheduler.pt'))
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
