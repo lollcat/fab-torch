@@ -63,11 +63,38 @@ test_data = test_data.to(device)
 
 
 # Set up model
+
+# Target distribution
+target = AldpBoltzmann(data_path=config['data']['transform'],
+                       temperature=config['system']['temperature'],
+                       energy_cut=config['system']['energy_cut'],
+                       energy_max=config['system']['energy_max'],
+                       n_threads=config['system']['n_threads'])
+target = target.to(device)
+
 # Flow
 flow_type = config['flow']['type']
 ndim = 60
 # Flow layers
 layers = []
+
+ncarts = target.coordinate_transform.mixed_transform.len_cart_inds
+permute_inv = target.coordinate_transform.mixed_transform.permute_inv.cpu().numpy()
+dih_ind_ = target.coordinate_transform.mixed_transform.ic_transform.dih_indices.cpu().numpy()
+std_dih = target.coordinate_transform.mixed_transform.ic_transform.std_dih.cpu()
+
+ind = np.arange(ndim)
+ind = np.concatenate([ind[:3 * ncarts - 6], -np.ones(6, dtype=np.int), ind[3 * ncarts - 6:]])
+ind = ind[permute_inv]
+dih_ind = ind[dih_ind_]
+
+ind_circ_ = std_dih > 0.5
+ind_circ = dih_ind[ind_circ_]
+bound_circ = np.pi / std_dih[ind_circ_]
+
+tail_bound = 5. * torch.ones(ndim)
+tail_bound[ind_circ] = bound_circ
+
 for i in range(config['flow']['blocks']):
     if flow_type == 'rnvp':
         # Coupling layer
@@ -83,6 +110,15 @@ for i in range(config['flow']['blocks']):
                                 init_zeros=config['flow']['init_zeros'], output_fn=output_fn)
         layers.append(nf.flows.AffineCouplingBlock(param_map, scale=scale,
                                                    scale_map=scale_map))
+    elif flow_type == 'circular-nsf':
+        bl = config['flow']['blocks_per_layer']
+        hu = config['flow']['hidden_units']
+        nb = config['flow']['num_bins']
+        ii = config['flow']['init_identity']
+        dropout = config['flow']['dropout']
+        layers.append(nf.flows.CircularAutoregressiveRationalQuadraticSpline(ndim,
+            bl, hu, ind_circ, tail_bound=tail_bound, num_bins=nb, permute_mask=True,
+            init_identity=ii, dropout_probability=dropout))
     else:
         raise NotImplementedError('The flow type ' + flow_type + ' is not implemented.')
 
@@ -93,10 +129,19 @@ for i in range(config['flow']['blocks']):
 
     if config['flow']['actnorm']:
         layers.append(nf.flows.ActNorm(ndim))
+
+# Map input to periodic interval
+layers.append(nf.flows.Periodic(ind_circ, bound_circ))
+
 # Base distribution
 if config['flow']['base']['type'] == 'gauss':
     base = nf.distributions.DiagGaussian(ndim,
                                          trainable=config['flow']['base']['learn_mean_var'])
+elif config['flow']['base']['type'] == 'gauss-uni':
+    base_scale = torch.ones(ndim)
+    base_scale[ind_circ] = bound_circ * 2
+    base = nf.distributions.UniformGaussian(ndim, ind_circ, scale=base_scale)
+    base.shape = (ndim,)
 else:
     raise NotImplementedError('The base distribution ' + config['flow']['base']['type']
                               + ' is not implemented')
@@ -111,19 +156,14 @@ if config['fab']['transition_type'] == 'hmc':
         dim=ndim, L=config['fab']['n_inner'])
 elif config['fab']['transition_type'] == 'metropolis':
     transition_operator = Metropolis(n_transitions=config['fab']['n_int_dist'],
-                                     n_updates=config['fab']['n_inner'])
+                                     n_updates=config['fab']['n_inner'],
+                                     max_step_size=config['fab']['max_step_size'],
+                                     min_step_size=config['fab']['min_step_size'],
+                                     adjust_step_size=config['fab']['adjust_step_size'])
 else:
     raise NotImplementedError('The transition operator ' + config['fab']['transition_type']
                               + ' is not implemented')
 transition_operator = transition_operator.to(device)
-
-# Target distribution
-target = AldpBoltzmann(data_path=config['data']['transform'],
-                       temperature=config['system']['temperature'],
-                       energy_cut=config['system']['energy_cut'],
-                       energy_max=config['system']['energy_max'],
-                       n_threads=config['system']['n_threads'])
-target = target.to(device)
 
 # FAB model
 loss_type = 'alpha_2_div' if 'loss_type' not in config['fab'] \
@@ -166,8 +206,22 @@ lr_warmup = 'warmup_iter' in config['training'] \
 if lr_warmup:
     warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
                                                          lambda s: min(1., s / config['training']['warmup_iter']))
-lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
-                                                      gamma=config['training']['rate_decay'])
+if 'lr_scheduler' in config['training']:
+    if config['training']['lr_scheduler']['type'] == 'exponential':
+        lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
+            gamma=config['training']['lr_scheduler']['rate_decay'])
+        lr_step = config['training']['lr_scheduler']['decay_iter']
+    elif config['training']['lr_scheduler']['type'] == 'cosine':
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer,
+            T_max=config['training']['max_iter'])
+        lr_step = 1
+    elif config['training']['lr_scheduler']['type'] == 'cosine_restart':
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer=optimizer,
+            T_0=config['training']['lr_scheduler']['restart_iter'])
+        lr_step = 1
+else:
+    lr_scheduler = None
+
 
 # Train model
 max_iter = config['training']['max_iter']
@@ -215,6 +269,9 @@ if args.resume:
         warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
         if os.path.exists(warmup_scheduler_path):
             warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
+        lr_scheduler_path = os.path.join(cp_dir, 'lr_scheduler.pt')
+        if lr_scheduler is not None and os.path.exists(lr_scheduler_path):
+            lr_scheduler.load_state_dict(torch.load(lr_scheduler_path))
         # Load logs
         log_labels = ['loss', 'ess']
         log_hists = [loss_hist, ess_hist]
@@ -275,7 +332,7 @@ for it in range(start_iter, max_iter):
         warmup_scheduler.step()
 
     # Update lr scheduler
-    if (it + 1) % config['training']['decay_iter'] == 0:
+    if lr_scheduler is not None and (it + 1) % lr_step == 0:
         lr_scheduler.step()
 
     # Save loss
@@ -289,9 +346,15 @@ for it in range(start_iter, max_iter):
                        grad_norm_hist, delimiter=',',
                        header='it,grad_norm', comments='')
         # Effective sample size
-        base_samples, base_log_w, ais_samples, ais_log_w = \
-            model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
-                                                                 batch_size)
+        if config['fab']['transition_type'] == 'hmc':
+            base_samples, base_log_w, ais_samples, ais_log_w = \
+                model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
+                                                                     batch_size)
+        else:
+            with torch.no_grad():
+                base_samples, base_log_w, ais_samples, ais_log_w = \
+                    model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
+                                                                         batch_size)
         ess_append = np.array([[it + 1, effective_sample_size(base_log_w, normalised=False),
                                 effective_sample_size(ais_log_w, normalised=False)]])
         ess_hist = np.concatenate([ess_hist, ess_append])
@@ -308,6 +371,9 @@ for it in range(start_iter, max_iter):
         if lr_warmup:
             torch.save(warmup_scheduler.state_dict(),
                        os.path.join(cp_dir, 'warmup_scheduler.pt'))
+        if lr_scheduler is not None:
+            torch.save(lr_scheduler.state_dict(),
+                       os.path.join(cp_dir, 'lr_scheduler.pt'))
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
@@ -316,7 +382,11 @@ for it in range(start_iter, max_iter):
                 ns = ((eval_samples - 1) % batch_size) + 1
             else:
                 ns = batch_size
-            z_ = model.flow.sample((ns,))
+            if config['fab']['transition_type'] == 'hmc':
+                z_ = model.flow.sample((ns,))
+            else:
+                with torch.no_grad():
+                    z_ = model.flow.sample((ns,))
             z_samples = torch.cat((z_samples, z_.detach()))
 
         # Evaluate model and save plots
@@ -331,8 +401,14 @@ for it in range(start_iter, max_iter):
                 ns = ((eval_samples - 1) % batch_size) + 1
             else:
                 ns = batch_size
-            z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
-                                                                          logging=False)[0]
+            if config['fab']['transition_type'] == 'hmc':
+                z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
+                                                                              logging=False)[0]
+            else:
+                with torch.no_grad():
+                    z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
+                                                                                  logging=False)[0]
+            z_, _ = model.flow._nf_model.flows[-1].inverse(z_.detach())
             z_samples = torch.cat((z_samples, z_.detach()))
 
         # Evaluate model and save plots
