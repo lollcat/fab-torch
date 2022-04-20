@@ -36,10 +36,10 @@ class Metropolis(TransitionOperator):
 
     def transition(self, x: torch.Tensor, log_p_x: LogProbFunc, i: int) -> torch.Tensor:
         """Returns x generated from transition with log_p_x using the Metropolis algorithm."""
+        x_prev_log_prob = log_p_x(x)
         for n in range(self.n_updates):
             x_proposed = x + torch.randn(x.shape).to(x.device) * self.noise_scalings[i, n]
             x_proposed_log_prob = log_p_x(x_proposed)
-            x_prev_log_prob = log_p_x(x)
             acceptance_probability = torch.exp(x_proposed_log_prob - x_prev_log_prob)
             # not that sometimes this will be greater than one, corresonding to 100% probability of
             # acceptance
@@ -47,6 +47,7 @@ class Metropolis(TransitionOperator):
                                                           ).to(x.device)).int()
             accept = accept[:, None].repeat(1, x.shape[-1])
             x = accept * x_proposed + (1 - accept) * x
+            x_prev_log_prob = accept * x_proposed_log_prob + (1 - accept) * x_prev_log_prob
             if self.adjust_step_size:
                 p_accept = torch.mean(torch.clamp_max(acceptance_probability, 1))
                 if p_accept > self.target_prob_accept:  # too much accept
