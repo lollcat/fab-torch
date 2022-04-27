@@ -20,8 +20,8 @@ class Trainer:
                  optim_schedular: Optional[lr_scheduler] = None,
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None,
-                 gradient_clipping: bool = True,
-                 max_gradient_norm: bool = 5.0,
+                 gradient_clipping: bool = False,
+                 max_gradient_norm: Optional[bool] = None,
                  save_path: str = ""):
         self.model = model
         self.optimizer = optimizer

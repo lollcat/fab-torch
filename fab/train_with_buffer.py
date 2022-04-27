@@ -24,21 +24,23 @@ class BufferTrainer:
                  optim_schedular: Optional[lr_scheduler] = None,
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None,
-                 gradient_clipping: bool = True,
-                 max_gradient_norm: bool = 5.0,
-                 save_path: str = ""):
+                 max_gradient_norm: float = float("inf"),
+                 save_path: str = "",
+                 clip_ais_weights_frac: Optional[float] = None):
+
         self.model = model
         self.optimizer = optimizer
         self.optim_schedular = optim_schedular
         self.logger = logger
         self.plot = plot
-        self.gradient_clipping = gradient_clipping
         self.max_gradient_norm = max_gradient_norm
         self.save_dir = save_path
         self.plots_dir = os.path.join(self.save_dir, f"plots")
         self.checkpoints_dir = os.path.join(self.save_dir, f"model_checkpoints")
         self.buffer = buffer
         self.n_batches_buffer_sampling = n_batches_buffer_sampling
+        self.flow_device = next(model.flow.parameters()).device
+        self.clip_ais_weights_frac = clip_ais_weights_frac
 
 
     def run(self,
@@ -49,6 +51,8 @@ class BufferTrainer:
             n_plot: Optional[int] = None,
             n_checkpoints: Optional[int] = None,
             save: bool = True) -> None:
+
+
         if save:
             pathlib.Path(self.plots_dir).mkdir(exist_ok=True)
             pathlib.Path(self.checkpoints_dir).mkdir(exist_ok=True)
@@ -67,39 +71,40 @@ class BufferTrainer:
                 annealed_importance_sampler.sample_and_log_weights(batch_size)
             x_ais = x_ais.detach()
             log_w_ais = log_w_ais.detach()
+            if self.clip_ais_weights_frac is not None:
+                k = max(2, int(self.clip_ais_weights_frac * log_w_ais.shape[0]))
+                max_log_w = torch.min(torch.topk(log_w_ais, k, axis=0).values)
+                log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
             loss = self.model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
             loss.backward()
-            if self.gradient_clipping:
-                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
-                                                           self.max_gradient_norm)
+            grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
+                                                       self.max_gradient_norm)
             self.optimizer.step()
             if self.optim_schedular:
                 self.optim_schedular.step()
 
+            # we log info from the step of the recently generated ais points.
+            info = self.model.get_iter_info()
+            info.update(loss=loss.cpu().detach().item(),
+                        step=i,
+                        grad_norm=grad_norm.cpu().detach().item())
+            self.logger.write(info)
+
             # We now take an additinal self.n_batches_buffer_sampling gradient steps using
             # data from the replay buffer.
-            for (x, log_w) in self.buffer.sample_n_batches(batch_size,
-                                                           self.n_batches_buffer_sampling):
-                x, log_w = x.to(self.model.flow.device), log_w.to(self.model.flow.device)
+            for (x, log_w) in self.buffer.sample_n_batches(
+                    batch_size=batch_size, n_batches=self.n_batches_buffer_sampling):
+
+                x, log_w = x.to(self.flow_device), log_w.to(self.flow_device)
+                self.optimizer.zero_grad()
                 loss = self.model.fab_alpha_div_loss_inner(x, log_w)
                 loss.backward()
-                if self.gradient_clipping:
-                    grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
-                                                               self.max_gradient_norm)
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
+                                                           self.max_gradient_norm)
                 self.optimizer.step()
-                if self.optim_schedular:
-                    self.optim_schedular.step()
 
             # add data to buffer
             self.buffer.add(x_ais, log_w_ais)
-
-
-            info = self.model.get_iter_info()
-            info.update(loss=loss.cpu().detach().item(),
-                        step=i)
-            if self.gradient_clipping:
-                info.update(grad_norm=grad_norm.cpu().detach().item())
-            self.logger.write(info)
             pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"
                                  f"ess ais: {info['ess_ais']}")
 

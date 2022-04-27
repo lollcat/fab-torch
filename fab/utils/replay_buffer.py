@@ -24,6 +24,7 @@ class ReplayBuffer:
                 the min sample length
             device: replay buffer device
         """
+        assert min_sample_length < max_length
         self.dim = dim
         self.max_length = max_length
         self.min_sample_length = min_sample_length
@@ -70,9 +71,10 @@ class ReplayBuffer:
             Iterable[Tuple[torch.Tensor, torch.Tensor]]:
         """Returns a list of batches."""
         x, log_w = self.sample(batch_size*n_batches)
-        x_batches = x.split(n_batches)
-        log_w_batches = log_w.split(n_batches)
-        return [(x, log_w) for x, log_w in zip(x_batches, log_w_batches)]
+        x_batches = torch.chunk(x, n_batches)
+        log_w_batches = torch.chunk(log_w, n_batches)
+        dataset = [(x, log_w) for x, log_w in zip(x_batches, log_w_batches)]
+        return dataset
 
 
 
