@@ -83,11 +83,9 @@ class WandbLogger(Logger):
 class PandasLogger(Logger):
     def __init__(self,
                  save: bool = True,
-                 save_path: str ="/tmp/logging_history.csv",
+                 save_path: str ="/logging_history.csv",
                  save_period: int = 100):
         self.save_path = save_path
-        if save:
-            pathlib.Path(self.save_path).parent.mkdir(exist_ok=True)
         self.save = save
         self.save_period = save_period
         self.dataframe = pd.DataFrame()

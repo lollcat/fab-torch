@@ -38,11 +38,12 @@ def _run(cfg: DictConfig):
     torch.manual_seed(cfg.training.seed)
     current_time = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
     save_path = cfg.evaluation.save_path + current_time + "/"
+    logger = setup_logger(cfg, save_path)
     if hasattr(cfg.logger, "wandb"):
         # if using wandb then save to wandb path
         save_path = os.path.join(wandb.run.dir, save_path)
     pathlib.Path(save_path).mkdir(parents=True, exist_ok=False)
-    logger = setup_logger(cfg, save_path)
+
 
     with open(save_path + "config.txt", "w") as file:
         file.write(str(cfg))
