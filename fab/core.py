@@ -55,15 +55,21 @@ class FABModel(Model):
         else:
             raise NotImplementedError
 
+
+    def fab_alpha_div_loss_inner(self, x_ais, log_w_ais) -> torch.Tensor:
+        """Compute the FAB loss based on lower-bound of alpha-divergence with alpha=2."""
+        log_q_x = self.flow.log_prob(x_ais)
+        log_p_x = self.target_distribution.log_prob(x_ais)
+        log_w = log_p_x - log_q_x
+        return torch.logsumexp(log_w_ais + log_w, dim=0)
+
     def fab_alpha_div_loss(self, batch_size: int) -> torch.Tensor:
         """Compute the FAB loss based on lower-bound of alpha-divergence with alpha=2."""
         x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         x_ais = x_ais.detach()
         log_w_ais = log_w_ais.detach()
-        log_q_x = self.flow.log_prob(x_ais)
-        log_p_x = self.target_distribution.log_prob(x_ais)
-        log_w = log_p_x - log_q_x
-        return torch.logsumexp(log_w_ais + log_w, dim=0)
+        loss = self.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+        return loss
 
     def flow_forward_kl(self, x: torch.Tensor) -> torch.Tensor:
         """Compute forward KL-divergence of flow"""
