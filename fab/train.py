@@ -58,13 +58,14 @@ class Trainer:
         for i in pbar:
             self.optimizer.zero_grad()
             loss = self.model.loss(batch_size)
-            loss.backward()
-            if self.gradient_clipping:
-                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
-                                                           self.max_gradient_norm)
-            self.optimizer.step()
-            if self.optim_schedular:
-                self.optim_schedular.step()
+            if not torch.isnan(loss) and not torch.isinf(loss):
+                loss.backward()
+                if self.gradient_clipping:
+                    grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
+                                                               self.max_gradient_norm)
+                self.optimizer.step()
+                if self.optim_schedular:
+                    self.optim_schedular.step()
 
             info = self.model.get_iter_info()
             info.update(loss=loss.cpu().detach().item(),

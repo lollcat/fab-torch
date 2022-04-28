@@ -73,15 +73,18 @@ class BufferTrainer:
             log_w_ais = log_w_ais.detach()
             if self.clip_ais_weights_frac is not None:
                 k = max(2, int(self.clip_ais_weights_frac * log_w_ais.shape[0]))
-                max_log_w = torch.min(torch.topk(log_w_ais, k, axis=0).values)
+                max_log_w = torch.min(torch.topk(log_w_ais, k, dim=0).values)
                 log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
             loss = self.model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
-            loss.backward()
-            grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
-                                                       self.max_gradient_norm)
-            self.optimizer.step()
-            if self.optim_schedular:
-                self.optim_schedular.step()
+            if not torch.isnan(loss) and not torch.isinf(loss):
+                loss.backward()
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
+                                                           self.max_gradient_norm)
+                self.optimizer.step()
+                if self.optim_schedular:
+                    self.optim_schedular.step()
+            else:
+                print("nan loss in non-replay step")
 
             # we log info from the step of the recently generated ais points.
             info = self.model.get_iter_info()
@@ -98,10 +101,13 @@ class BufferTrainer:
                 x, log_w = x.to(self.flow_device), log_w.to(self.flow_device)
                 self.optimizer.zero_grad()
                 loss = self.model.fab_alpha_div_loss_inner(x, log_w)
-                loss.backward()
-                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
-                                                           self.max_gradient_norm)
-                self.optimizer.step()
+                if not torch.isnan(loss) and not torch.isinf(loss):
+                    loss.backward()
+                    grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
+                                                               self.max_gradient_norm)
+                    self.optimizer.step()
+                else:
+                    print("nan loss in replay step")
 
             # add data to buffer
             self.buffer.add(x_ais, log_w_ais)

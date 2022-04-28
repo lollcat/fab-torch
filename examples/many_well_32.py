@@ -118,7 +118,9 @@ def _run(cfg: DictConfig):
     # Create trainer
     if cfg.training.use_buffer is False:
         trainer = Trainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
-                          optim_schedular=scheduler, save_path=save_path)
+                          optim_schedular=scheduler, save_path=save_path,
+                          max_gradient_norm=cfg.training.max_grad_norm
+                          )
     else:
         def initial_sampler():
             x, log_w = fab_model.annealed_importance_sampler.sample_and_log_weights(
@@ -132,7 +134,8 @@ def _run(cfg: DictConfig):
                           optim_schedular=scheduler, save_path=save_path,
                                 buffer=buffer,
                                 n_batches_buffer_sampling=cfg.training.n_batches_buffer_sampling,
-                                clip_ais_weights_frac=cfg.training.log_w_clip_frac
+                                clip_ais_weights_frac=cfg.training.log_w_clip_frac,
+                                max_gradient_norm=cfg.training.max_grad_norm
                                 )
     trainer.run(n_iterations=cfg.training.n_iterations, batch_size=cfg.training.batch_size,
                 n_plot=cfg.evaluation.n_plots,

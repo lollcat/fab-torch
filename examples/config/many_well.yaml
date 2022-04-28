@@ -25,6 +25,7 @@ training:
   maximum_buffer_length: 102400
   min_buffer_length: 10240
   log_w_clip_frac: null
+  max_grad_norm: 10
 
 
 
