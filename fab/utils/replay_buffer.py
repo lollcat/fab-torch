@@ -43,6 +43,7 @@ class ReplayBuffer:
 
     @torch.no_grad()
     def add(self, x: torch.Tensor, log_w: torch.Tensor):
+        """Add a batch of generated data to the replay buffer"""
         batch_size = x.shape[0]
         x = x.to(self.device)
         log_w = log_w.to(self.device)
@@ -79,6 +80,7 @@ class ReplayBuffer:
 
 
 if __name__ == '__main__':
+    # to check that the replay buffer runs
     dim = 5
     batch_size = 3
     n_batches_total_length = 2

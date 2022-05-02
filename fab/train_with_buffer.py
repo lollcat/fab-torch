@@ -16,6 +16,7 @@ lr_scheduler = Any  # a learning rate schedular from torch.optim.lr_scheduler
 Plotter = Callable[[FABModel], List[plt.Figure]]
 
 class BufferTrainer:
+    """A trainer for the FABModel for use with a replay buffer."""
     def __init__(self,
                  model: FABModel,
                  optimizer: torch.optim.Optimizer,
@@ -67,14 +68,18 @@ class BufferTrainer:
         pbar = tqdm(range(n_iterations))
         for i in pbar:
             self.optimizer.zero_grad()
+            # collect samples and log weights with AIS.
             x_ais, log_w_ais = self.model.\
                 annealed_importance_sampler.sample_and_log_weights(batch_size)
             x_ais = x_ais.detach()
             log_w_ais = log_w_ais.detach()
             if self.clip_ais_weights_frac is not None:
+                # optional clipping of log weights
                 k = max(2, int(self.clip_ais_weights_frac * log_w_ais.shape[0]))
                 max_log_w = torch.min(torch.topk(log_w_ais, k, dim=0).values)
                 log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
+
+            # perform one update using the recently collected AIS samples and log weights
             loss = self.model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
             if not torch.isnan(loss) and not torch.isinf(loss):
                 loss.backward()
