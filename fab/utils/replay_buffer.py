@@ -21,8 +21,14 @@ class ReplayBuffer:
             max_length: maximum length of the buffer
             min_sample_length: minimum length of buffer required for sampling
             initial_sampler: sampler producing x and log_w, used to fill the buffer up to
-                the min sample length
+                the min sample length. The initialised flow + AIS may be used here,
+                or we may desire to use AIS with more distributions to give the flow a "good start".
             device: replay buffer device
+
+        The `max_length` and `min_sample_length` should be sufficiently long to prevent overfitting
+        to the replay data. For example, if `min_sample_length` is equal to the
+        sampling batch size, then we may overfit to the first batch of data, as we would update
+        on it many times during the start of training.
         """
         assert min_sample_length < max_length
         self.dim = dim
