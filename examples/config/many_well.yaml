@@ -20,6 +20,12 @@ training:
   n_iterations: 200_000
   use_gpu: true
   use_64_bit: true
+  use_buffer: true # below config fields are all for use_buffer = True
+  n_batches_buffer_sampling: 2
+  maximum_buffer_length: 102400
+  min_buffer_length: 10240
+  log_w_clip_frac: null # null for no clipping
+  max_grad_norm: 10 # null for no clipping
 
 
 
