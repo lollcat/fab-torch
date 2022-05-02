@@ -123,6 +123,7 @@ def _run(cfg: DictConfig):
                           )
     else:
         def initial_sampler():
+            # used to fill the replay buffer up to its minimum size
             x, log_w = fab_model.annealed_importance_sampler.sample_and_log_weights(
                     cfg.training.batch_size, logging=False)
             return x, log_w

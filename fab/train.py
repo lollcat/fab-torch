@@ -20,16 +20,15 @@ class Trainer:
                  optim_schedular: Optional[lr_scheduler] = None,
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None,
-                 gradient_clipping: bool = False,
-                 max_gradient_norm: Optional[bool] = None,
+                 max_gradient_norm: Optional[float] = 5.0,
                  save_path: str = ""):
         self.model = model
         self.optimizer = optimizer
         self.optim_schedular = optim_schedular
         self.logger = logger
         self.plot = plot
-        self.gradient_clipping = gradient_clipping
-        self.max_gradient_norm = max_gradient_norm
+        # if no gradient clipping set max_gradient_norm to inf
+        self.max_gradient_norm = max_gradient_norm if max_gradient_norm else float("inf")
         self.save_dir = save_path
         self.plots_dir = os.path.join(self.save_dir, f"plots")
         self.checkpoints_dir = os.path.join(self.save_dir, f"model_checkpoints")
@@ -60,9 +59,8 @@ class Trainer:
             loss = self.model.loss(batch_size)
             if not torch.isnan(loss) and not torch.isinf(loss):
                 loss.backward()
-                if self.gradient_clipping:
-                    grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
-                                                               self.max_gradient_norm)
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
+                                                           self.max_gradient_norm)
                 self.optimizer.step()
                 if self.optim_schedular:
                     self.optim_schedular.step()
@@ -70,8 +68,7 @@ class Trainer:
             info = self.model.get_iter_info()
             info.update(loss=loss.cpu().detach().item(),
                         step=i)
-            if self.gradient_clipping:
-                info.update(grad_norm=grad_norm.cpu().detach().item())
+            info.update(grad_norm=grad_norm.cpu().detach().item())
             self.logger.write(info)
             pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"
                                  f"ess ais: {info['ess_ais']}")

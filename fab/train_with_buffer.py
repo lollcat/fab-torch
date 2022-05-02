@@ -25,7 +25,7 @@ class BufferTrainer:
                  optim_schedular: Optional[lr_scheduler] = None,
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None,
-                 max_gradient_norm: float = float("inf"),
+                 max_gradient_norm: Optional[float] = 5.0,
                  save_path: str = "",
                  clip_ais_weights_frac: Optional[float] = None):
 
@@ -34,7 +34,8 @@ class BufferTrainer:
         self.optim_schedular = optim_schedular
         self.logger = logger
         self.plot = plot
-        self.max_gradient_norm = max_gradient_norm
+        # if no gradient clipping set max_gradient_norm to inf
+        self.max_gradient_norm = max_gradient_norm if max_gradient_norm else float("inf")
         self.save_dir = save_path
         self.plots_dir = os.path.join(self.save_dir, f"plots")
         self.checkpoints_dir = os.path.join(self.save_dir, f"model_checkpoints")
