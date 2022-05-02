@@ -9,8 +9,9 @@ from omegaconf import DictConfig
 from datetime import datetime
 
 
-from fab import FABModel, HamiltoneanMonteCarlo, Trainer, Metropolis
+from fab import FABModel, HamiltoneanMonteCarlo, Trainer, Metropolis, BufferTrainer
 from fab.utils.logging import PandasLogger, WandbLogger, Logger
+from fab.utils.replay_buffer import ReplayBuffer
 from fab.utils.plotting import plot_contours, plot_marginal_pair
 from examples.make_flow import make_wrapped_normflowdist
 
@@ -42,6 +43,8 @@ def _run(cfg: DictConfig):
         # if using wandb then save to wandb path
         save_path = os.path.join(wandb.run.dir, save_path)
     pathlib.Path(save_path).mkdir(parents=True, exist_ok=False)
+
+
     with open(save_path + "config.txt", "w") as file:
         file.write(str(cfg))
     from fab.target_distributions.many_well import ManyWellEnergy
@@ -113,8 +116,28 @@ def _run(cfg: DictConfig):
         return [fig]
 
     # Create trainer
-    trainer = Trainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
-                      optim_schedular=scheduler, save_path=save_path)
+    if cfg.training.use_buffer is False:
+        trainer = Trainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
+                          optim_schedular=scheduler, save_path=save_path,
+                          max_gradient_norm=cfg.training.max_grad_norm
+                          )
+    else:
+        def initial_sampler():
+            # used to fill the replay buffer up to its minimum size
+            x, log_w = fab_model.annealed_importance_sampler.sample_and_log_weights(
+                    cfg.training.batch_size, logging=False)
+            return x, log_w
+
+        buffer = ReplayBuffer(dim=dim, max_length=cfg.training.maximum_buffer_length,
+                              min_sample_length=cfg.training.min_buffer_length,
+                              initial_sampler=initial_sampler)
+        trainer = BufferTrainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
+                          optim_schedular=scheduler, save_path=save_path,
+                                buffer=buffer,
+                                n_batches_buffer_sampling=cfg.training.n_batches_buffer_sampling,
+                                clip_ais_weights_frac=cfg.training.log_w_clip_frac,
+                                max_gradient_norm=cfg.training.max_grad_norm
+                                )
     trainer.run(n_iterations=cfg.training.n_iterations, batch_size=cfg.training.batch_size,
                 n_plot=cfg.evaluation.n_plots,
                 n_eval=cfg.evaluation.n_eval, eval_batch_size=cfg.evaluation.eval_batch_size,

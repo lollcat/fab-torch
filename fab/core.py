@@ -55,6 +55,14 @@ class FABModel(Model):
         else:
             raise NotImplementedError
 
+
+    def fab_alpha_div_loss_inner(self, x_ais, log_w_ais) -> torch.Tensor:
+        """Compute the FAB loss based on lower-bound of alpha-divergence with alpha=2."""
+        log_q_x = self.flow.log_prob(x_ais)
+        log_p_x = self.target_distribution.log_prob(x_ais)
+        log_w = log_p_x - log_q_x
+        return torch.logsumexp(log_w_ais + log_w, dim=0)
+
     def fab_alpha_div_loss(self, batch_size: int) -> torch.Tensor:
         """Compute the FAB loss based on lower-bound of alpha-divergence with alpha=2."""
         if isinstance(self.annealed_importance_sampler.transition_operator, HamiltoneanMonteCarlo):
@@ -64,10 +72,8 @@ class FABModel(Model):
                 x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         x_ais = x_ais.detach()
         log_w_ais = log_w_ais.detach()
-        log_q_x = self.flow.log_prob(x_ais)
-        log_p_x = self.target_distribution.log_prob(x_ais)
-        log_w = log_p_x - log_q_x
-        return torch.logsumexp(log_w_ais + log_w, dim=0)
+        loss = self.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+        return loss
 
     def flow_forward_kl(self, x: torch.Tensor) -> torch.Tensor:
         """Compute forward KL-divergence of flow"""
@@ -82,8 +88,9 @@ class FABModel(Model):
                 x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         x_ais = x_ais.detach()
         log_w_ais = log_w_ais.detach()
+        w_ais = torch.softmax(log_w_ais, dim=0)
         log_q_x = self.flow.log_prob(x_ais)
-        return - torch.mean(torch.exp(log_w_ais) * log_q_x)
+        return - torch.mean(w_ais * log_q_x)
 
     def fab_sample_log_prob(self, batch_size: int, sample_frac: float = 1.0) -> torch.Tensor:
         """Compute FAB loss by maximising the log prob of ais samples under the flow."""
@@ -123,10 +130,11 @@ class FABModel(Model):
                    path)
 
     def load(self,
-             path: "str"
+             path: "str",
+             map_location: Optional[str] = None,
              ):
         """Load FAB model from file."""
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location=map_location)
         try:
             self.flow._nf_model.load_state_dict(checkpoint['flow'])
         except RuntimeError:

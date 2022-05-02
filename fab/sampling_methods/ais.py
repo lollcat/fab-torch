@@ -72,7 +72,7 @@ class AnnealedImportanceSampler:
                 log_Z = log_Z_N - torch.log(torch.ones_like(log_Z_N) * batch_size)
                 self._logging_info = LoggingInfo(ess_base=ess_base, ess_ais=ess_ais,
                                                  log_Z=log_Z.cpu().item())
-        return x, log_w
+        return x.detach(), log_w.detach()
 
 
     def perform_transition(self, x_new: torch.Tensor, log_w: torch.Tensor, j: int):

@@ -4,6 +4,7 @@ normflow @ git+https://github.com/VincentStimper/normalizing-flows.git
 boltzgen @ git+https://github.com/VincentStimper/boltzmann-generators.git
 mdtraj
 nflows
+pandas
 tqdm
 wandb
 hydra-core
