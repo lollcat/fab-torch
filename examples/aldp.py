@@ -15,6 +15,7 @@ from fab.wrappers.normflow import WrappedNormFlowModel
 from fab.sampling_methods.transition_operators import HamiltoneanMonteCarlo, Metropolis
 from fab.utils.aldp import evaluateAldp
 from fab.utils.numerical import effective_sample_size
+from fab.utils.replay_buffer import ReplayBuffer
 
 
 
@@ -165,12 +166,13 @@ flow = nf.NormalizingFlow(base, layers)
 wrapped_flow = WrappedNormFlowModel(flow).to(device)
 
 # Transition operator
-if config['fab']['transition_type'] == 'hmc':
+transition_type = config['fab']['transition_type']
+if transition_type == 'hmc':
     # very lightweight HMC.
     transition_operator = HamiltoneanMonteCarlo(
         n_ais_intermediate_distributions=config['fab']['n_int_dist'],
         dim=ndim, L=config['fab']['n_inner'])
-elif config['fab']['transition_type'] == 'metropolis':
+elif transition_type == 'metropolis':
     transition_operator = Metropolis(n_transitions=config['fab']['n_int_dist'],
                                      n_updates=config['fab']['n_inner'],
                                      max_step_size=config['fab']['max_step_size'],
@@ -309,6 +311,20 @@ if args.resume:
                 log_hist.resize(np.sum(log_hist_[:, 0] <= start_iter), log_hist_.shape[1],
                                 refcheck=False)
 
+# Setup replay buffer
+if 'replay_buffer' in config['training']:
+    use_rb = True
+    rb_config = config['training']['replay_buffer']
+    def initial_sampler():
+        x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
+            batch_size, logging=False)
+        return x, log_w
+    buffer = ReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
+                          min_sample_length=rb_config['min_length'] * batch_size,
+                          initial_sampler=initial_sampler, device=str(device))
+else:
+    use_rb = False
+
 # Start training
 start_time = time()
 
@@ -325,6 +341,35 @@ for it in range(start_iter, max_iter):
             loss = model.loss(x)
         else:
             loss = model.loss(batch_size) + lam_fkld * model.flow_forward_kl(x)
+    elif use_rb:
+        if it % rb_config['n_updates'] == 0:
+            # Sample
+            if transition_type == 'hmc':
+                x_ais, log_w_ais = model.annealed_importance_sampler.\
+                    sample_and_log_weights(batch_size)
+                x_ais = x_ais.detach()
+                log_w_ais = log_w_ais.detach()
+            else:
+                with torch.no_grad():
+                    x_ais, log_w_ais = model.annealed_importance_sampler.\
+                        sample_and_log_weights(batch_size)
+            # Optionally do clipping
+            if rb_config['clip_w_frac'] is not None:
+                k = max(2, int(rb_config['clip_w_frac'] * log_w_ais.shape[0]))
+                max_log_w = torch.min(torch.topk(log_w_ais, k, dim=0).values)
+                log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
+                loss = model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+            # Compute loss
+            loss = model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+            # Sample from buffer
+            buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
+                                                    n_batches=rb_config['n_updates'] - 1)
+            buffer_iter = iter(buffer_sample)
+            # Add sample to buffer
+            buffer.add(x_ais, log_w_ais)
+        else:
+            x, log_w = next(buffer_iter)
+            loss = model.fab_alpha_div_loss_inner(x, log_w)
     else:
         loss = model.loss(batch_size)
 
