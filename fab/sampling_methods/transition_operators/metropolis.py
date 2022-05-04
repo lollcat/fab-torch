@@ -26,6 +26,10 @@ class Metropolis(TransitionOperator):
             (n_transitions, 1)))
         self.target_prob_accept = target_p_accept
 
+    def set_eval_mode(self, eval_setting: bool):
+        """When eval_mode is turned on, no tuning of epsilon or the mass matrix occurs."""
+        self.adjust_step_size = not eval_setting
+
     def get_logging_info(self) -> Dict:
         """Return the first and last noise scaling size for logging."""
         interesting_dict = {}

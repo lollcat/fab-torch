@@ -171,7 +171,11 @@ if transition_type == 'hmc':
     # very lightweight HMC.
     transition_operator = HamiltoneanMonteCarlo(
         n_ais_intermediate_distributions=config['fab']['n_int_dist'],
-        dim=ndim, L=config['fab']['n_inner'])
+        dim=ndim, L=config['fab']['n_inner'],
+        epsilon=config['fab']['epsilon'] / 2,
+        common_epsilon_init_weight=config['fab']['epsilon'] / 2)
+    if not config['fab']['adjust_step_size']:
+        transition_operator.set_eval_mode(True)
 elif transition_type == 'metropolis':
     transition_operator = Metropolis(n_transitions=config['fab']['n_int_dist'],
                                      n_updates=config['fab']['n_inner'],
@@ -413,6 +417,10 @@ for it in range(start_iter, max_iter):
             np.savetxt(os.path.join(log_dir, 'grad_norm.csv'),
                        grad_norm_hist, delimiter=',',
                        header='it,grad_norm', comments='')
+
+        # Disable step size tuning while evaluating model
+        model.transition_operator.set_eval_mode(True)
+
         # Effective sample size
         if config['fab']['transition_type'] == 'hmc':
             base_samples, base_log_w, ais_samples, ais_log_w = \
@@ -423,6 +431,10 @@ for it in range(start_iter, max_iter):
                 base_samples, base_log_w, ais_samples, ais_log_w = \
                     model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
                                                                          batch_size)
+        # Re-enable step size tuning
+        if config['fab']['adjust_step_size']:
+            model.transition_operator.set_eval_mode(False)
+
         ess_append = np.array([[it + 1, effective_sample_size(base_log_w, normalised=False),
                                 effective_sample_size(ais_log_w, normalised=False)]])
         ess_hist = np.concatenate([ess_hist, ess_append])
@@ -442,6 +454,9 @@ for it in range(start_iter, max_iter):
         if lr_warmup:
             torch.save(warmup_scheduler.state_dict(),
                        os.path.join(cp_dir, 'warmup_scheduler.pt'))
+
+        # Disable step size tuning while evaluating model
+        model.transition_operator.set_eval_mode(True)
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
@@ -483,6 +498,10 @@ for it in range(start_iter, max_iter):
         evaluateAldp(z_samples, test_data, model.flow.log_prob,
                      target.coordinate_transform, it, metric_dir=log_dir_ais,
                      plot_dir=plot_dir_ais)
+
+        # Re-enable step size tuning
+        if config['fab']['adjust_step_size']:
+            model.transition_operator.set_eval_mode(False)
 
     # End job if necessary
     if it % checkpoint_iter == 0 and args.tlimit is not None:
