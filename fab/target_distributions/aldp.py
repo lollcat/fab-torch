@@ -16,8 +16,8 @@ import tempfile
 
 class AldpBoltzmann(nn.Module, TargetDistribution):
     def __init__(self, data_path=None, temperature=1000, energy_cut=1.e+8,
-                 energy_max=1.e+20, n_threads=4, transform='mixed',
-                 shift_dih=False, dih_std_threshold=0.5):
+                 energy_max=1.e+20, n_threads=4, transform='mixed', shift_dih=False,
+                 shift_dih_params={'std_threshold': 0.5, 'hist_bins': 100}):
         """
         Boltzmann distribution of Alanine dipeptide
         :param data_path: Path to the trajectory file used to initialize the
@@ -127,7 +127,7 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
         self.coordinate_transform = bg.flows.CoordinateTransform(transform_data, ndim, z_matrix,
                                                                  cart_indices, mode=transform,
                                                                  shift_dih=shift_dih,
-                                                                 dih_std_threshold=dih_std_threshold)
+                                                                 shift_dih_params=shift_dih_params)
 
         if n_threads > 1:
             self.p = bg.distributions.TransformedBoltzmannParallel(system, temperature,
