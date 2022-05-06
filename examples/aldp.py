@@ -68,12 +68,15 @@ test_data = test_data.to(device)
 # Target distribution
 transform_mode = 'mixed' if not 'transform' in config['system'] \
     else config['system']['transform']
+shift_dih = False if not 'shift_dih' in config['system'] \
+    else config['system']['shift_dih']
 target = AldpBoltzmann(data_path=config['data']['transform'],
                        temperature=config['system']['temperature'],
                        energy_cut=config['system']['energy_cut'],
                        energy_max=config['system']['energy_max'],
                        n_threads=config['system']['n_threads'],
-                       transform=transform_mode)
+                       transform=transform_mode,
+                       shift_dih=shift_dih)
 target = target.to(device)
 
 # Flow
