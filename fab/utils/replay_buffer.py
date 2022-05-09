@@ -69,8 +69,8 @@ class ReplayBuffer:
         if not self.can_sample:
             raise Exception("Buffer must be at minimum length before calling sample")
         max_index = self.max_length if self.is_full else self.current_index
-        indices = torch.multinomial(torch.arange(max_index, dtype=float), num_samples=batch_size,
-                                    replacement=False).to(self.device)
+        indices = torch.multinomial(torch.ones(max_index), num_samples=batch_size,
+                                    replacement=False).to(self.device)  # sample uniformly
         return self.buffer.x[indices], self.buffer.log_w[indices]
 
 
