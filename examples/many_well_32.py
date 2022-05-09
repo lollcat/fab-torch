@@ -9,9 +9,10 @@ from omegaconf import DictConfig
 from datetime import datetime
 
 
-from fab import FABModel, HamiltoneanMonteCarlo, Trainer, Metropolis, BufferTrainer
+from fab import FABModel, HamiltoneanMonteCarlo, Trainer, Metropolis, BufferTrainer, PrioritisedBufferTrainer
 from fab.utils.logging import PandasLogger, WandbLogger, Logger
 from fab.utils.replay_buffer import ReplayBuffer
+from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 from fab.utils.plotting import plot_contours, plot_marginal_pair
 from examples.make_flow import make_wrapped_normflowdist
 
@@ -121,7 +122,7 @@ def _run(cfg: DictConfig):
                           optim_schedular=scheduler, save_path=save_path,
                           max_gradient_norm=cfg.training.max_grad_norm
                           )
-    else:
+    elif cfg.training.prioritised_buffer is False:
         def initial_sampler():
             # used to fill the replay buffer up to its minimum size
             x, log_w = fab_model.annealed_importance_sampler.sample_and_log_weights(
@@ -132,6 +133,25 @@ def _run(cfg: DictConfig):
                               min_sample_length=cfg.training.min_buffer_length,
                               initial_sampler=initial_sampler)
         trainer = BufferTrainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
+                          optim_schedular=scheduler, save_path=save_path,
+                                buffer=buffer,
+                                n_batches_buffer_sampling=cfg.training.n_batches_buffer_sampling,
+                                clip_ais_weights_frac=cfg.training.log_w_clip_frac,
+                                max_gradient_norm=cfg.training.max_grad_norm
+                                )
+    else:
+        # buffer
+        def initial_sampler():
+            x, log_w = fab_model.annealed_importance_sampler.sample_and_log_weights(
+                cfg.training.batch_size, logging=False)
+            log_q_x = fab_model.flow.log_prob(x).detach()
+            return x, log_w, log_q_x
+
+        buffer = PrioritisedReplayBuffer(dim=dim, max_length=cfg.training.maximum_buffer_length,
+                              min_sample_length=cfg.training.min_buffer_length,
+                              initial_sampler=initial_sampler)
+
+        trainer = PrioritisedBufferTrainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
                           optim_schedular=scheduler, save_path=save_path,
                                 buffer=buffer,
                                 n_batches_buffer_sampling=cfg.training.n_batches_buffer_sampling,

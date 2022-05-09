@@ -9,18 +9,18 @@ import os
 
 from fab.utils.logging import Logger, ListLogger
 from fab.core import FABModel
-from fab.utils.replay_buffer import ReplayBuffer
+from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
 
 lr_scheduler = Any  # a learning rate schedular from torch.optim.lr_scheduler
 Plotter = Callable[[FABModel], List[plt.Figure]]
 
-class BufferTrainer:
+class PrioritisedBufferTrainer:
     """A trainer for the FABModel for use with a replay buffer."""
     def __init__(self,
                  model: FABModel,
                  optimizer: torch.optim.Optimizer,
-                 buffer: ReplayBuffer,
+                 buffer: PrioritisedReplayBuffer,
                  n_batches_buffer_sampling: int = 2,
                  optim_schedular: Optional[lr_scheduler] = None,
                  logger: Logger = ListLogger(),
@@ -42,6 +42,14 @@ class BufferTrainer:
         self.n_batches_buffer_sampling = n_batches_buffer_sampling
         self.flow_device = next(model.flow.parameters()).device
         self.clip_ais_weights_frac = clip_ais_weights_frac
+
+        self.max_adjust_w_clip = 10  # should typically be much smaller than 10
+
+        # adjust target log prob
+        def ais_target_log_prob(x):
+            return 2*self.model.target_distribution.log_prob(x) - self.model.flow.log_prob(x)
+
+        self.model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 
 
     def run(self,
@@ -68,44 +76,23 @@ class BufferTrainer:
         pbar = tqdm(range(n_iterations))
         for i in pbar:
             self.optimizer.zero_grad()
-            # collect samples and log weights with AIS.
+            # collect samples and log weights with AIS and add to the buffer
             x_ais, log_w_ais = self.model.\
                 annealed_importance_sampler.sample_and_log_weights(batch_size)
             x_ais = x_ais.detach()
             log_w_ais = log_w_ais.detach()
-            if self.clip_ais_weights_frac is not None:
-                # optional clipping of log weights
-                k = max(2, int(self.clip_ais_weights_frac * log_w_ais.shape[0]))
-                max_log_w = torch.min(torch.topk(log_w_ais, k, dim=0).values)
-                log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
-
-            # perform one update using the recently collected AIS samples and log weights
-            loss = self.model.inner_loss(x_ais, log_w_ais)
-            if not torch.isnan(loss) and not torch.isinf(loss):
-                loss.backward()
-                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
-                                                           self.max_gradient_norm)
-                self.optimizer.step()
-                if self.optim_schedular:
-                    self.optim_schedular.step()
-            else:
-                print("nan loss in non-replay step")
-
-            # we log info from the step of the recently generated ais points.
-            info = self.model.get_iter_info()
-            info.update(loss=loss.cpu().detach().item(),
-                        step=i,
-                        grad_norm=grad_norm.cpu().detach().item())
-            self.logger.write(info)
+            log_q_x = self.model.flow.log_prob(x_ais)
+            self.buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x.detach())
 
             # We now take an additional self.n_batches_buffer_sampling gradient steps using
             # data from the replay buffer.
-            for (x, log_w) in self.buffer.sample_n_batches(
+            for (x, log_w, log_q_old, indices) in self.buffer.sample_n_batches(
                     batch_size=batch_size, n_batches=self.n_batches_buffer_sampling):
-
-                x, log_w = x.to(self.flow_device), log_w.to(self.flow_device)
+                x, log_w, log_q_old, indices = x.to(self.flow_device), log_w.to(self.flow_device), \
+                                               log_q_old.to(self.flow_device), indices.to(self.flow_device)
                 self.optimizer.zero_grad()
-                loss = self.model.inner_loss(x, log_w)
+                log_q_x = self.model.flow.log_prob(x)
+                loss = - torch.mean(torch.clip(torch.exp(log_q_old - log_q_x).detach(), self.max_adjust_w_clip) * log_q_x)
                 if not torch.isnan(loss) and not torch.isinf(loss):
                     loss.backward()
                     grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
@@ -113,9 +100,19 @@ class BufferTrainer:
                     self.optimizer.step()
                 else:
                     print("nan loss in replay step")
+                with torch.no_grad():
+                    log_q_new = self.model.flow.log_prob(x)
+                    self.buffer.adjust(log_q_old - log_q_new, log_q_new, indices)
 
-            # add data to buffer
-            self.buffer.add(x_ais, log_w_ais)
+            # we log info from the step of the recently generated ais points.
+            info = self.model.get_iter_info()
+            info.update(loss=loss.cpu().detach().item(),
+                        step=i,
+                        grad_norm=grad_norm.cpu().detach().item(),
+                        sampled_w_std=torch.std(log_w).detach().cpu().item(),
+                        sampled_w_mean=torch.mean(log_w).detach().cpu().item())
+
+            self.logger.write(info)
             pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"
                                  f"ess ais: {info['ess_ais']}")
 

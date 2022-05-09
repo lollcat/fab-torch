@@ -73,7 +73,8 @@ class PrioritisedReplayBuffer:
         if not self.can_sample:
             raise Exception("Buffer must be at minimum length before calling sample")
         max_index = self.max_length if self.is_full else self.current_index
-        indices = torch.multinomial(torch.arange(max_index, dtype=float), num_samples=batch_size,
+        sample_probs = torch.exp(self.buffer.log_w[:max_index] - torch.max(self.buffer.log_w[:max_index]))
+        indices = torch.multinomial(sample_probs, num_samples=batch_size,
                                     replacement=False).to(self.device)
         return self.buffer.x[indices], self.buffer.log_w[indices], self.buffer.log_q_old[indices], indices
 
@@ -84,13 +85,16 @@ class PrioritisedReplayBuffer:
         x, log_w, log_q_old, indices = self.sample(batch_size*n_batches)
         x_batches = torch.chunk(x, n_batches)
         log_w_batches = torch.chunk(log_w, n_batches)
-        dataset = [(x, log_w, indxs) for x, log_w, log_q_old, indxs in zip(x_batches, log_w_batches, log_q_old, indices)]
+        log_q_old_batches = torch.chunk(log_q_old, n_batches)
+        indices_batches = torch.chunk(indices, n_batches)
+        dataset = [(x, log_w, log_q_old, indxs) for x, log_w, log_q_old, indxs in zip(x_batches, log_w_batches,
+                                                                           log_q_old_batches, indices_batches)]
         return dataset
 
-    def adjust_log_w(self, log_w_adjustment, log_q, indices):
+    def adjust(self, log_w_adjustment, log_q, indices):
         """Adjust log weights and log q to match new value of theta"""
-        self.buffer.log_w[indices] += log_w_adjustment
-        self.buffer.log_q_old[indices] = log_q
+        self.buffer.log_w[indices] += log_w_adjustment.to(self.device)
+        self.buffer.log_q_old[indices] = log_q.to(self.device)
 
 
 
@@ -102,10 +106,11 @@ if __name__ == '__main__':
     n_batches_total_length = 2
     length = n_batches_total_length * batch_size
     min_sample_length = int(length * 0.5)
-    initial_sampler = lambda: (torch.ones(batch_size, dim), torch.zeros(batch_size))
-    buffer = ReplayBuffer(dim, length, min_sample_length, initial_sampler)
+    initial_sampler = lambda: (torch.ones(batch_size, dim), torch.zeros(batch_size), torch.ones(batch_size))
+    buffer = PrioritisedReplayBuffer(dim, length, min_sample_length, initial_sampler)
     n_batches = 3
     for i in range(100):
-        buffer.add(torch.ones(batch_size, dim), torch.zeros(batch_size))
-        batch = buffer.sample(batch_size)
+        buffer.add(torch.ones(batch_size, dim), torch.zeros(batch_size), torch.ones(batch_size))
+        x, log_w, log_q_old, indices = buffer.sample(batch_size)
+        buffer.adjust(log_w + 1, log_q_old + 0.1, indices)
 
