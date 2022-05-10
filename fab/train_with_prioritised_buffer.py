@@ -84,7 +84,7 @@ class PrioritisedBufferTrainer:
             log_q_x = self.model.flow.log_prob(x_ais)
             self.buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x.detach())
 
-            # We now take an additional self.n_batches_buffer_sampling gradient steps using
+            # We now take self.n_batches_buffer_sampling gradient steps using
             # data from the replay buffer.
             for (x, log_w, log_q_old, indices) in self.buffer.sample_n_batches(
                     batch_size=batch_size, n_batches=self.n_batches_buffer_sampling):
@@ -92,7 +92,8 @@ class PrioritisedBufferTrainer:
                                                log_q_old.to(self.flow_device), indices.to(self.flow_device)
                 self.optimizer.zero_grad()
                 log_q_x = self.model.flow.log_prob(x)
-                loss = - torch.mean(torch.clip(torch.exp(log_q_old - log_q_x).detach(), self.max_adjust_w_clip) * log_q_x)
+                w_adjust = torch.exp(log_q_old - log_q_x).detach()
+                loss = - torch.mean(torch.clip(w_adjust, max=self.max_adjust_w_clip) * log_q_x)
                 if not torch.isnan(loss) and not torch.isinf(loss):
                     loss.backward()
                     grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
@@ -110,7 +111,11 @@ class PrioritisedBufferTrainer:
                         step=i,
                         grad_norm=grad_norm.cpu().detach().item(),
                         sampled_w_std=torch.std(log_w).detach().cpu().item(),
-                        sampled_w_mean=torch.mean(log_w).detach().cpu().item())
+                        sampled_w_mean=torch.mean(log_w).detach().cpu().item(),
+                        w_adjust_mean=torch.mean(w_adjust).detach().cpu().item(),
+                        w_adjust_min=torch.min(w_adjust).detach().cpu().item(),
+                        w_adjust_max=torch.max(w_adjust).detach().cpu().item(),
+                        )
 
             self.logger.write(info)
             pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"
