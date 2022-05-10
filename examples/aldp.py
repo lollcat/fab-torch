@@ -46,8 +46,8 @@ if args.precision == 'double':
     torch.set_default_dtype(torch.float64)
 
 # Set seed
-if 'seed' in config['training'] and config['training']['seed'] is not None:
-    torch.manual_seed(config['training']['seed'])
+seed = config['training']['seed']
+torch.manual_seed(seed)
 
 # GPU usage
 use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
@@ -133,7 +133,7 @@ for i in range(config['flow']['blocks']):
         ii = config['flow']['init_identity']
         dropout = config['flow']['dropout']
         if i % 2 == 0:
-            mask = nf.utils.masks.create_random_binary_mask(ndim)
+            mask = nf.utils.masks.create_random_binary_mask(ndim, seed=seed + i)
         else:
             mask = 1 - mask
         layers.append(nf.flows.CircularCoupledRationalQuadraticSpline(ndim,
