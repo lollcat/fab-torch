@@ -45,10 +45,12 @@ class PrioritisedBufferTrainer:
 
         self.max_adjust_w_clip = 10  # should typically be much smaller than 10
 
+
         # adjust target log prob
         def ais_target_log_prob(x):
             return 2*self.model.target_distribution.log_prob(x) - self.model.flow.log_prob(x)
 
+        self.ais_target_log_prob = ais_target_log_prob
         self.model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 
 
@@ -123,8 +125,19 @@ class PrioritisedBufferTrainer:
 
             if n_eval is not None:
                 if i in eval_iter:
-                    eval_info = self.model.get_eval_info(outer_batch_size=eval_batch_size,
+                    # set ais distribution to target for evaluation of ess
+                    self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
+                    self.model.annealed_importance_sampler.target_log_prob = self.model.target_distribution.log_prob
+                    eval_info_true_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
+                                                         inner_batch_size=batch_size)
+                    self.model.annealed_importance_sampler.target_log_prob = self.ais_target_log_prob
+                    eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                 inner_batch_size=batch_size)
+                    self.model.annealed_importance_sampler.transition_operator.set_eval_mode(True)
+                    eval_info = {}
+                    eval_info.update({key + "_p_target": val for key, val in eval_info_true_target.items()})
+                    eval_info.update({key + "_p2overq_target": val for key, val in eval_info_practical_target.items()})
+
                     eval_info.update(step=i)
                     self.logger.write(eval_info)
 
