@@ -130,7 +130,8 @@ def _run(cfg: DictConfig):
 
         buffer = ReplayBuffer(dim=dim, max_length=cfg.training.maximum_buffer_length,
                               min_sample_length=cfg.training.min_buffer_length,
-                              initial_sampler=initial_sampler)
+                              initial_sampler=initial_sampler,
+                              temperature=cfg.training.buffer_temp)
         trainer = BufferTrainer(model=fab_model, optimizer=optimizer, logger=logger, plot=plot,
                           optim_schedular=scheduler, save_path=save_path,
                                 buffer=buffer,

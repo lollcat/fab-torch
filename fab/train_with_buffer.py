@@ -28,7 +28,6 @@ class BufferTrainer:
                  max_gradient_norm: Optional[float] = 5.0,
                  save_path: str = "",
                  clip_ais_weights_frac: Optional[float] = None):
-
         self.model = model
         self.optimizer = optimizer
         self.optim_schedular = optim_schedular
@@ -81,7 +80,7 @@ class BufferTrainer:
                 log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
 
             # perform one update using the recently collected AIS samples and log weights
-            loss = self.model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+            loss = self.model.inner_loss(x_ais, log_w_ais)
             if not torch.isnan(loss) and not torch.isinf(loss):
                 loss.backward()
                 grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
@@ -99,14 +98,14 @@ class BufferTrainer:
                         grad_norm=grad_norm.cpu().detach().item())
             self.logger.write(info)
 
-            # We now take an additinal self.n_batches_buffer_sampling gradient steps using
+            # We now take an additional self.n_batches_buffer_sampling gradient steps using
             # data from the replay buffer.
             for (x, log_w) in self.buffer.sample_n_batches(
                     batch_size=batch_size, n_batches=self.n_batches_buffer_sampling):
 
                 x, log_w = x.to(self.flow_device), log_w.to(self.flow_device)
                 self.optimizer.zero_grad()
-                loss = self.model.fab_alpha_div_loss_inner(x, log_w)
+                loss = self.model.inner_loss(x, log_w)
                 if not torch.isnan(loss) and not torch.isinf(loss):
                     loss.backward()
                     grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),

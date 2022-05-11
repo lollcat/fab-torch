@@ -55,6 +55,15 @@ class FABModel(Model):
         else:
             raise NotImplementedError
 
+    def inner_loss(self, x_ais, log_w_ais) -> torch.Tensor:
+        """Loss as a function of ais samples and weights, we use this when training with a replay buffer."""
+        if self.loss_type == "alpha_2_div":
+            return self.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+        elif self.loss_type == "forward_kl":
+            return self.fab_forward_kl_inner(x_ais, log_w_ais)
+        else:
+            raise NotImplementedError
+
 
     def fab_alpha_div_loss_inner(self, x_ais, log_w_ais) -> torch.Tensor:
         """Compute the FAB loss based on lower-bound of alpha-divergence with alpha=2."""
@@ -75,14 +84,17 @@ class FABModel(Model):
         """Compute forward KL-divergence of flow"""
         return -torch.mean(self.flow.log_prob(x))
 
+    def fab_forward_kl_inner(self, x_ais, log_w_ais) -> torch.Tensor:
+        w_ais = torch.softmax(log_w_ais, dim=0)
+        log_q_x = self.flow.log_prob(x_ais)
+        return - torch.mean(w_ais * log_q_x)
+
     def fab_forward_kl(self, batch_size: int) -> torch.Tensor:
         """Compute FAB estimate of forward kl-divergence."""
         x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         x_ais = x_ais.detach()
         log_w_ais = log_w_ais.detach()
-        w_ais = torch.softmax(log_w_ais, dim=0)
-        log_q_x = self.flow.log_prob(x_ais)
-        return - torch.mean(w_ais * log_q_x)
+        return self.fab_forward_kl_inner(x_ais, log_w_ais)
 
     def fab_sample_log_prob(self, batch_size: int, sample_frac: float = 1.0) -> torch.Tensor:
         """Compute FAB loss by maximising the log prob of ais samples under the flow."""
