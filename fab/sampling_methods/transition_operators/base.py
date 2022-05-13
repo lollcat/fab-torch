@@ -25,3 +25,7 @@ class TransitionOperator(torch.nn.Module):
             x: Samples from MCMC with log_p_x as the target distribution.
         """
         raise NotImplementedError
+
+    def set_eval_mode(self, eval_setting: bool):
+        """Turns on/off any tuning"""
+        raise NotImplementedError

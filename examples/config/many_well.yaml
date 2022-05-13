@@ -21,6 +21,7 @@ training:
   use_gpu: true
   use_64_bit: true
   use_buffer: true # below config fields are all for use_buffer = True
+  prioritised_buffer: true
   n_batches_buffer_sampling: 2
   buffer_temp: 1.0 # rate that we weight new experience over old
   maximum_buffer_length: 102400
