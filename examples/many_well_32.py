@@ -156,8 +156,8 @@ def _run(cfg: DictConfig):
                           optim_schedular=scheduler, save_path=save_path,
                                 buffer=buffer,
                                 n_batches_buffer_sampling=cfg.training.n_batches_buffer_sampling,
-                                clip_ais_weights_frac=cfg.training.log_w_clip_frac,
-                                max_gradient_norm=cfg.training.max_grad_norm
+                                max_gradient_norm=cfg.training.max_grad_norm,
+                                w_adjust_max_clip=cfg.training.w_adjust_max_clip
                                 )
     trainer.run(n_iterations=cfg.training.n_iterations, batch_size=cfg.training.batch_size,
                 n_plot=cfg.evaluation.n_plots,

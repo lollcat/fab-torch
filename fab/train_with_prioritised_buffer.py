@@ -26,8 +26,8 @@ class PrioritisedBufferTrainer:
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None,
                  max_gradient_norm: Optional[float] = 5.0,
-                 save_path: str = "",
-                 clip_ais_weights_frac: Optional[float] = None):
+                 w_adjust_max_clip: float = 10,
+                 save_path: str = ""):
         self.model = model
         self.optimizer = optimizer
         self.optim_schedular = optim_schedular
@@ -41,16 +41,13 @@ class PrioritisedBufferTrainer:
         self.buffer = buffer
         self.n_batches_buffer_sampling = n_batches_buffer_sampling
         self.flow_device = next(model.flow.parameters()).device
-        self.clip_ais_weights_frac = clip_ais_weights_frac
+        self.max_adjust_w_clip = w_adjust_max_clip
 
-        self.max_adjust_w_clip = 10  # should typically be much smaller than 10
-
-
-        # adjust target log prob
+        # instead of the standard target prob, we target p^2/q
         def ais_target_log_prob(x):
             return 2*self.model.target_distribution.log_prob(x) - self.model.flow.log_prob(x)
 
-        self.ais_target_log_prob = ais_target_log_prob
+        self.ais_target_log_prob = ais_target_log_prob  # save
         self.model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 
 
