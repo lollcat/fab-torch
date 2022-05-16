@@ -16,7 +16,8 @@ lr_scheduler = Any  # a learning rate schedular from torch.optim.lr_scheduler
 Plotter = Callable[[FABModel], List[plt.Figure]]
 
 class PrioritisedBufferTrainer:
-    """A trainer for the FABModel for use with a replay buffer."""
+    """A trainer for the FABModel for use with a prioritised replay buffer, and a different form
+    of loss. In this training loop we target p^2/q instead of p."""
     def __init__(self,
                  model: FABModel,
                  optimizer: torch.optim.Optimizer,
@@ -85,14 +86,18 @@ class PrioritisedBufferTrainer:
 
             # We now take self.n_batches_buffer_sampling gradient steps using
             # data from the replay buffer.
-            for (x, log_w, log_q_old, indices) in self.buffer.sample_n_batches(
-                    batch_size=batch_size, n_batches=self.n_batches_buffer_sampling):
+            mini_dataset = self.buffer.sample_n_batches(
+                    batch_size=batch_size, n_batches=self.n_batches_buffer_sampling)
+            for (x, log_w, log_q_old, indices) in mini_dataset:
                 x, log_w, log_q_old, indices = x.to(self.flow_device), log_w.to(self.flow_device), \
                                                log_q_old.to(self.flow_device), indices.to(self.flow_device)
                 self.optimizer.zero_grad()
                 log_q_x = self.model.flow.log_prob(x)
+                # adjustment to account for change to theta since sample was last added/adjusted
                 w_adjust = torch.exp(log_q_old - log_q_x).detach()
-                loss = - torch.mean(torch.clip(w_adjust, max=self.max_adjust_w_clip) * log_q_x)
+                w_adjust = torch.clip(w_adjust, max=self.max_adjust_w_clip)
+                # manually calculate the new form of the loss
+                loss = - torch.mean(w_adjust * log_q_x)
                 if not torch.isnan(loss) and not torch.isinf(loss):
                     loss.backward()
                     grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
@@ -100,7 +105,10 @@ class PrioritisedBufferTrainer:
                     self.optimizer.step()
                 else:
                     print("nan loss in replay step")
-                with torch.no_grad():
+            with torch.no_grad():
+                for (x, log_w, log_q_old, indices) in mini_dataset:
+                    """Adjust importance weights in the buffer for the points in the `mini_dataset` 
+                    to account for the updated theta."""
                     log_q_new = self.model.flow.log_prob(x)
                     self.buffer.adjust(log_q_old - log_q_new, log_q_new, indices)
 
@@ -127,6 +135,7 @@ class PrioritisedBufferTrainer:
                     self.model.annealed_importance_sampler.target_log_prob = self.model.target_distribution.log_prob
                     eval_info_true_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                          inner_batch_size=batch_size)
+                    # set ais distribution back to p^2/q.
                     self.model.annealed_importance_sampler.target_log_prob = self.ais_target_log_prob
                     eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                 inner_batch_size=batch_size)

@@ -16,7 +16,7 @@ class PrioritisedReplayBuffer:
                  device: str = "cpu",
                  ):
         """
-        Create replay buffer for batched sampling and adding of data.
+        Create prioritised replay buffer for batched sampling and adding of data.
         Args:
             dim: dimension of x data
             max_length: maximum length of the buffer
@@ -93,7 +93,8 @@ class PrioritisedReplayBuffer:
 
     @torch.no_grad()
     def adjust(self, log_w_adjustment, log_q, indices):
-        """Adjust log weights and log q to match new value of theta"""
+        """Adjust log weights and log q to match new value of theta, this is typically performed
+        over minibatches, rather than over the whole dataset at once."""
         self.buffer.log_w[indices] += log_w_adjustment.to(self.device)
         self.buffer.log_q_old[indices] = log_q.to(self.device)
 
