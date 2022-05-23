@@ -275,14 +275,14 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         plt.close()
 
 
-def splitChirality(x, ind=[17, 26], mean_diff=-0.043, threshold=0.8):
+def filterChirality(x, ind=[17, 26], mean_diff=-0.043, threshold=0.8):
     """
-    Split a batch of samples according to their chirality
+    Filters batch for the L-form
     :param x: Input batch
     :param ind: Indices to be used for determining the chirality
     :param mean_diff: Mean of the difference of the coordinates
     :param threshold: Threshold to be used for splitting
-    :return: Two batches of samples, one for each chirality
+    :return: Returns indices of batch, where L-form is present
     """
     diff_ = torch.column_stack((x[:, ind[0]] - x[:, ind[1]],
                                 x[:, ind[0]] - x[:, ind[1]] + 2 * np.pi,
@@ -290,4 +290,4 @@ def splitChirality(x, ind=[17, 26], mean_diff=-0.043, threshold=0.8):
     min_diff_ind = torch.min(torch.abs(diff_), 1).indices
     diff = diff_[torch.arange(x.shape[0]), min_diff_ind]
     ind = torch.abs(diff - mean_diff) < threshold
-    return x[ind, :], x[torch.logical_not(ind), :]
+    return ind
