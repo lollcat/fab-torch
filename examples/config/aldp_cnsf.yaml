@@ -61,5 +61,6 @@ training:                           # Properties of the training procedure
   log_iter: 1000                    # Int, number of iterations after which loss is saved
   checkpoint_iter: 5000             # Int, number of iterations after which checkpoint is saved
   eval_samples: 1000000             # Int, number of samples to draw when evaluating the model
+  filter_chirality: True            # Bool, flag whether to filter for chirality during evaluation
   seed: 0                           # Int, seed to be used for the random number generator
   save_root: out

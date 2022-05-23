@@ -14,6 +14,7 @@ from fab import FABModel
 from fab.wrappers.normflow import WrappedNormFlowModel
 from fab.sampling_methods.transition_operators import HamiltoneanMonteCarlo, Metropolis
 from fab.utils.aldp import evaluateAldp
+from fab.utils.aldp import filterChirality
 from fab.utils.numerical import effective_sample_size
 from fab.utils.replay_buffer import ReplayBuffer
 
@@ -259,8 +260,9 @@ batch_size = config['training']['batch_size']
 loss_hist = np.zeros((0, 2))
 ess_hist = np.zeros((0, 3))
 eval_samples = config['training']['eval_samples']
-eval_batches = (eval_samples - 1) // batch_size + 1
-eval_batches_flow = (len(test_data) - 1) // batch_size + 1
+eval_samples_flow = len(test_data)
+filter_chirality = False if not 'filter_chirality' in config['training'] \
+    else config['training']['filter_chirality']
 
 max_grad_norm = None if not 'max_grad_norm' in config['training'] \
     else config['training']['max_grad_norm']
@@ -463,17 +465,17 @@ for it in range(start_iter, max_iter):
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
-        for i in range(eval_batches_flow):
-            if i == eval_batches_flow - 1:
-                ns = ((eval_samples - 1) % batch_size) + 1
-            else:
-                ns = batch_size
+        while z_samples.shape[0] < eval_samples_flow:
             if config['fab']['transition_type'] == 'hmc':
-                z_ = model.flow.sample((ns,))
+                z_ = model.flow.sample((batch_size,))
             else:
                 with torch.no_grad():
-                    z_ = model.flow.sample((ns,))
+                    z_ = model.flow.sample((batch_size,))
+            if filter_chirality:
+                ind_L = filterChirality(z_)
+                z_ = z_[ind_L, :]
             z_samples = torch.cat((z_samples, z_.detach()))
+        z_samples = z_samples[:eval_samples_flow, :]
 
         # Evaluate model and save plots
         evaluateAldp(z_samples, test_data, model.flow.log_prob,
@@ -482,20 +484,20 @@ for it in range(start_iter, max_iter):
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
-        for i in range(eval_batches):
-            if i == eval_batches - 1:
-                ns = ((eval_samples - 1) % batch_size) + 1
-            else:
-                ns = batch_size
+        while z_samples.shape[0] < eval_samples:
             if config['fab']['transition_type'] == 'hmc':
-                z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
+                z_ = model.annealed_importance_sampler.sample_and_log_weights(batch_size,
                                                                               logging=False)[0]
             else:
                 with torch.no_grad():
-                    z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
+                    z_ = model.annealed_importance_sampler.sample_and_log_weights(batch_size,
                                                                                   logging=False)[0]
             z_, _ = model.flow._nf_model.flows[-1].inverse(z_.detach())
+            if filter_chirality:
+                ind_L = filterChirality(z_)
+                z_ = z_[ind_L, :]
             z_samples = torch.cat((z_samples, z_.detach()))
+        z_samples = z_samples[:eval_samples, :]
 
         # Evaluate model and save plots
         evaluateAldp(z_samples, test_data, model.flow.log_prob,
