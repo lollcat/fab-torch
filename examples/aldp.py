@@ -533,7 +533,8 @@ for it in range(start_iter, max_iter):
                     z_ = model.flow.sample((batch_size,))
             if filter_chirality_eval:
                 ind_L = filter_chirality(z_)
-                z_ = z_[ind_L, :]
+                if torch.mean(1. * ind_L) > 0.1:
+                    z_ = z_[ind_L, :]
             z_samples = torch.cat((z_samples, z_.detach()))
         z_samples = z_samples[:eval_samples_flow, :]
 
@@ -555,7 +556,8 @@ for it in range(start_iter, max_iter):
             z_, _ = model.flow._nf_model.flows[-1].inverse(z_.detach())
             if filter_chirality_eval:
                 ind_L = filter_chirality(z_)
-                z_ = z_[ind_L, :]
+                if torch.mean(1. * ind_L) > 0.1:
+                    z_ = z_[ind_L, :]
             z_samples = torch.cat((z_samples, z_.detach()))
         z_samples = z_samples[:eval_samples, :]
 
