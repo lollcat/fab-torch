@@ -3,6 +3,7 @@
 from .core import FABModel
 from .train import Trainer
 from .train_with_buffer import BufferTrainer
+from .train_with_prioritised_buffer import PrioritisedBufferTrainer
 from .sampling_methods import AnnealedImportanceSampler, HamiltoneanMonteCarlo, Metropolis
 from .types_ import Model, Distribution
 
