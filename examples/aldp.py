@@ -417,7 +417,7 @@ for it in range(start_iter, max_iter):
                 # Filter chirality
                 if filter_chirality_train:
                     ind_L = filter_chirality(x_ais)
-                    if torch.mean(1 * ind_L) > 0.1:
+                    if torch.mean(1. * ind_L) > 0.1:
                         x_ais = x_ais[ind_L, :]
                         log_w_ais = log_w_ais[ind_L]
                 log_q_x = model.flow.log_prob(x_ais)
