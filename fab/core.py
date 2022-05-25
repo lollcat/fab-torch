@@ -59,7 +59,7 @@ class FABModel(Model):
             return self.flow_alpha_2_div(args)
         else:
             raise NotImplementedError
-        
+
     def flow_reverse_kl(self, batch_size: int) -> torch.Tensor:
         x, log_q = self.flow.sample_and_log_prob((batch_size,))
         log_p = self.target_distribution.log_prob(x)
