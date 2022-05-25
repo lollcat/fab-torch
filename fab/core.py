@@ -21,7 +21,8 @@ class FABModel(Model):
                  loss_type: "str" = "alpha_2_div",
                  ):
         assert loss_type in ["alpha_2_div", "forward_kl", "sample_log_prob",
-                             "flow_forward_kl"]
+                             "flow_forward_kl", "flow_alpha_2_div",
+                             "flow_reverse_kl"]
         self.loss_type = loss_type
         self.flow = flow
         self.target_distribution = target_distribution
@@ -52,9 +53,22 @@ class FABModel(Model):
             return self.fab_sample_log_prob(args)
         elif self.loss_type == "flow_forward_kl":
             return self.flow_forward_kl(args)
+        elif self.loss_type == "flow_reverse_kl":
+            return self.flow_reverse_kl(args)
+        elif self.loss_type == "flow_alpha_2_div":
+            return self.flow_alpha_2_div(args)
         else:
             raise NotImplementedError
 
+    def flow_reverse_kl(self, batch_size: int) -> torch.Tensor:
+        x, log_q = self.flow.sample_and_log_prob((batch_size,))
+        log_p = self.target_distribution.log_prob(x)
+        return torch.mean(log_q) - torch.mean(log_p)
+
+    def flow_alpha_2_div(self, batch_size: int) -> torch.Tensor:
+        x, log_q = self.flow.sample_and_log_prob((batch_size,))
+        log_p = self.target_distribution.log_prob(x)
+        return -torch.logsumexp(2 * (log_p - log_q), 0)
 
     def fab_alpha_div_loss_inner(self, x_ais, log_w_ais) -> torch.Tensor:
         """Compute the FAB loss based on lower-bound of alpha-divergence with alpha=2."""
