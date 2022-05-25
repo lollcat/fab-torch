@@ -10,9 +10,9 @@ from openmmtools.testsystems import AlanineDipeptideVacuum
 
 
 
-def evaluateAldp(z_sample, z_test, log_prob, transform,
-                 iter, metric_dir=None, plot_dir=None,
-                 batch_size=1000):
+def evaluate_aldp(z_sample, z_test, log_prob, transform,
+                  iter, metric_dir=None, plot_dir=None,
+                  batch_size=1000):
     """
     Evaluate model of the Boltzmann distribution of the
     Alanine Dipeptide
@@ -275,7 +275,7 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         plt.close()
 
 
-def filterChirality(x, ind=[17, 26], mean_diff=-0.043, threshold=0.8):
+def filter_chirality(x, ind=[17, 26], mean_diff=-0.043, threshold=0.8):
     """
     Filters batch for the L-form
     :param x: Input batch

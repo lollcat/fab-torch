@@ -13,10 +13,11 @@ from fab.target_distributions.aldp import AldpBoltzmann
 from fab import FABModel
 from fab.wrappers.normflow import WrappedNormFlowModel
 from fab.sampling_methods.transition_operators import HamiltoneanMonteCarlo, Metropolis
-from fab.utils.aldp import evaluateAldp
-from fab.utils.aldp import filterChirality
+from fab.utils.aldp import evaluate_aldp
+from fab.utils.aldp import filter_chirality
 from fab.utils.numerical import effective_sample_size
 from fab.utils.replay_buffer import ReplayBuffer
+from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
 
 
@@ -261,8 +262,8 @@ loss_hist = np.zeros((0, 2))
 ess_hist = np.zeros((0, 3))
 eval_samples = config['training']['eval_samples']
 eval_samples_flow = len(test_data)
-filter_chirality = False if not 'filter_chirality' in config['training'] \
-    else config['training']['filter_chirality']
+filter_chirality_eval = 'eval' in config['training']['filter_chirality']
+filter_chirality_train = 'train' in config['training']['filter_chirality']
 
 max_grad_norm = None if not 'max_grad_norm' in config['training'] \
     else config['training']['max_grad_norm']
@@ -324,13 +325,24 @@ if args.resume:
 if 'replay_buffer' in config['training']:
     use_rb = True
     rb_config = config['training']['replay_buffer']
-    def initial_sampler():
-        x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
-            batch_size, logging=False)
-        return x, log_w
-    buffer = ReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
-                          min_sample_length=rb_config['min_length'] * batch_size,
-                          initial_sampler=initial_sampler, device=str(device))
+    if rb_config['type'] == 'uniform':
+        def initial_sampler():
+            x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
+                batch_size, logging=False)
+            return x, log_w
+        buffer = ReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
+                              min_sample_length=rb_config['min_length'] * batch_size,
+                              initial_sampler=initial_sampler, device=str(device))
+    elif rb_config['type'] == 'prioritised':
+        def initial_sampler():
+            x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
+                batch_size, logging=False)
+            log_q_x = model.flow.log_prob(x)
+            return x, log_w, log_q_x
+        buffer = PrioritisedReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
+                                         min_sample_length=rb_config['min_length'] * batch_size,
+                                         initial_sampler=initial_sampler, device=str(device))
+        buffer_sample = None
 else:
     use_rb = False
 
@@ -351,34 +363,82 @@ for it in range(start_iter, max_iter):
         else:
             loss = model.loss(batch_size) + lam_fkld * model.flow_forward_kl(x)
     elif use_rb:
-        if it % rb_config['n_updates'] == 0:
-            # Sample
-            if transition_type == 'hmc':
-                x_ais, log_w_ais = model.annealed_importance_sampler.\
-                    sample_and_log_weights(batch_size)
-                x_ais = x_ais.detach()
-                log_w_ais = log_w_ais.detach()
-            else:
-                with torch.no_grad():
+        if rb_config['type'] == 'uniform':
+            if it % rb_config['n_updates'] == 0:
+                # Sample
+                if transition_type == 'hmc':
                     x_ais, log_w_ais = model.annealed_importance_sampler.\
                         sample_and_log_weights(batch_size)
-            # Optionally do clipping
-            if rb_config['clip_w_frac'] is not None:
-                k = max(2, int(rb_config['clip_w_frac'] * log_w_ais.shape[0]))
-                max_log_w = torch.min(torch.topk(log_w_ais, k, dim=0).values)
-                log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
+                    x_ais = x_ais.detach()
+                    log_w_ais = log_w_ais.detach()
+                else:
+                    with torch.no_grad():
+                        x_ais, log_w_ais = model.annealed_importance_sampler.\
+                            sample_and_log_weights(batch_size)
+                # Filter chirality
+                if filter_chirality_train:
+                    ind_L = filter_chirality(x_ais)
+                    if torch.mean(1. * ind_L) > 0.1:
+                        x_ais = x_ais[ind_L, :]
+                        log_w_ais = log_w_ais[ind_L, :]
+                # Optionally do clipping
+                if rb_config['clip_w_frac'] is not None:
+                    k = max(2, int(rb_config['clip_w_frac'] * log_w_ais.shape[0]))
+                    max_log_w = torch.min(torch.topk(log_w_ais, k, dim=0).values)
+                    log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
+                # Compute loss
                 loss = model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
-            # Compute loss
-            loss = model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
-            # Sample from buffer
-            buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
-                                                    n_batches=rb_config['n_updates'] - 1)
-            buffer_iter = iter(buffer_sample)
-            # Add sample to buffer
-            buffer.add(x_ais, log_w_ais)
-        else:
-            x, log_w = next(buffer_iter)
-            loss = model.fab_alpha_div_loss_inner(x, log_w)
+                # Sample from buffer
+                buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
+                                                        n_batches=rb_config['n_updates'] - 1)
+                buffer_iter = iter(buffer_sample)
+                # Add sample to buffer
+                buffer.add(x_ais, log_w_ais)
+            else:
+                x, log_w = next(buffer_iter)
+                loss = model.fab_alpha_div_loss_inner(x, log_w)
+        elif rb_config['type'] == 'prioritised':
+            if it % rb_config['n_updates'] == 0:
+                if buffer_sample is not None:
+                    with torch.no_grad():
+                        for (x, log_w, log_q_old, indices) in buffer_sample:
+                            log_q_new = model.flow.log_prob(x)
+                            buffer.adjust(log_q_old - log_q_new, log_q_new, indices)
+                # Sample
+                if transition_type == 'hmc':
+                    x_ais, log_w_ais = model.annealed_importance_sampler.\
+                        sample_and_log_weights(batch_size)
+                    x_ais = x_ais.detach()
+                    log_w_ais = log_w_ais.detach()
+                else:
+                    with torch.no_grad():
+                        x_ais, log_w_ais = model.annealed_importance_sampler.\
+                            sample_and_log_weights(batch_size)
+                # Filter chirality
+                if filter_chirality_train:
+                    ind_L = filter_chirality(x_ais)
+                    if torch.mean(1 * ind_L) > 0.1:
+                        x_ais = x_ais[ind_L, :]
+                        log_w_ais = log_w_ais[ind_L, :]
+                log_q_x = model.flow.log_prob(x_ais)
+                # Add sample to buffer
+                buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x.detach())
+                # Sample from buffer
+                buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
+                                                        n_batches=rb_config['n_updates'] - 1)
+                buffer_iter = iter(buffer_sample)
+
+            # Get batch from buffer
+            x, log_w, log_q_old, indices = next(buffer_iter)
+            x, log_w, log_q_old, indices = x.to(device), log_w.to(device), \
+                                           log_q_old.to(device), indices.to(device)
+            log_q_x = model.flow.log_prob(x)
+            # adjustment to account for change to theta since sample was last added/adjusted
+            w_adjust = torch.exp(log_q_old - log_q_x).detach()
+            w_adjust = torch.clip(w_adjust, max=rb_config['max_adjust_w_clip'])
+            # manually calculate the new form of the loss
+            loss = - torch.mean(w_adjust * log_q_x)
+
     else:
         loss = model.loss(batch_size)
 
@@ -471,16 +531,16 @@ for it in range(start_iter, max_iter):
             else:
                 with torch.no_grad():
                     z_ = model.flow.sample((batch_size,))
-            if filter_chirality:
-                ind_L = filterChirality(z_)
+            if filter_chirality_eval:
+                ind_L = filter_chirality(z_)
                 z_ = z_[ind_L, :]
             z_samples = torch.cat((z_samples, z_.detach()))
         z_samples = z_samples[:eval_samples_flow, :]
 
         # Evaluate model and save plots
-        evaluateAldp(z_samples, test_data, model.flow.log_prob,
-                     target.coordinate_transform, it, metric_dir=log_dir_flow,
-                     plot_dir=plot_dir_flow)
+        evaluate_aldp(z_samples, test_data, model.flow.log_prob,
+                      target.coordinate_transform, it, metric_dir=log_dir_flow,
+                      plot_dir=plot_dir_flow)
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
@@ -493,16 +553,16 @@ for it in range(start_iter, max_iter):
                     z_ = model.annealed_importance_sampler.sample_and_log_weights(batch_size,
                                                                                   logging=False)[0]
             z_, _ = model.flow._nf_model.flows[-1].inverse(z_.detach())
-            if filter_chirality:
-                ind_L = filterChirality(z_)
+            if filter_chirality_eval:
+                ind_L = filter_chirality(z_)
                 z_ = z_[ind_L, :]
             z_samples = torch.cat((z_samples, z_.detach()))
         z_samples = z_samples[:eval_samples, :]
 
         # Evaluate model and save plots
-        evaluateAldp(z_samples, test_data, model.flow.log_prob,
-                     target.coordinate_transform, it, metric_dir=log_dir_ais,
-                     plot_dir=plot_dir_ais)
+        evaluate_aldp(z_samples, test_data, model.flow.log_prob,
+                      target.coordinate_transform, it, metric_dir=log_dir_ais,
+                      plot_dir=plot_dir_ais)
 
         # Re-enable step size tuning
         if config['fab']['adjust_step_size']:
