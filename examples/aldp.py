@@ -380,7 +380,7 @@ for it in range(start_iter, max_iter):
                     ind_L = filter_chirality(x_ais)
                     if torch.mean(1. * ind_L) > 0.1:
                         x_ais = x_ais[ind_L, :]
-                        log_w_ais = log_w_ais[ind_L, :]
+                        log_w_ais = log_w_ais[ind_L]
                 # Optionally do clipping
                 if rb_config['clip_w_frac'] is not None:
                     k = max(2, int(rb_config['clip_w_frac'] * log_w_ais.shape[0]))
@@ -419,13 +419,13 @@ for it in range(start_iter, max_iter):
                     ind_L = filter_chirality(x_ais)
                     if torch.mean(1 * ind_L) > 0.1:
                         x_ais = x_ais[ind_L, :]
-                        log_w_ais = log_w_ais[ind_L, :]
+                        log_w_ais = log_w_ais[ind_L]
                 log_q_x = model.flow.log_prob(x_ais)
                 # Add sample to buffer
                 buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x.detach())
                 # Sample from buffer
                 buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
-                                                        n_batches=rb_config['n_updates'] - 1)
+                                                        n_batches=rb_config['n_updates'])
                 buffer_iter = iter(buffer_sample)
 
             # Get batch from buffer
