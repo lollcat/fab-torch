@@ -94,7 +94,7 @@ class PrioritisedBufferTrainer:
                 self.optimizer.zero_grad()
                 log_q_x = self.model.flow.log_prob(x)
                 # adjustment to account for change to theta since sample was last added/adjusted
-                w_adjust = torch.exp(log_q_old - log_q_x).detach()
+                w_adjust = torch.exp(log_q_old - log_q_x).detach() # no grad
                 w_adjust = torch.clip(w_adjust, max=self.max_adjust_w_clip)
                 # manually calculate the new form of the loss
                 loss = - torch.mean(w_adjust * log_q_x)
@@ -110,18 +110,21 @@ class PrioritisedBufferTrainer:
                     """Adjust importance weights in the buffer for the points in the `mini_dataset` 
                     to account for the updated theta."""
                     log_q_new = self.model.flow.log_prob(x)
-                    self.buffer.adjust(log_q_old - log_q_new, log_q_new, indices)
+                    log_adjust_insert = log_q_old - log_q_new
+                    self.buffer.adjust(log_adjust_insert, log_q_new, indices)
 
             # we log info from the step of the recently generated ais points.
             info = self.model.get_iter_info()
             info.update(loss=loss.cpu().detach().item(),
                         step=i,
                         grad_norm=grad_norm.cpu().detach().item(),
-                        sampled_w_std=torch.std(log_w).detach().cpu().item(),
-                        sampled_w_mean=torch.mean(log_w).detach().cpu().item(),
+                        sampled_log_w_std=torch.std(log_w).detach().cpu().item(),
+                        sampled_log_w_mean=torch.mean(log_w).detach().cpu().item(),
                         w_adjust_mean=torch.mean(w_adjust).detach().cpu().item(),
                         w_adjust_min=torch.min(w_adjust).detach().cpu().item(),
                         w_adjust_max=torch.max(w_adjust).detach().cpu().item(),
+                        log_w_adjust_insert_mean=torch.mean(log_adjust_insert).detach().cpu().item(),
+                        log_q_mean=torch.mean(log_q_new).detach().cpu().item()
                         )
 
             self.logger.write(info)

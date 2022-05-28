@@ -1,3 +1,4 @@
+from typing import Union
 import matplotlib.pyplot as plt
 import torch
 import os
@@ -28,6 +29,34 @@ def setup_logger(cfg: DictConfig, save_path: str) -> Logger:
         raise Exception("No logger specified, try adding the wandb or "
                         "pandas logger to the config file.")
     return logger
+
+
+def setup_buffer(cfg: DictConfig, fab_model: FABModel) -> Union[ReplayBuffer,
+                                                                PrioritisedReplayBuffer]:
+    dim = cfg.target.dim  # applies to flow and target
+    if cfg.training.prioritised_buffer is False:
+        def initial_sampler():
+            # used to fill the replay buffer up to its minimum size
+            x, log_w = fab_model.annealed_importance_sampler.sample_and_log_weights(
+                cfg.training.batch_size, logging=False)
+            return x, log_w
+
+        buffer = ReplayBuffer(dim=dim, max_length=cfg.training.maximum_buffer_length,
+                              min_sample_length=cfg.training.min_buffer_length,
+                              initial_sampler=initial_sampler,
+                              temperature=cfg.training.buffer_temp)
+    else:
+        # buffer
+        def initial_sampler():
+            x, log_w = fab_model.annealed_importance_sampler.sample_and_log_weights(
+                cfg.training.batch_size, logging=False)
+            log_q_x = fab_model.flow.log_prob(x).detach()
+            return x, log_w, log_q_x
+
+        buffer = PrioritisedReplayBuffer(dim=dim, max_length=cfg.training.maximum_buffer_length,
+                                         min_sample_length=cfg.training.min_buffer_length,
+                                         initial_sampler=initial_sampler)
+    return buffer
 
 
 
@@ -88,13 +117,24 @@ def _run(cfg: DictConfig):
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
     scheduler = None
 
+
+    # Create buffer if needed
+    if cfg.training.use_buffer is True:
+        buffer = setup_buffer(cfg, fab_model)
+
+
     def plot(fab_model, n_samples: int = cfg.training.batch_size, dim: int = dim):
         n_rows = dim // 2
-        fig, axs = plt.subplots(dim // 2, 2, sharex=True, sharey=True, figsize=(10, n_rows * 3))
+        if cfg.training.prioritised_buffer is True:
+            fig, axs = plt.subplots(dim // 2, 3, sharex=True, sharey=True, figsize=(10, n_rows * 3))
+        else:
+            fig, axs = plt.subplots(dim // 2, 2, sharex=True, sharey=True, figsize=(10, n_rows * 3))
 
         samples_flow = fab_model.flow.sample((n_samples,))
         samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(n_samples,
                                                                                    logging=False)[0]
+        if cfg.training.prioritised_buffer is True:
+            samples_buffer = buffer.sample(n_samples)[0]
 
         for i in range(n_rows):
             plot_contours(target.log_prob_2D, bounds=plotting_bounds, ax=axs[i, 0])
@@ -111,9 +151,20 @@ def _run(cfg: DictConfig):
                                marginal_dims=(i * 2, i * 2 + 1))
             axs[i, 1].set_xlabel(f"dim {i * 2}")
             axs[i, 1].set_ylabel(f"dim {i * 2 + 1}")
+
+            if cfg.training.use_buffer is True:
+                plot_contours(target.log_prob_2D, bounds=plotting_bounds, ax=axs[i, 2])
+                plot_marginal_pair(samples_buffer, ax=axs[i, 2], bounds=plotting_bounds,
+                                   marginal_dims=(i * 2, i * 2 + 1))
+                axs[i, 2].set_xlabel(f"dim {i * 2}")
+                axs[i, 2].set_ylabel(f"dim {i * 2 + 1}")
+
             plt.tight_layout()
         axs[0, 1].set_title("ais samples")
         axs[0, 0].set_title("flow samples")
+        if cfg.training.use_buffer is True:
+            axs[0, 2].set_title("buffer samples")
+        plt.show()
         return [fig]
 
     # Create trainer
