@@ -52,9 +52,16 @@ training:                           # Properties of the training procedure
     rate_decay: 0.1                 # Double, learning rate decay factor
     decay_iter: 250000              # Int, number of iteration after which the learning rate should be
                                     # decreased
+  replay_buffer:
+    type: uniform                   # String, way to sample from the buffer, can be uniform or prioritised
+    n_updates: 8                    # Int, number of updates to do after each sampling step
+    min_length: 32                  # Int, minimum number of batches in replay buffer
+    max_length: 512                 # Int, maximum number of batches in replay buffer
+    clip_w_frac: 0.01               # Double, fraction of weights to clip per batch
   weight_decay: 1.e-5               # Double, regularization parameter
   log_iter: 1000                    # Int, number of iterations after which loss is saved
   checkpoint_iter: 5000             # Int, number of iterations after which checkpoint is saved
   eval_samples: 1000000             # Int, number of samples to draw when evaluating the model
+  filter_chirality: train           # String, whether to filter chirality during training or evaluation
   seed: 0                           # Int, seed to be used for the random number generator
   save_root: out

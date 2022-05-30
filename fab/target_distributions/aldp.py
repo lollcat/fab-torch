@@ -16,7 +16,8 @@ import tempfile
 
 class AldpBoltzmann(nn.Module, TargetDistribution):
     def __init__(self, data_path=None, temperature=1000, energy_cut=1.e+8,
-                 energy_max=1.e+20, n_threads=4):
+                 energy_max=1.e+20, n_threads=4, transform='mixed', shift_dih=False,
+                 shift_dih_params={'std_threshold': 0.5, 'hist_bins': 100}):
         """
         Boltzmann distribution of Alanine dipeptide
         :param data_path: Path to the trajectory file used to initialize the
@@ -31,31 +32,57 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
         :param n_threads: Number of threads used to evaluate the log
             probability for batches
         :type n_threads: Integer
+        :param transform: Which transform to use, can be mixed or internal
+        :type transform: String
         """
         super(AldpBoltzmann, self).__init__()
 
         # Define molecule parameters
         ndim = 66
-        z_matrix = [
-            (0, [1, 4, 6]),
-            (1, [4, 6, 8]),
-            (2, [1, 4, 0]),
-            (3, [1, 4, 0]),
-            (4, [6, 8, 14]),
-            (5, [4, 6, 8]),
-            (7, [6, 8, 4]),
-            (11, [10, 8, 6]),
-            (12, [10, 8, 11]),
-            (13, [10, 8, 11]),
-            (15, [14, 8, 16]),
-            (16, [14, 8, 6]),
-            (17, [16, 14, 15]),
-            (18, [16, 14, 8]),
-            (19, [18, 16, 14]),
-            (20, [18, 16, 19]),
-            (21, [18, 16, 19])
-        ]
-        cart_indices = [6, 8, 9, 10, 14]
+        if transform == 'mixed':
+            z_matrix = [
+                (0, [1, 4, 6]),
+                (1, [4, 6, 8]),
+                (2, [1, 4, 0]),
+                (3, [1, 4, 0]),
+                (4, [6, 8, 14]),
+                (5, [4, 6, 8]),
+                (7, [6, 8, 4]),
+                (11, [10, 8, 6]),
+                (12, [10, 8, 11]),
+                (13, [10, 8, 11]),
+                (15, [14, 8, 16]),
+                (16, [14, 8, 6]),
+                (17, [16, 14, 15]),
+                (18, [16, 14, 8]),
+                (19, [18, 16, 14]),
+                (20, [18, 16, 19]),
+                (21, [18, 16, 19])
+            ]
+            cart_indices = [6, 8, 9, 10, 14]
+        elif transform == 'internal':
+            z_matrix = [
+                (0, [1, 4, 6]),
+                (1, [4, 6, 8]),
+                (2, [1, 4, 0]),
+                (3, [1, 4, 0]),
+                (4, [6, 8, 14]),
+                (5, [4, 6, 8]),
+                (7, [6, 8, 4]),
+                (9, [8, 6, 4]),
+                (10, [8, 6, 4]),
+                (11, [10, 8, 6]),
+                (12, [10, 8, 11]),
+                (13, [10, 8, 11]),
+                (15, [14, 8, 16]),
+                (16, [14, 8, 6]),
+                (17, [16, 14, 15]),
+                (18, [16, 14, 8]),
+                (19, [18, 16, 14]),
+                (20, [18, 16, 19]),
+                (21, [18, 16, 19])
+            ]
+            cart_indices = [8, 6, 14]
 
         # System setup
         system = testsystems.AlanineDipeptideVacuum(constraints=None)
@@ -97,8 +124,10 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
         transform_data = torch.from_numpy(transform_data_npy.astype("float64"))
 
         # Set distribution
-        self.coordinate_transform = bg.flows.CoordinateTransform(transform_data, ndim,
-                                                                 z_matrix, cart_indices)
+        self.coordinate_transform = bg.flows.CoordinateTransform(transform_data, ndim, z_matrix,
+                                                                 cart_indices, mode=transform,
+                                                                 shift_dih=shift_dih,
+                                                                 shift_dih_params=shift_dih_params)
 
         if n_threads > 1:
             self.p = bg.distributions.TransformedBoltzmannParallel(system, temperature,

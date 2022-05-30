@@ -13,8 +13,11 @@ from fab.target_distributions.aldp import AldpBoltzmann
 from fab import FABModel
 from fab.wrappers.normflow import WrappedNormFlowModel
 from fab.sampling_methods.transition_operators import HamiltoneanMonteCarlo, Metropolis
-from fab.utils.aldp import evaluateAldp
+from fab.utils.aldp import evaluate_aldp
+from fab.utils.aldp import filter_chirality
 from fab.utils.numerical import effective_sample_size
+from fab.utils.replay_buffer import ReplayBuffer
+from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
 
 
@@ -45,8 +48,8 @@ if args.precision == 'double':
     torch.set_default_dtype(torch.float64)
 
 # Set seed
-if 'seed' in config['training'] and config['training']['seed'] is not None:
-    torch.manual_seed(config['training']['seed'])
+seed = config['training']['seed']
+torch.manual_seed(seed)
 
 # GPU usage
 use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
@@ -65,11 +68,17 @@ test_data = test_data.to(device)
 # Set up model
 
 # Target distribution
+transform_mode = 'mixed' if not 'transform' in config['system'] \
+    else config['system']['transform']
+shift_dih = False if not 'shift_dih' in config['system'] \
+    else config['system']['shift_dih']
 target = AldpBoltzmann(data_path=config['data']['transform'],
                        temperature=config['system']['temperature'],
                        energy_cut=config['system']['energy_cut'],
                        energy_max=config['system']['energy_max'],
-                       n_threads=config['system']['n_threads'])
+                       n_threads=config['system']['n_threads'],
+                       transform=transform_mode,
+                       shift_dih=shift_dih)
 target = target.to(device)
 
 # Flow
@@ -78,10 +87,10 @@ ndim = 60
 # Flow layers
 layers = []
 
-ncarts = target.coordinate_transform.mixed_transform.len_cart_inds
-permute_inv = target.coordinate_transform.mixed_transform.permute_inv.cpu().numpy()
-dih_ind_ = target.coordinate_transform.mixed_transform.ic_transform.dih_indices.cpu().numpy()
-std_dih = target.coordinate_transform.mixed_transform.ic_transform.std_dih.cpu()
+ncarts = target.coordinate_transform.transform.len_cart_inds
+permute_inv = target.coordinate_transform.transform.permute_inv.cpu().numpy()
+dih_ind_ = target.coordinate_transform.transform.ic_transform.dih_indices.cpu().numpy()
+std_dih = target.coordinate_transform.transform.ic_transform.std_dih.cpu()
 
 ind = np.arange(ndim)
 ind = np.concatenate([ind[:3 * ncarts - 6], -np.ones(6, dtype=np.int), ind[3 * ncarts - 6:]])
@@ -110,7 +119,7 @@ for i in range(config['flow']['blocks']):
                                 init_zeros=config['flow']['init_zeros'], output_fn=output_fn)
         layers.append(nf.flows.AffineCouplingBlock(param_map, scale=scale,
                                                    scale_map=scale_map))
-    elif flow_type == 'circular-nsf':
+    elif flow_type == 'circular-ar-nsf':
         bl = config['flow']['blocks_per_layer']
         hu = config['flow']['hidden_units']
         nb = config['flow']['num_bins']
@@ -119,6 +128,19 @@ for i in range(config['flow']['blocks']):
         layers.append(nf.flows.CircularAutoregressiveRationalQuadraticSpline(ndim,
             bl, hu, ind_circ, tail_bound=tail_bound, num_bins=nb, permute_mask=True,
             init_identity=ii, dropout_probability=dropout))
+    elif flow_type == 'circular-coup-nsf':
+        bl = config['flow']['blocks_per_layer']
+        hu = config['flow']['hidden_units']
+        nb = config['flow']['num_bins']
+        ii = config['flow']['init_identity']
+        dropout = config['flow']['dropout']
+        if i % 2 == 0:
+            mask = nf.utils.masks.create_random_binary_mask(ndim, seed=seed + i)
+        else:
+            mask = 1 - mask
+        layers.append(nf.flows.CircularCoupledRationalQuadraticSpline(ndim,
+            bl, hu, ind_circ, tail_bound=tail_bound, num_bins=nb, init_identity=ii,
+            dropout_probability=dropout, mask=mask))
     else:
         raise NotImplementedError('The flow type ' + flow_type + ' is not implemented.')
 
@@ -149,12 +171,17 @@ flow = nf.NormalizingFlow(base, layers)
 wrapped_flow = WrappedNormFlowModel(flow).to(device)
 
 # Transition operator
-if config['fab']['transition_type'] == 'hmc':
+transition_type = config['fab']['transition_type']
+if transition_type == 'hmc':
     # very lightweight HMC.
     transition_operator = HamiltoneanMonteCarlo(
         n_ais_intermediate_distributions=config['fab']['n_int_dist'],
-        dim=ndim, L=config['fab']['n_inner'])
-elif config['fab']['transition_type'] == 'metropolis':
+        dim=ndim, L=config['fab']['n_inner'],
+        epsilon=config['fab']['epsilon'] / 2,
+        common_epsilon_init_weight=config['fab']['epsilon'] / 2)
+    if not config['fab']['adjust_step_size']:
+        transition_operator.set_eval_mode(True)
+elif transition_type == 'metropolis':
     transition_operator = Metropolis(n_transitions=config['fab']['n_int_dist'],
                                      n_updates=config['fab']['n_inner'],
                                      max_step_size=config['fab']['max_step_size'],
@@ -201,11 +228,7 @@ elif optimizer_name == 'adamax':
     optimizer = torch.optim.Adamax(optimizer_param, lr=lr, weight_decay=weight_decay)
 else:
     raise NotImplementedError('The optimizer ' + optimizer_name + ' is not implemented.')
-lr_warmup = 'warmup_iter' in config['training'] \
-            and config['training']['warmup_iter'] is not None
-if lr_warmup:
-    warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
-                                                         lambda s: min(1., s / config['training']['warmup_iter']))
+
 if 'lr_scheduler' in config['training']:
     if config['training']['lr_scheduler']['type'] == 'exponential':
         lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
@@ -222,6 +245,12 @@ if 'lr_scheduler' in config['training']:
 else:
     lr_scheduler = None
 
+lr_warmup = 'warmup_iter' in config['training'] \
+            and config['training']['warmup_iter'] is not None
+if lr_warmup:
+    warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
+                                                         lambda s: min(1., s / config['training']['warmup_iter']))
+
 
 # Train model
 max_iter = config['training']['max_iter']
@@ -232,7 +261,9 @@ batch_size = config['training']['batch_size']
 loss_hist = np.zeros((0, 2))
 ess_hist = np.zeros((0, 3))
 eval_samples = config['training']['eval_samples']
-eval_batches = (eval_samples - 1) // batch_size + 1
+eval_samples_flow = len(test_data)
+filter_chirality_eval = 'eval' in config['training']['filter_chirality']
+filter_chirality_train = 'train' in config['training']['filter_chirality']
 
 max_grad_norm = None if not 'max_grad_norm' in config['training'] \
     else config['training']['max_grad_norm']
@@ -241,7 +272,8 @@ if grad_clipping:
     grad_norm_hist = np.zeros((0, 2))
 
 # Load train data if needed
-if loss_type == 'flow_forward_kl':
+lam_fkld = None if not 'lam_fkld' in config['fab'] else config['fab']['lam_fkld']
+if loss_type == 'flow_forward_kl' or lam_fkld is not None:
     path = config['data']['train']
     train_data = torch.load(path)
     if args.precision == 'double':
@@ -266,12 +298,12 @@ if args.resume:
         if os.path.exists(optimizer_path):
             optimizer.load_state_dict(torch.load(optimizer_path))
         # Load scheduler
-        warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
-        if os.path.exists(warmup_scheduler_path):
-            warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
         lr_scheduler_path = os.path.join(cp_dir, 'lr_scheduler.pt')
         if lr_scheduler is not None and os.path.exists(lr_scheduler_path):
             lr_scheduler.load_state_dict(torch.load(lr_scheduler_path))
+        warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
+        if os.path.exists(warmup_scheduler_path):
+            warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
         # Load logs
         log_labels = ['loss', 'ess']
         log_hists = [loss_hist, ess_hist]
@@ -289,19 +321,128 @@ if args.resume:
                 log_hist.resize(np.sum(log_hist_[:, 0] <= start_iter), log_hist_.shape[1],
                                 refcheck=False)
 
+# Setup replay buffer
+if 'replay_buffer' in config['training']:
+    use_rb = True
+    rb_config = config['training']['replay_buffer']
+    if rb_config['type'] == 'uniform':
+        def initial_sampler():
+            x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
+                batch_size, logging=False)
+            return x, log_w
+        buffer = ReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
+                              min_sample_length=rb_config['min_length'] * batch_size,
+                              initial_sampler=initial_sampler, device=str(device))
+    elif rb_config['type'] == 'prioritised':
+        def initial_sampler():
+            x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
+                batch_size, logging=False)
+            log_q_x = model.flow.log_prob(x)
+            return x, log_w, log_q_x
+        buffer = PrioritisedReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
+                                         min_sample_length=rb_config['min_length'] * batch_size,
+                                         initial_sampler=initial_sampler, device=str(device))
+        buffer_sample = None
+        # Set target distribution
+        def ais_target_log_prob(x):
+            return 2 * model.target_distribution.log_prob(x) - model.flow.log_prob(x)
+        model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
+else:
+    use_rb = False
+
 # Start training
 start_time = time()
 
 for it in range(start_iter, max_iter):
     # Get loss
-    if loss_type == 'flow_forward_kl':
+    if loss_type == 'flow_forward_kl' or lam_fkld is not None:
         try:
             x = next(train_iter)
         except StopIteration:
             train_iter = iter(train_loader)
             x = next(train_iter)
         x = x.to(device, non_blocking=True)
-        loss = model.loss(x)
+        if lam_fkld is None:
+            loss = model.loss(x)
+        else:
+            loss = model.loss(batch_size) + lam_fkld * model.flow_forward_kl(x)
+    elif use_rb:
+        if rb_config['type'] == 'uniform':
+            if it % rb_config['n_updates'] == 0:
+                # Sample
+                if transition_type == 'hmc':
+                    x_ais, log_w_ais = model.annealed_importance_sampler.\
+                        sample_and_log_weights(batch_size)
+                    x_ais = x_ais.detach()
+                    log_w_ais = log_w_ais.detach()
+                else:
+                    with torch.no_grad():
+                        x_ais, log_w_ais = model.annealed_importance_sampler.\
+                            sample_and_log_weights(batch_size)
+                # Filter chirality
+                if filter_chirality_train:
+                    ind_L = filter_chirality(x_ais)
+                    if torch.mean(1. * ind_L) > 0.1:
+                        x_ais = x_ais[ind_L, :]
+                        log_w_ais = log_w_ais[ind_L]
+                # Optionally do clipping
+                if rb_config['clip_w_frac'] is not None:
+                    k = max(2, int(rb_config['clip_w_frac'] * log_w_ais.shape[0]))
+                    max_log_w = torch.min(torch.topk(log_w_ais, k, dim=0).values)
+                    log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
+                # Compute loss
+                loss = model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+                # Sample from buffer
+                buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
+                                                        n_batches=rb_config['n_updates'] - 1)
+                buffer_iter = iter(buffer_sample)
+                # Add sample to buffer
+                buffer.add(x_ais, log_w_ais)
+            else:
+                x, log_w = next(buffer_iter)
+                loss = model.fab_alpha_div_loss_inner(x, log_w)
+        elif rb_config['type'] == 'prioritised':
+            if it % rb_config['n_updates'] == 0:
+                if buffer_sample is not None:
+                    with torch.no_grad():
+                        for (x, log_w, log_q_old, indices) in buffer_sample:
+                            log_q_new = model.flow.log_prob(x)
+                            buffer.adjust(log_q_old - log_q_new, log_q_new, indices)
+                # Sample
+                if transition_type == 'hmc':
+                    x_ais, log_w_ais = model.annealed_importance_sampler.\
+                        sample_and_log_weights(batch_size)
+                    x_ais = x_ais.detach()
+                    log_w_ais = log_w_ais.detach()
+                else:
+                    with torch.no_grad():
+                        x_ais, log_w_ais = model.annealed_importance_sampler.\
+                            sample_and_log_weights(batch_size)
+                # Filter chirality
+                if filter_chirality_train:
+                    ind_L = filter_chirality(x_ais)
+                    if torch.mean(1. * ind_L) > 0.1:
+                        x_ais = x_ais[ind_L, :]
+                        log_w_ais = log_w_ais[ind_L]
+                log_q_x = model.flow.log_prob(x_ais)
+                # Add sample to buffer
+                buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x.detach())
+                # Sample from buffer
+                buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
+                                                        n_batches=rb_config['n_updates'])
+                buffer_iter = iter(buffer_sample)
+
+            # Get batch from buffer
+            x, log_w, log_q_old, indices = next(buffer_iter)
+            x, log_w, log_q_old, indices = x.to(device), log_w.to(device), \
+                                           log_q_old.to(device), indices.to(device)
+            log_q_x = model.flow.log_prob(x)
+            # adjustment to account for change to theta since sample was last added/adjusted
+            w_adjust = torch.exp(log_q_old - log_q_x).detach()
+            w_adjust = torch.clip(w_adjust, max=rb_config['max_adjust_w_clip'])
+            # manually calculate the new form of the loss
+            loss = - torch.mean(w_adjust * log_q_x)
+
     else:
         loss = model.loss(batch_size)
 
@@ -327,13 +468,13 @@ for it in range(start_iter, max_iter):
     # Clear gradients
     nf.utils.clear_grad(model)
 
-    # Do lr warmup if needed
-    if lr_warmup and it <= config['training']['warmup_iter']:
-        warmup_scheduler.step()
-
     # Update lr scheduler
     if lr_scheduler is not None and (it + 1) % lr_step == 0:
         lr_scheduler.step()
+
+    # Do lr warmup if needed
+    if lr_warmup and it <= config['training']['warmup_iter']:
+        warmup_scheduler.step()
 
     # Save loss
     if (it + 1) % log_iter == 0:
@@ -345,6 +486,10 @@ for it in range(start_iter, max_iter):
             np.savetxt(os.path.join(log_dir, 'grad_norm.csv'),
                        grad_norm_hist, delimiter=',',
                        header='it,grad_norm', comments='')
+
+        # Disable step size tuning while evaluating model
+        model.transition_operator.set_eval_mode(True)
+
         # Effective sample size
         if config['fab']['transition_type'] == 'hmc':
             base_samples, base_log_w, ais_samples, ais_log_w = \
@@ -355,6 +500,10 @@ for it in range(start_iter, max_iter):
                 base_samples, base_log_w, ais_samples, ais_log_w = \
                     model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
                                                                          batch_size)
+        # Re-enable step size tuning
+        if config['fab']['adjust_step_size']:
+            model.transition_operator.set_eval_mode(False)
+
         ess_append = np.array([[it + 1, effective_sample_size(base_log_w, normalised=False),
                                 effective_sample_size(ais_log_w, normalised=False)]])
         ess_hist = np.concatenate([ess_hist, ess_append])
@@ -368,53 +517,66 @@ for it in range(start_iter, max_iter):
         model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(),
                    os.path.join(cp_dir, 'optimizer.pt'))
-        if lr_warmup:
-            torch.save(warmup_scheduler.state_dict(),
-                       os.path.join(cp_dir, 'warmup_scheduler.pt'))
         if lr_scheduler is not None:
             torch.save(lr_scheduler.state_dict(),
                        os.path.join(cp_dir, 'lr_scheduler.pt'))
+        if lr_warmup:
+            torch.save(warmup_scheduler.state_dict(),
+                       os.path.join(cp_dir, 'warmup_scheduler.pt'))
+
+        # Disable step size tuning while evaluating model
+        model.transition_operator.set_eval_mode(True)
+        if use_rb and rb_config['type'] == 'prioritised':
+            model.annealed_importance_sampler.target_log_prob = model.target_distribution.log_prob
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
-        for i in range(eval_batches):
-            if i == eval_batches - 1:
-                ns = ((eval_samples - 1) % batch_size) + 1
-            else:
-                ns = batch_size
+        while z_samples.shape[0] < eval_samples_flow:
             if config['fab']['transition_type'] == 'hmc':
-                z_ = model.flow.sample((ns,))
+                z_ = model.flow.sample((batch_size,))
             else:
                 with torch.no_grad():
-                    z_ = model.flow.sample((ns,))
+                    z_ = model.flow.sample((batch_size,))
+            if filter_chirality_eval:
+                ind_L = filter_chirality(z_)
+                if torch.mean(1. * ind_L) > 0.1:
+                    z_ = z_[ind_L, :]
             z_samples = torch.cat((z_samples, z_.detach()))
+        z_samples = z_samples[:eval_samples_flow, :]
 
         # Evaluate model and save plots
-        evaluateAldp(z_samples, test_data, model.flow.log_prob,
-                     target.coordinate_transform, it, metric_dir=log_dir_flow,
-                     plot_dir=plot_dir_flow)
+        evaluate_aldp(z_samples, test_data, model.flow.log_prob,
+                      target.coordinate_transform, it, metric_dir=log_dir_flow,
+                      plot_dir=plot_dir_flow)
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
-        for i in range(eval_batches):
-            if i == eval_batches - 1:
-                ns = ((eval_samples - 1) % batch_size) + 1
-            else:
-                ns = batch_size
+        while z_samples.shape[0] < eval_samples:
             if config['fab']['transition_type'] == 'hmc':
-                z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
+                z_ = model.annealed_importance_sampler.sample_and_log_weights(batch_size,
                                                                               logging=False)[0]
             else:
                 with torch.no_grad():
-                    z_ = model.annealed_importance_sampler.sample_and_log_weights(ns,
+                    z_ = model.annealed_importance_sampler.sample_and_log_weights(batch_size,
                                                                                   logging=False)[0]
             z_, _ = model.flow._nf_model.flows[-1].inverse(z_.detach())
+            if filter_chirality_eval:
+                ind_L = filter_chirality(z_)
+                if torch.mean(1. * ind_L) > 0.1:
+                    z_ = z_[ind_L, :]
             z_samples = torch.cat((z_samples, z_.detach()))
+        z_samples = z_samples[:eval_samples, :]
 
         # Evaluate model and save plots
-        evaluateAldp(z_samples, test_data, model.flow.log_prob,
-                     target.coordinate_transform, it, metric_dir=log_dir_ais,
-                     plot_dir=plot_dir_ais)
+        evaluate_aldp(z_samples, test_data, model.flow.log_prob,
+                      target.coordinate_transform, it, metric_dir=log_dir_ais,
+                      plot_dir=plot_dir_ais)
+
+        # Re-enable step size tuning
+        if config['fab']['adjust_step_size']:
+            model.transition_operator.set_eval_mode(False)
+        if use_rb and rb_config['type'] == 'prioritised':
+            model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 
     # End job if necessary
     if it % checkpoint_iter == 0 and args.tlimit is not None:
