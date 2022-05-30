@@ -152,7 +152,7 @@ def _run(cfg: DictConfig):
             axs[i, 1].set_xlabel(f"dim {i * 2}")
             axs[i, 1].set_ylabel(f"dim {i * 2 + 1}")
 
-            if cfg.training.use_buffer is True:
+            if cfg.training.prioritised_buffer is True:
                 plot_contours(target.log_prob_2D, bounds=plotting_bounds, ax=axs[i, 2])
                 plot_marginal_pair(samples_buffer, ax=axs[i, 2], bounds=plotting_bounds,
                                    marginal_dims=(i * 2, i * 2 + 1))
