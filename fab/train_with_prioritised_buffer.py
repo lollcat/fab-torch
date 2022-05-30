@@ -109,6 +109,10 @@ class PrioritisedBufferTrainer:
                 for (x, log_w, log_q_old, indices) in mini_dataset:
                     """Adjust importance weights in the buffer for the points in the `mini_dataset` 
                     to account for the updated theta."""
+                    x, log_w, log_q_old, indices = x.to(self.flow_device), log_w.to(
+                        self.flow_device), \
+                                                   log_q_old.to(self.flow_device), indices.to(
+                        self.flow_device)
                     log_q_new = self.model.flow.log_prob(x)
                     log_adjust_insert = log_q_old - log_q_new
                     self.buffer.adjust(log_adjust_insert, log_q_new, indices)
@@ -126,7 +130,6 @@ class PrioritisedBufferTrainer:
                         log_w_adjust_insert_mean=torch.mean(log_adjust_insert).detach().cpu().item(),
                         log_q_mean=torch.mean(log_q_new).detach().cpu().item()
                         )
-
             self.logger.write(info)
             pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"
                                  f"ess ais: {info['ess_ais']}")
