@@ -94,8 +94,8 @@ class PrioritisedBufferTrainer:
                 self.optimizer.zero_grad()
                 log_q_x = self.model.flow.log_prob(x)
                 # adjustment to account for change to theta since sample was last added/adjusted
-                w_adjust = torch.exp(log_q_old - log_q_x).detach()
-                w_adjust = torch.clip(w_adjust, max=self.max_adjust_w_clip)
+                w_adjust_pre_clip = torch.exp(log_q_old - log_q_x).detach() # no grad
+                w_adjust = torch.clip(w_adjust_pre_clip, max=self.max_adjust_w_clip)
                 # manually calculate the new form of the loss
                 loss = - torch.mean(w_adjust * log_q_x)
                 if not torch.isnan(loss) and not torch.isinf(loss):
@@ -109,21 +109,27 @@ class PrioritisedBufferTrainer:
                 for (x, log_w, log_q_old, indices) in mini_dataset:
                     """Adjust importance weights in the buffer for the points in the `mini_dataset` 
                     to account for the updated theta."""
+                    x, log_w, log_q_old, indices = x.to(self.flow_device), log_w.to(
+                        self.flow_device), \
+                                                   log_q_old.to(self.flow_device), indices.to(
+                        self.flow_device)
                     log_q_new = self.model.flow.log_prob(x)
-                    self.buffer.adjust(log_q_old - log_q_new, log_q_new, indices)
+                    log_adjust_insert = log_q_old - log_q_new
+                    self.buffer.adjust(log_adjust_insert, log_q_new, indices)
 
             # we log info from the step of the recently generated ais points.
             info = self.model.get_iter_info()
             info.update(loss=loss.cpu().detach().item(),
                         step=i,
                         grad_norm=grad_norm.cpu().detach().item(),
-                        sampled_w_std=torch.std(log_w).detach().cpu().item(),
-                        sampled_w_mean=torch.mean(log_w).detach().cpu().item(),
-                        w_adjust_mean=torch.mean(w_adjust).detach().cpu().item(),
-                        w_adjust_min=torch.min(w_adjust).detach().cpu().item(),
-                        w_adjust_max=torch.max(w_adjust).detach().cpu().item(),
+                        sampled_log_w_std=torch.std(log_w).detach().cpu().item(),
+                        sampled_log_w_mean=torch.mean(log_w).detach().cpu().item(),
+                        w_adjust_mean=torch.mean(w_adjust_pre_clip).detach().cpu().item(),
+                        w_adjust_min=torch.min(w_adjust_pre_clip).detach().cpu().item(),
+                        w_adjust_max=torch.max(w_adjust_pre_clip).detach().cpu().item(),
+                        log_w_adjust_insert_mean=torch.mean(log_adjust_insert).detach().cpu().item(),
+                        log_q_mean=torch.mean(log_q_new).detach().cpu().item()
                         )
-
             self.logger.write(info)
             pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"
                                  f"ess ais: {info['ess_ais']}")
@@ -131,7 +137,7 @@ class PrioritisedBufferTrainer:
             if n_eval is not None:
                 if i in eval_iter:
                     # set ais distribution to target for evaluation of ess
-                    self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
+                    self.model.annealed_importance_sampler.transition_operator.set_eval_mode(True)
                     self.model.annealed_importance_sampler.target_log_prob = self.model.target_distribution.log_prob
                     eval_info_true_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                          inner_batch_size=batch_size)
@@ -139,7 +145,7 @@ class PrioritisedBufferTrainer:
                     self.model.annealed_importance_sampler.target_log_prob = self.ais_target_log_prob
                     eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                 inner_batch_size=batch_size)
-                    self.model.annealed_importance_sampler.transition_operator.set_eval_mode(True)
+                    self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
                     eval_info = {}
                     eval_info.update({key + "_p_target": val for key, val in eval_info_true_target.items()})
                     eval_info.update({key + "_p2overq_target": val for key, val in eval_info_practical_target.items()})

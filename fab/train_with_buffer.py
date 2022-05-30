@@ -121,10 +121,12 @@ class BufferTrainer:
 
             if n_eval is not None:
                 if i in eval_iter:
+                    self.model.annealed_importance_sampler.transition_operator.set_eval_mode(True)
                     eval_info = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                 inner_batch_size=batch_size)
                     eval_info.update(step=i)
                     self.logger.write(eval_info)
+                    self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
 
             if n_plot is not None:
                 if i in plot_iter:
