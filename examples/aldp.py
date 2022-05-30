@@ -343,6 +343,10 @@ if 'replay_buffer' in config['training']:
                                          min_sample_length=rb_config['min_length'] * batch_size,
                                          initial_sampler=initial_sampler, device=str(device))
         buffer_sample = None
+        # Set target distribution
+        def ais_target_log_prob(x):
+            return 2 * model.target_distribution.log_prob(x) - model.flow.log_prob(x)
+        model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 else:
     use_rb = False
 
@@ -522,6 +526,8 @@ for it in range(start_iter, max_iter):
 
         # Disable step size tuning while evaluating model
         model.transition_operator.set_eval_mode(True)
+        if use_rb and rb_config['type'] == 'prioritised':
+            model.annealed_importance_sampler.target_log_prob = model.target_distribution.log_prob
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
@@ -569,6 +575,8 @@ for it in range(start_iter, max_iter):
         # Re-enable step size tuning
         if config['fab']['adjust_step_size']:
             model.transition_operator.set_eval_mode(False)
+        if use_rb and rb_config['type'] == 'prioritised':
+            model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 
     # End job if necessary
     if it % checkpoint_iter == 0 and args.tlimit is not None:
