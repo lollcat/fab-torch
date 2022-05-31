@@ -489,6 +489,8 @@ for it in range(start_iter, max_iter):
 
         # Disable step size tuning while evaluating model
         model.transition_operator.set_eval_mode(True)
+        if use_rb and rb_config['type'] == 'prioritised':
+            model.annealed_importance_sampler.target_log_prob = model.target_distribution.log_prob
 
         # Effective sample size
         if config['fab']['transition_type'] == 'hmc':
@@ -503,6 +505,8 @@ for it in range(start_iter, max_iter):
         # Re-enable step size tuning
         if config['fab']['adjust_step_size']:
             model.transition_operator.set_eval_mode(False)
+        if use_rb and rb_config['type'] == 'prioritised':
+            model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 
         ess_append = np.array([[it + 1, effective_sample_size(base_log_w, normalised=False),
                                 effective_sample_size(ais_log_w, normalised=False)]])
@@ -532,11 +536,8 @@ for it in range(start_iter, max_iter):
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
         while z_samples.shape[0] < eval_samples_flow:
-            if config['fab']['transition_type'] == 'hmc':
+            with torch.no_grad():
                 z_ = model.flow.sample((batch_size,))
-            else:
-                with torch.no_grad():
-                    z_ = model.flow.sample((batch_size,))
             if filter_chirality_eval:
                 ind_L = filter_chirality(z_)
                 if torch.mean(1. * ind_L) > 0.1:
