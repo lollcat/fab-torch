@@ -275,7 +275,7 @@ def evaluate_aldp(z_sample, z_test, log_prob, transform,
 
         # Plot phi and psi
         fig, ax = plt.subplots(1, 2, figsize=(20, 10))
-        x = np.linspace([-np.pi, np.pi], nbins)
+        x = np.linspace(-np.pi, np.pi, nbins)
         ax[0].plot(x, htest_phi, linewidth=3)
         ax[0].plot(x, hgen_phi, linewidth=3)
         ax[0].tick_params(axis='both', labelsize=20)
