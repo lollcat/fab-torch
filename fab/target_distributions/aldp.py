@@ -16,8 +16,10 @@ import tempfile
 
 class AldpBoltzmann(nn.Module, TargetDistribution):
     def __init__(self, data_path=None, temperature=1000, energy_cut=1.e+8,
-                 energy_max=1.e+20, n_threads=4, transform='mixed', shift_dih=False,
-                 shift_dih_params={'std_threshold': 0.5, 'hist_bins': 100}):
+                 energy_max=1.e+20, n_threads=4, transform='mixed',
+                 ind_circ_dih=[], shift_dih=False,
+                 shift_dih_params={'hist_bins': 100},
+                 default_std={'bond': 0.005, 'angle': 0.1, 'dih': 0.2}):
         """
         Boltzmann distribution of Alanine dipeptide
         :param data_path: Path to the trajectory file used to initialize the
@@ -108,36 +110,41 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
             vacuum_sim.step(10000)
             del (vacuum_sim)
 
-        # Load data for transform
-        traj = mdtraj.load(data_path)
-        traj.center_coordinates()
+        if data_path[-2:] == 'h5':
+            # Load data for transform
+            traj = mdtraj.load(data_path)
+            traj.center_coordinates()
 
-        # superpose on the backbone
-        ind = traj.top.select("backbone")
-        traj.superpose(traj, 0, atom_indices=ind, ref_atom_indices=ind)
+            # superpose on the backbone
+            ind = traj.top.select("backbone")
+            traj.superpose(traj, 0, atom_indices=ind, ref_atom_indices=ind)
 
-        # Gather the training data into a pytorch Tensor with the right shape
-        transform_data = traj.xyz
-        n_atoms = transform_data.shape[1]
-        n_dim = n_atoms * 3
-        transform_data_npy = transform_data.reshape(-1, n_dim)
-        transform_data = torch.from_numpy(transform_data_npy.astype("float64"))
+            # Gather the training data into a pytorch Tensor with the right shape
+            transform_data = traj.xyz
+            n_atoms = transform_data.shape[1]
+            n_dim = n_atoms * 3
+            transform_data_npy = transform_data.reshape(-1, n_dim)
+            transform_data = torch.from_numpy(transform_data_npy.astype("float64"))
+        elif data_path[-2:] == 'pt':
+            transform_data = torch.load(data_path)
+        else:
+            raise NotImplementedError('Loading data or this format is not implemented.')
 
         # Set distribution
-        self.coordinate_transform = bg.flows.CoordinateTransform(transform_data, ndim, z_matrix,
-                                                                 cart_indices, mode=transform,
-                                                                 shift_dih=shift_dih,
-                                                                 shift_dih_params=shift_dih_params)
+        self.coordinate_transform = bg.flows.CoordinateTransform(transform_data,
+                                        ndim, z_matrix, cart_indices, mode=transform,
+                                        ind_circ_dih=ind_circ_dih, shift_dih=shift_dih,
+                                        shift_dih_params=shift_dih_params,
+                                        default_std=default_std)
 
         if n_threads > 1:
-            self.p = bg.distributions.TransformedBoltzmannParallel(system, temperature,
-                                                                   energy_cut=energy_cut, energy_max=energy_max,
-                                                                   transform=self.coordinate_transform,
-                                                                   n_threads=n_threads)
+            self.p = bg.distributions.TransformedBoltzmannParallel(system,
+                            temperature, energy_cut=energy_cut, energy_max=energy_max,
+                            transform=self.coordinate_transform, n_threads=n_threads)
         else:
-            self.p = bg.distributions.TransformedBoltzmann(sim.context, temperature,
-                                                           energy_cut=energy_cut, energy_max=energy_max,
-                                                           transform=self.coordinate_transform)
+            self.p = bg.distributions.TransformedBoltzmann(sim.context,
+                            temperature, energy_cut=energy_cut, energy_max=energy_max,
+                            transform=self.coordinate_transform)
 
     def log_prob(self, x: torch.tensor):
         return self.p.log_prob(x)

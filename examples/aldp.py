@@ -72,12 +72,14 @@ transform_mode = 'mixed' if not 'transform' in config['system'] \
     else config['system']['transform']
 shift_dih = False if not 'shift_dih' in config['system'] \
     else config['system']['shift_dih']
+ind_circ_dih = [0, 1, 2, 3, 4, 5, 8, 9, 10, 13, 15, 16]
 target = AldpBoltzmann(data_path=config['data']['transform'],
                        temperature=config['system']['temperature'],
                        energy_cut=config['system']['energy_cut'],
                        energy_max=config['system']['energy_max'],
                        n_threads=config['system']['n_threads'],
                        transform=transform_mode,
+                       ind_circ_dih=ind_circ_dih,
                        shift_dih=shift_dih)
 target = target.to(device)
 
@@ -97,9 +99,8 @@ ind = np.concatenate([ind[:3 * ncarts - 6], -np.ones(6, dtype=np.int), ind[3 * n
 ind = ind[permute_inv]
 dih_ind = ind[dih_ind_]
 
-ind_circ_ = std_dih > 0.5
-ind_circ = dih_ind[ind_circ_]
-bound_circ = np.pi / std_dih[ind_circ_]
+ind_circ = dih_ind[ind_circ_dih]
+bound_circ = np.pi / std_dih[ind_circ_dih]
 
 tail_bound = 5. * torch.ones(ndim)
 tail_bound[ind_circ] = bound_circ
