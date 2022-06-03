@@ -72,6 +72,8 @@ transform_mode = 'mixed' if not 'transform' in config['system'] \
     else config['system']['transform']
 shift_dih = False if not 'shift_dih' in config['system'] \
     else config['system']['shift_dih']
+env = 'vacuum' if not 'env' in config['system'] \
+    else config['system']['env']
 ind_circ_dih = [0, 1, 2, 3, 4, 5, 8, 9, 10, 13, 15, 16]
 target = AldpBoltzmann(data_path=config['data']['transform'],
                        temperature=config['system']['temperature'],
@@ -80,7 +82,8 @@ target = AldpBoltzmann(data_path=config['data']['transform'],
                        n_threads=config['system']['n_threads'],
                        transform=transform_mode,
                        ind_circ_dih=ind_circ_dih,
-                       shift_dih=shift_dih)
+                       shift_dih=shift_dih,
+                       env=env)
 target = target.to(device)
 
 # Flow
