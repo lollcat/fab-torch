@@ -16,7 +16,7 @@ import tempfile
 
 class AldpBoltzmann(nn.Module, TargetDistribution):
     def __init__(self, data_path=None, temperature=1000, energy_cut=1.e+8,
-                 energy_max=1.e+20, n_threads=4, transform='mixed',
+                 energy_max=1.e+20, n_threads=4, transform='internal',
                  ind_circ_dih=[], shift_dih=False,
                  shift_dih_params={'hist_bins': 100},
                  default_std={'bond': 0.005, 'angle': 0.1, 'dih': 0.2},
@@ -92,6 +92,8 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
             system = testsystems.AlanineDipeptideVacuum(constraints=None)
         elif env == 'implicit':
             system = testsystems.AlanineDipeptideImplicit(constraints=None)
+        else:
+            raise NotImplementedError('This environment is not implemented.')
         sim = app.Simulation(system.topology, system.system,
                              mm.LangevinIntegrator(temperature * unit.kelvin,
                                                    1. / unit.picosecond,
