@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import numpy as np
 
 from fab.target_distributions.base import TargetDistribution
 
@@ -8,7 +9,6 @@ from simtk import openmm as mm
 from simtk import unit
 from simtk.openmm import app
 from openmmtools import testsystems
-from openmmtools.testsystems import AlanineDipeptideVacuum
 import mdtraj
 import tempfile
 
@@ -19,7 +19,8 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
                  energy_max=1.e+20, n_threads=4, transform='mixed',
                  ind_circ_dih=[], shift_dih=False,
                  shift_dih_params={'hist_bins': 100},
-                 default_std={'bond': 0.005, 'angle': 0.1, 'dih': 0.2}):
+                 default_std={'bond': 0.005, 'angle': 0.1, 'dih': 0.2},
+                 env='vacuum'):
         """
         Boltzmann distribution of Alanine dipeptide
         :param data_path: Path to the trajectory file used to initialize the
@@ -87,7 +88,10 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
             cart_indices = [8, 6, 14]
 
         # System setup
-        system = testsystems.AlanineDipeptideVacuum(constraints=None)
+        if env == 'vacuum':
+            system = testsystems.AlanineDipeptideVacuum(constraints=None)
+        elif env == 'implicit':
+            system = testsystems.AlanineDipeptideImplicit(constraints=None)
         sim = app.Simulation(system.topology, system.system,
                              mm.LangevinIntegrator(temperature * unit.kelvin,
                                                    1. / unit.picosecond,
@@ -96,19 +100,20 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
 
         # Generate trajectory for coordinate transform if no data path is specified
         if data_path is None:
-            testsystem = AlanineDipeptideVacuum(constraints=None)
-            vacuum_sim = app.Simulation(testsystem.topology,
-                                        testsystem.system,
+            sim = app.Simulation(system.topology,
+                                        system.system,
                                         mm.LangevinIntegrator(temperature * unit.kelvin, 1.0 / unit.picosecond,
                                                               1.0 * unit.femtosecond),
                                         platform=mm.Platform.getPlatformByName('CPU'))
-            vacuum_sim.context.setPositions(testsystem.positions)
-            vacuum_sim.minimizeEnergy()
+            sim.context.setPositions(system.positions)
+            sim.minimizeEnergy()
+            state = sim.context.getState(getPositions=True)
+            position = state.getPositions(True).value_in_unit(unit.nanometer)
             tmp_dir = tempfile.gettempdir()
-            data_path = tmp_dir + '/aldp.h5'
-            vacuum_sim.reporters.append(mdtraj.reporters.HDF5Reporter(data_path, 10))
-            vacuum_sim.step(10000)
-            del (vacuum_sim)
+            data_path = tmp_dir + '/aldp.pt'
+            torch.save(torch.tensor(position.reshape(1, 66).astype(np.float64)), data_path)
+
+            del (sim)
 
         if data_path[-2:] == 'h5':
             # Load data for transform
