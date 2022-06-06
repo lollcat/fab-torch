@@ -22,7 +22,8 @@ class FABModel(Model):
                  ):
         assert loss_type in ["alpha_2_div", "forward_kl", "sample_log_prob",
                              "flow_forward_kl", "flow_alpha_2_div",
-                             "flow_reverse_kl", "p2_over_q_alpha_2_div"]
+                             "flow_reverse_kl", "p2_over_q_alpha_2_div",
+                             "flow_alpha_2_div_unbiased"]
         self.loss_type = loss_type
         self.flow = flow
         self.target_distribution = target_distribution
@@ -57,6 +58,8 @@ class FABModel(Model):
             return self.flow_reverse_kl(args)
         elif self.loss_type == "flow_alpha_2_div":
             return self.flow_alpha_2_div(args)
+        elif self.loss_type == "flow_alpha_2_div_unbiased":
+            return self.flow_alpha_2_div_unbiased(args)
         elif self.loss_type == "p2_over_q_alpha_2_div":
             return self.p2_over_q_alpha_2_div(args)
         else:
