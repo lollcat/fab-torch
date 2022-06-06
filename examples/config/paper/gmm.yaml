@@ -10,9 +10,9 @@ flow:
   n_layers: 10
 
 fab:
-  # ["alpha_2_div", "forward_kl", "sample_log_prob",
-  # "flow_forward_kl", "flow_alpha_2_div", "flow_reverse_kl", "p2_over_q_alpha_2_div"]
-  loss_type: "flow_alpha_2_div"
+  # ["alpha_2_div", "forward_kl", "sample_log_prob", "p2_over_q_alpha_2_div"
+  # "flow_forward_kl", "flow_alpha_2_div", "flow_reverse_kl", "flow_alpha_2_div_unbiased"]
+  loss_type: "flow_alpha_2_div_unbiased"
   transition_operator:
     type: hmc
     n_inner_steps: 5
