@@ -158,7 +158,10 @@ class FABModel(Model):
         return - torch.mean(log_q_x)
 
     def get_iter_info(self) -> Dict[str, Any]:
-        return self.annealed_importance_sampler.get_logging_info()
+        if self.loss_type[0:4] == "flow":
+            return {}
+        else:
+            return self.annealed_importance_sampler.get_logging_info()
 
     def get_eval_info(self,
                       outer_batch_size: int,

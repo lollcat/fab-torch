@@ -12,7 +12,7 @@ flow:
 fab:
   # ["alpha_2_div", "forward_kl", "sample_log_prob",
   # "flow_forward_kl", "flow_alpha_2_div", "flow_reverse_kl", "p2_over_q_alpha_2_div"]
-  loss_type: "p2_over_q_alpha_2_div"
+  loss_type: "flow_alpha_2_div"
   transition_operator:
     type: hmc
     n_inner_steps: 5
@@ -21,9 +21,9 @@ fab:
 
 training:
   seed: 0
-  lr: 2e-3
+  lr: 1e-4
   batch_size: 64
-  n_iterations: 100
+  n_iterations: 1000
   use_gpu: true
   use_64_bit: false
   use_buffer: false # below config fields are all for use_buffer = True
