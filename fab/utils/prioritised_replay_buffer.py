@@ -95,6 +95,9 @@ class PrioritisedReplayBuffer:
     def adjust(self, log_w_adjustment, log_q, indices):
         """Adjust log weights and log q to match new value of theta, this is typically performed
         over minibatches, rather than over the whole dataset at once."""
+        valid_adjustment = ~torch.isinf(log_w_adjustment) & ~torch.isnan(log_q)
+        log_w_adjustment, log_q, indices = \
+            log_w_adjustment[valid_adjustment], log_q[valid_adjustment], indices[valid_adjustment]
         self.buffer.log_w[indices] += log_w_adjustment.to(self.device)
         self.buffer.log_q_old[indices] = log_q.to(self.device)
 
