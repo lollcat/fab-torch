@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 import torch
 
 from fab.types_ import Model
@@ -22,7 +22,7 @@ class FABModel(Model):
                  ):
         assert loss_type in ["alpha_2_div", "forward_kl", "sample_log_prob",
                              "flow_forward_kl", "flow_alpha_2_div",
-                             "flow_reverse_kl"]
+                             "flow_reverse_kl", "p2_over_q_alpha_2_div"]
         self.loss_type = loss_type
         self.flow = flow
         self.target_distribution = target_distribution
@@ -57,8 +57,19 @@ class FABModel(Model):
             return self.flow_reverse_kl(args)
         elif self.loss_type == "flow_alpha_2_div":
             return self.flow_alpha_2_div(args)
+        elif self.loss_type == "p2_over_q_alpha_2_div":
+            return self.p2_over_q_alpha_2_div(args)
         else:
             raise NotImplementedError
+
+    def set_ais_target(self, target: str = "p"):
+        if target == "p":
+            self.annealed_importance_sampler.target_log_prob = self.target_distribution.log_prob
+        else:
+            assert target == "p^2/q"
+            def ais_target_log_prob(x):
+                return 2*self.target_distribution.log_prob(x) - self.flow.log_prob(x)
+            self.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 
     def flow_reverse_kl(self, batch_size: int) -> torch.Tensor:
         x, log_q = self.flow.sample_and_log_prob((batch_size,))
@@ -69,6 +80,24 @@ class FABModel(Model):
         x, log_q = self.flow.sample_and_log_prob((batch_size,))
         log_p = self.target_distribution.log_prob(x)
         return -torch.logsumexp(2 * (log_p - log_q), 0)
+
+    def p2_over_q_alpha_2_div(self, batch_size: int) -> torch.Tensor:
+        """Compute the FAB loss with p^2/q as the AIS target."""
+        # set ais target distribution to p^2/q
+        self.set_ais_target("p^2/q")
+        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltoneanMonteCarlo):
+            x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
+        else:
+            with torch.no_grad():
+                x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(
+                    batch_size)
+        x_ais = x_ais.detach()
+        log_w_ais = log_w_ais.detach()
+        log_q_x = self.flow.log_prob(x_ais)
+        loss = - torch.mean(torch.softmax(log_w_ais, dim=-1) * log_q_x)
+        # reset ais target distribution back to p
+        self.set_ais_target("p")
+        return loss
 
     def inner_loss(self, x_ais, log_w_ais) -> torch.Tensor:
         """Loss as a function of ais samples and weights, we use this when training with a replay buffer."""

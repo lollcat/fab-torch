@@ -10,7 +10,7 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
 
     def plot(fab_model, n_samples: int = cfg.training.batch_size, dim: int = cfg.target.dim):
         n_rows = dim // 2
-        if cfg.training.prioritised_buffer is True:
+        if cfg.training.prioritised_buffer is True and cfg.training.use_buffer is True:
             fig, axs = plt.subplots(dim // 2, 3, sharex=True, sharey=True, figsize=(10, n_rows * 3))
         else:
             fig, axs = plt.subplots(dim // 2, 2, sharex=True, sharey=True, figsize=(10, n_rows * 3))
@@ -18,7 +18,7 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
         samples_flow = fab_model.flow.sample((n_samples,))
         samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(n_samples,
                                                                                    logging=False)[0]
-        if cfg.training.prioritised_buffer is True:
+        if cfg.training.prioritised_buffer is True and cfg.training.use_buffer is True:
             samples_buffer = buffer.sample(n_samples)[0]
 
         for i in range(n_rows):
@@ -37,7 +37,7 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
             axs[i, 1].set_xlabel(f"dim {i * 2}")
             axs[i, 1].set_ylabel(f"dim {i * 2 + 1}")
 
-            if cfg.training.prioritised_buffer is True:
+            if cfg.training.prioritised_buffer is True and cfg.training.use_buffer is True:
                 plot_contours(target.log_prob_2D, bounds=plotting_bounds, ax=axs[i, 2])
                 plot_marginal_pair(samples_buffer, ax=axs[i, 2], bounds=plotting_bounds,
                                    marginal_dims=(i * 2, i * 2 + 1))

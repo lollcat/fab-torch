@@ -31,7 +31,8 @@ class ListLogger(Logger):
         self.save = save
         self.save_path = save_path
         if save:
-            pathlib.Path(self.save_path).parent.mkdir(exist_ok=True)
+            if not pathlib.Path(self.save_path).parent.exists():
+                pathlib.Path(self.save_path).parent.mkdir(exist_ok=True, parents=True)
         self.save_period = save_period  # how often to save the logging history
         self.history: Dict[str, List[Union[np.ndarray, float, int]]] = {}
         self.print_warning: bool = False

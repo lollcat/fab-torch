@@ -9,8 +9,9 @@ from datetime import datetime
 
 from fab import Trainer, BufferTrainer, PrioritisedBufferTrainer
 from fab.target_distributions.base import TargetDistribution
-from fab.utils.logging import PandasLogger, WandbLogger, Logger
+from fab.utils.logging import PandasLogger, WandbLogger, Logger, ListLogger
 from fab.utils.replay_buffer import ReplayBuffer
+from fab.utils.plotting import plot_history
 import matplotlib.pyplot as plt
 import torch
 
@@ -32,6 +33,8 @@ def setup_logger(cfg: DictConfig, save_path: str) -> Logger:
                               save_period=cfg.logger.pandas_logger.save_period)
     elif hasattr(cfg.logger, "wandb"):
         logger = WandbLogger(**cfg.logger.wandb, config=dict(cfg))
+    elif hasattr(cfg.logger, "list_logger"):
+        logger = ListLogger(save_path=save_path + "logging_hist.pkl")
     else:
         raise Exception("No logger specified, try adding the wandb or "
                         "pandas logger to the config file.")
@@ -79,7 +82,7 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     if hasattr(cfg.logger, "wandb"):
         # if using wandb then save to wandb path
         save_path = os.path.join(wandb.run.dir, save_path)
-    pathlib.Path(save_path).mkdir(parents=True, exist_ok=False)
+    pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
 
 
     with open(save_path + "config.txt", "w") as file:
@@ -157,3 +160,6 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                 n_plot=cfg.evaluation.n_plots,
                 n_eval=cfg.evaluation.n_eval, eval_batch_size=cfg.evaluation.eval_batch_size,
                 save=True, n_checkpoints=cfg.evaluation.n_checkpoints)
+    if hasattr(cfg.logger, "list_logger"):
+        plot_history(trainer.logger.history)
+        plt.show()
