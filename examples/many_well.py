@@ -15,11 +15,11 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
         else:
             fig, axs = plt.subplots(dim // 2, 2, sharex=True, sharey=True, figsize=(10, n_rows * 3))
 
-        samples_flow = fab_model.flow.sample((n_samples,))
-        samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(n_samples,
-                                                                                   logging=False)[0]
+        samples_flow = fab_model.flow.sample((n_samples,)).detach()
+        samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(
+            n_samples, logging=False)[0].detach()
         if cfg.training.prioritised_buffer is True and cfg.training.use_buffer is True:
-            samples_buffer = buffer.sample(n_samples)[0]
+            samples_buffer = buffer.sample(n_samples)[0].detach()
 
         for i in range(n_rows):
             plot_contours(target.log_prob_2D, bounds=plotting_bounds, ax=axs[i, 0])
@@ -53,10 +53,11 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
         return [fig]
     return plot
 
+
 def _run(cfg: DictConfig):
     from fab.target_distributions.many_well import ManyWellEnergy
     assert cfg.target.dim % 2 == 0
-    target = ManyWellEnergy(cfg.target.dim, a=-0.5, b=-6)
+    target = ManyWellEnergy(cfg.target.dim, a=-0.5, b=-6, use_gpu=cfg.training.use_gpu)
     setup_trainer_and_run(cfg, setup_plotter=setup_many_well_plotter, target=target)
 
 

@@ -12,7 +12,7 @@ import numpy as np
 
 class GMM(nn.Module, TargetDistribution):
     def __init__(self, dim, n_mixes, loc_scaling, log_var_scaling=0.1, seed=0,
-                 n_test_set_samples=500):
+                 n_test_set_samples=500, use_gpu=True):
         super(GMM, self).__init__()
         self.seed = seed
         self.n_mixes = n_mixes
@@ -30,10 +30,13 @@ class GMM(nn.Module, TargetDistribution):
         self.true_expectation = MC_estimate_true_expectation(self,
                                                              self.expectation_function,
                                                              int(1e6)).item()
+        self.device = "cuda" if use_gpu else "cpu"
+        self.to(self.device)
 
     def to(self, device):
-        super(GMM, self).to(device)
-        self.distribution = self.get_distribution
+        if torch.cuda.is_available():
+            self.cuda()
+            self.distribution = self.get_distribution
 
     @property
     def get_distribution(self):
