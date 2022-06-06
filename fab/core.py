@@ -79,7 +79,14 @@ class FABModel(Model):
     def flow_alpha_2_div(self, batch_size: int) -> torch.Tensor:
         x, log_q = self.flow.sample_and_log_prob((batch_size,))
         log_p = self.target_distribution.log_prob(x)
-        return -torch.logsumexp(2 * (log_p - log_q), 0)
+        return torch.logsumexp(2 * (log_p - log_q), 0)
+
+    def flow_alpha_2_div_unbiased(self, batch_size: int) -> torch.Tensor:
+        """Compute an unbiased estimate of alpha-2-divergence with samples from the flow."""
+        x, log_q_x = self.flow.sample_and_log_prob((batch_size,))
+        log_p_x = self.target_distribution.log_prob(x)
+        loss = torch.mean(torch.exp(2*(log_p_x - log_q_x)))
+        return loss
 
     def p2_over_q_alpha_2_div(self, batch_size: int) -> torch.Tensor:
         """Compute the FAB loss with p^2/q as the AIS target."""
