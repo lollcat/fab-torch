@@ -2,6 +2,7 @@ import os
 import torch
 import numpy as np
 
+import boltzgen as bg
 import mdtraj
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -9,9 +10,9 @@ from openmmtools.testsystems import AlanineDipeptideVacuum
 
 
 
-def evaluateAldp(z_sample, z_test, log_prob, transform,
-                 iter, metric_dir=None, plot_dir=None,
-                 batch_size=1000):
+def evaluate_aldp(z_sample, z_test, log_prob, transform,
+                  iter, metric_dir=None, plot_dir=None,
+                  batch_size=1000):
     """
     Evaluate model of the Boltzmann distribution of the
     Alanine Dipeptide
@@ -28,6 +29,14 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
     :param batch_size: Batch size when processing
     the data
     """
+    # Get mode of transform
+    if isinstance(transform.transform, bg.mixed.MixedTransform):
+        transform_mode = 'mixed'
+    elif isinstance(transform.transform, bg.internal.CompleteInternalCoordinateTransform):
+        transform_mode = 'internal'
+    else:
+        raise NotImplementedError('The evaluation is not implemented '
+                                  'for this transform.')
     # Determine likelihood of test data and transform it
     z_d_np = z_test.cpu().data.numpy()
     x_d_np = np.zeros((0, 66))
@@ -81,11 +90,11 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
     kld = kld_unscaled * (hist_range[1] - hist_range[0]) / nbins
 
     # Split KLD into groups
-    ncarts = transform.mixed_transform.len_cart_inds
-    permute_inv = transform.mixed_transform.permute_inv.cpu().data.numpy()
-    bond_ind = transform.mixed_transform.ic_transform.bond_indices.cpu().data.numpy()
-    angle_ind = transform.mixed_transform.ic_transform.angle_indices.cpu().data.numpy()
-    dih_ind = transform.mixed_transform.ic_transform.dih_indices.cpu().data.numpy()
+    ncarts = transform.transform.len_cart_inds
+    permute_inv = transform.transform.permute_inv.cpu().data.numpy()
+    bond_ind = transform.transform.ic_transform.bond_indices.cpu().data.numpy()
+    angle_ind = transform.transform.ic_transform.angle_indices.cpu().data.numpy()
+    dih_ind = transform.transform.ic_transform.dih_indices.cpu().data.numpy()
 
     kld_cart = kld[:(3 * ncarts - 6)]
     kld_ = np.concatenate([kld[:(3 * ncarts - 6)], np.zeros(6), kld[(3 * ncarts - 6):]])
@@ -93,6 +102,9 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
     kld_bond = kld_[bond_ind]
     kld_angle = kld_[angle_ind]
     kld_dih = kld_[dih_ind]
+    if transform_mode == 'internal':
+        kld_bond = np.concatenate((kld_cart[:2], kld_bond))
+        kld_angle = np.concatenate((kld_cart[2:], kld_angle))
 
     # Compute Ramachandran plot angles
     aldp = AlanineDipeptideVacuum(constraints=None)
@@ -124,7 +136,11 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
     # Save metrics
     if metric_dir is not None:
         # Calculate and save KLD stats of marginals
-        kld = (kld_cart, kld_bond, kld_angle, kld_dih)
+        kld = (kld_bond, kld_angle, kld_dih)
+        kld_labels = ['bond', 'angle', 'dih']
+        if transform_mode == 'mixed':
+            kld = (kld_cart,) + kld
+            kld_labels = ['cart'] + kld_labels
         kld_ = np.concatenate(kld)
         kld_append = np.array([[iter + 1, np.median(kld_), np.mean(kld_)]])
         kld_path = os.path.join(metric_dir, 'kld.csv')
@@ -137,7 +153,6 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
             kld_hist = kld_append
         np.savetxt(kld_path, kld_hist, delimiter=',',
                    header='it,kld_median,kld_mean', comments='')
-        kld_labels = ['cart', 'bond', 'angle', 'dih']
         for kld_label, kld_ in zip(kld_labels, kld):
             kld_append = np.concatenate([np.array([iter + 1, np.median(kld_), np.mean(kld_)]), kld_])
             kld_append = kld_append[None, :]
@@ -185,7 +200,8 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
     if plot_dir is not None:
         # Histograms of the groups
         hists_test_cart = hists_test[:, :(3 * ncarts - 6)]
-        hists_test_ = np.concatenate([hists_test[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
+        hists_test_ = np.concatenate([hists_test[:, :(3 * ncarts - 6)],
+                                      np.zeros((nbins, 6)),
                                       hists_test[:, (3 * ncarts - 6):]], axis=1)
         hists_test_ = hists_test_[:, permute_inv]
         hists_test_bond = hists_test_[:, bond_ind]
@@ -193,28 +209,56 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         hists_test_dih = hists_test_[:, dih_ind]
 
         hists_gen_cart = hists_gen[:, :(3 * ncarts - 6)]
-        hists_gen_ = np.concatenate([hists_gen[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
+        hists_gen_ = np.concatenate([hists_gen[:, :(3 * ncarts - 6)],
+                                     np.zeros((nbins, 6)),
                                      hists_gen[:, (3 * ncarts - 6):]], axis=1)
         hists_gen_ = hists_gen_[:, permute_inv]
         hists_gen_bond = hists_gen_[:, bond_ind]
         hists_gen_angle = hists_gen_[:, angle_ind]
         hists_gen_dih = hists_gen_[:, dih_ind]
 
-        label = ['cart', 'bond', 'angle', 'dih']
-        hists_test_list = [hists_test_cart, hists_test_bond,
-                           hists_test_angle, hists_test_dih]
-        hists_gen_list = [hists_gen_cart, hists_gen_bond,
-                          hists_gen_angle, hists_gen_dih]
+        if transform_mode == 'internal':
+            hists_test_bond = np.concatenate((hists_test_cart[:, :2],
+                                              hists_test_bond), 1)
+            hists_gen_bond = np.concatenate((hists_gen_cart[:, :2],
+                                             hists_gen_bond), 1)
+            hists_test_angle = np.concatenate((hists_test_cart[:, 2:],
+                                               hists_test_angle), 1)
+            hists_gen_angle = np.concatenate((hists_gen_cart[:, 2:],
+                                              hists_gen_angle), 1)
+
+        label = ['bond', 'angle', 'dih']
+        hists_test_list = [hists_test_bond, hists_test_angle,
+                           hists_test_dih]
+        hists_gen_list = [hists_gen_bond, hists_gen_angle,
+                          hists_gen_dih]
+        if transform_mode == 'mixed':
+            label = ['cart'] + label
+            hists_test_list = [hists_test_cart] + hists_test_list
+            hists_gen_list = [hists_gen_cart] + hists_gen_list
         x = np.linspace(*hist_range, nbins)
-        for i in range(4):
-            if i == 0:
-                fig, ax = plt.subplots(3, 3, figsize=(10, 10))
-            else:
-                fig, ax = plt.subplots(6, 3, figsize=(10, 20))
-                ax[5, 2].set_axis_off()
+        for i in range(len(label)):
+            if transform_mode == 'mixed':
+                ncol = 3
+                if i == 0:
+                    fig, ax = plt.subplots(3, 3, figsize=(10, 10))
+                else:
+                    fig, ax = plt.subplots(6, 3, figsize=(10, 20))
+                    ax[5, 2].set_axis_off()
+            elif transform_mode == 'internal':
+                ncol = 4
+                if i == 0:
+                    fig, ax = plt.subplots(6, 4, figsize=(15, 24))
+                    for j in range(1, 4):
+                        ax[5, j].set_axis_off()
+                elif i == 2:
+                    fig, ax = plt.subplots(5, 4, figsize=(15, 20))
+                    ax[4, 3].set_axis_off()
+                else:
+                    fig, ax = plt.subplots(5, 4, figsize=(15, 20))
             for j in range(hists_test_list[i].shape[1]):
-                ax[j // 3, j % 3].plot(x, hists_test_list[i][:, j])
-                ax[j // 3, j % 3].plot(x, hists_gen_list[i][:, j])
+                ax[j // ncol, j % ncol].plot(x, hists_test_list[i][:, j])
+                ax[j // ncol, j % ncol].plot(x, hists_gen_list[i][:, j])
             plt.savefig(os.path.join(plot_dir, 'marginals_%s_%07i.png' % (label[i], iter + 1)),
                         dpi=300)
             plt.close()
@@ -229,3 +273,21 @@ def evaluateAldp(z_sample, z_test, log_prob, transform,
         plt.savefig(os.path.join(plot_dir, 'ramachandran_%07i.png' % (iter + 1)),
                     dpi=300)
         plt.close()
+
+
+def filter_chirality(x, ind=[17, 26], mean_diff=-0.043, threshold=0.8):
+    """
+    Filters batch for the L-form
+    :param x: Input batch
+    :param ind: Indices to be used for determining the chirality
+    :param mean_diff: Mean of the difference of the coordinates
+    :param threshold: Threshold to be used for splitting
+    :return: Returns indices of batch, where L-form is present
+    """
+    diff_ = torch.column_stack((x[:, ind[0]] - x[:, ind[1]],
+                                x[:, ind[0]] - x[:, ind[1]] + 2 * np.pi,
+                                x[:, ind[0]] - x[:, ind[1]] - 2 * np.pi))
+    min_diff_ind = torch.min(torch.abs(diff_), 1).indices
+    diff = diff_[torch.arange(x.shape[0]), min_diff_ind]
+    ind = torch.abs(diff - mean_diff) < threshold
+    return ind
