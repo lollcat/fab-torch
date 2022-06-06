@@ -39,6 +39,7 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
         return [fig]
     return plot
 
+
 def _run(cfg: DictConfig):
     from fab.target_distributions.gmm import GMM
     torch.manual_seed(cfg.training.seed)
