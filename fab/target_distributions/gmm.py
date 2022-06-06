@@ -34,8 +34,12 @@ class GMM(nn.Module, TargetDistribution):
         self.to(self.device)
 
     def to(self, device):
-        if torch.cuda.is_available():
-            self.cuda()
+        if device == "cuda":
+            if torch.cuda.is_available():
+                self.cuda()
+                self.distribution = self.get_distribution
+        else:
+            self.cpu()
             self.distribution = self.get_distribution
 
     @property
