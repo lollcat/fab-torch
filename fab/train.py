@@ -70,9 +70,11 @@ class Trainer:
                         step=i)
             info.update(grad_norm=grad_norm.cpu().detach().item())
             self.logger.write(info)
-            pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"
-                                 f"ess ais: {info['ess_ais']}")
-
+            if "ess_ais" in info.keys():
+                pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"
+                                     f"ess ais: {info['ess_ais']}")
+            else:
+                pbar.set_description(f"loss: {loss.cpu().detach().item()}")
             if n_eval is not None:
                 if i in eval_iter:
                     eval_info = self.model.get_eval_info(outer_batch_size=eval_batch_size,

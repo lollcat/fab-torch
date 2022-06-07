@@ -81,8 +81,8 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
             self.device = "cpu"
 
 
-    def get_test_set_iterator(self, batch_size: int):
-        """Test set created from points manually placed near each mode. We """
+    def get_modes_test_set_iterator(self, batch_size: int):
+        """Test set created from points manually placed near each mode."""
         if self.dim < self.max_dim_for_all_modes:
             test_set = self._test_set
         else:
@@ -114,8 +114,8 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
             del samples
             del log_w
             sum_log_prob = 0.0
-            test_set_iterator = self.get_test_set_iterator(batch_size=batch_size)
+            test_set_iterator = self.get_modes_test_set_iterator(batch_size=batch_size)
             for x in test_set_iterator:
                 sum_log_prob += torch.sum(log_q_fn(x)).item()
-            info = {"test_set_mean_log_prob": sum_log_prob / test_set_iterator.test_set_n_points}
+            info = {"test_set_modes_mean_log_prob": sum_log_prob / test_set_iterator.test_set_n_points}
             return info
