@@ -1,0 +1,14 @@
+# Define common flow architecture used for all models
+target:
+  dim: 2
+  loc_scaling: 40
+  n_mixes: 40
+  log_var_scaling: 1.0
+
+flow:
+  layer_nodes_per_dim: 10
+  n_layers: 15
+
+training:
+  seed: 0
+
