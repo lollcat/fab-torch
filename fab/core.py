@@ -23,7 +23,7 @@ class FABModel(Model):
         assert loss_type in ["alpha_2_div", "forward_kl", "sample_log_prob",
                              "flow_forward_kl", "flow_alpha_2_div",
                              "flow_reverse_kl", "p2_over_q_alpha_2_div",
-                             "flow_alpha_2_div_unbiased"]
+                             "flow_alpha_2_div_unbiased", "flow_alpha_2_div_nas"]
         self.loss_type = loss_type
         self.flow = flow
         self.target_distribution = target_distribution
@@ -62,6 +62,8 @@ class FABModel(Model):
             return self.flow_alpha_2_div_unbiased(args)
         elif self.loss_type == "p2_over_q_alpha_2_div":
             return self.p2_over_q_alpha_2_div(args)
+        elif self.loss_type == "flow_alpha_2_div_nas":
+            return self.flow_alpha_2_div_nas(args)
         else:
             raise NotImplementedError
 
@@ -88,7 +90,14 @@ class FABModel(Model):
         """Compute an unbiased estimate of alpha-2-divergence with samples from the flow."""
         x, log_q_x = self.flow.sample_and_log_prob((batch_size,))
         log_p_x = self.target_distribution.log_prob(x)
-        loss = torch.mean(torch.exp(2*(log_p_x - log_q_x)))
+        loss = torch.mean(torch.exp(2*(log_p_x - log_q_x)) * log_q_x)
+        return loss
+
+    def flow_alpha_2_div_nas(self, batch_size: int) -> torch.Tensor:
+        """From Neural Importance sampling paper https://arxiv.org/pdf/1808.03856.pdf."""
+        x, log_q_x = self.flow.sample_and_log_prob((batch_size,))
+        log_p_x = self.target_distribution.log_prob(x)
+        loss = - torch.mean(torch.exp(2*(log_p_x - log_q_x)).detach() * log_q_x)
         return loss
 
     def p2_over_q_alpha_2_div(self, batch_size: int) -> torch.Tensor:
