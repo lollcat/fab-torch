@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 from fab.target_distributions.base import TargetDistribution
 from fab.utils.training import DatasetIterator
+from fab.sampling_methods import AnnealedImportanceSampler, HamiltoneanMonteCarlo
+from fab.wrappers.torch import WrappedTorchDist
 
 class Energy(torch.nn.Module):
     """
@@ -48,9 +50,13 @@ class DoubleWellEnergy(Energy, nn.Module):
         return torch.squeeze(-self.energy(x))
 
 
+
 class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
     """Many Well target distribution create by repeating the Double Well Boltzmann distribution."""
-    def __init__(self, dim=4, use_gpu: bool = True, *args, **kwargs):
+    def __init__(self, dim=4, use_gpu: bool = True,
+                 n_intermediate_distributions=1000,
+                 ais_test_set_size=500,
+                 *args, **kwargs):
         assert dim % 2 == 0
         self.n_wells = dim // 2
         super(ManyWellEnergy, self).__init__(dim=2, *args, **kwargs)
@@ -79,6 +85,33 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
                 self.device = "cpu"
         else:
             self.device = "cpu"
+        x, log_w = self.create_2d_test_set_with_ais(n_intermediate_distributions,
+                                                    ais_test_set_size)
+        self.register_buffer("ais_x", x)
+        self.register_buffer("ais_log_w", log_w)
+
+
+    def create_2d_test_set_with_ais(self, n_itermediate_distributions, test_set_size):
+        transition_operator = HamiltoneanMonteCarlo(n_itermediate_distributions, 2)
+        ais = AnnealedImportanceSampler(
+            base_distribution= WrappedTorchDist(torch.distributions.MultivariateNormal(
+                loc=torch.zeros(2,),
+                scale_tril=torch.eye(2)*5)),
+            target_log_prob=self.log_prob_2D,
+            transition_operator=transition_operator,
+            n_intermediate_distributions=n_itermediate_distributions,
+            distribution_spacing_type="linear")
+        samples, log_w = ais.sample_and_log_weights(test_set_size)
+        return samples, log_w
+
+
+    def get_ais_based_test_set_samples(self, batch_size: int):
+        sample_probs = torch.exp(self.ais_log_w - torch.max(self.ais_log_w))
+        indices = torch.multinomial(sample_probs, num_samples=int(batch_size*self.dim/2),
+                                    replacement=True)
+        x = self.ais_x[indices]
+        x = x.reshape(batch_size, self.dim)
+        return x
 
 
     def get_modes_test_set_iterator(self, batch_size: int):
@@ -117,5 +150,12 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
             test_set_iterator = self.get_modes_test_set_iterator(batch_size=batch_size)
             for x in test_set_iterator:
                 sum_log_prob += torch.sum(log_q_fn(x)).item()
-            info = {"test_set_modes_mean_log_prob": sum_log_prob / test_set_iterator.test_set_n_points}
+            with torch.no_grad():
+                test_set_from_ais = self.get_ais_based_test_set_samples(batch_size)
+                test_set_ais_samples_mean_log_prob = \
+                    torch.mean(log_q_fn(test_set_from_ais)).item()
+            info = {
+                "test_set_modes_mean_log_prob": sum_log_prob / test_set_iterator.test_set_n_points,
+                "test_set_ais_mean_log_prob": test_set_ais_samples_mean_log_prob
+            }
             return info
