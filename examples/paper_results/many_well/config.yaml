@@ -1,0 +1,14 @@
+target:
+  dim: 32
+
+flow:
+  layer_nodes_per_dim: 10
+  n_layers: 10
+
+fab:
+  loss_type: alpha_2_div
+  transition_operator:
+    type: hmc
+    n_inner_steps: 5
+  n_intermediate_distributions: 4
+

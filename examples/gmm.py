@@ -37,7 +37,6 @@ def setup_gmm_plotter(cfg: DictConfig, target: GMM, buffer=None) -> Plotter:
         plot_marginal_pair(samples_ais, ax=axs[1], bounds=plotting_bounds)
 
 
-
         axs[0].set_title("flow samples")
         axs[1].set_title("ais samples")
         if cfg.training.prioritised_buffer is True and cfg.training.use_buffer is True:

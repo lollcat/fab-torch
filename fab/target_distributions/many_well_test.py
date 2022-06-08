@@ -13,3 +13,6 @@ def test_many_well(dim: int = 6):
 
     target.performance_metrics(samples=samples, log_w=torch.ones(samples.shape[0]),
                                log_q_fn=sampler.log_prob, batch_size=10)
+
+if __name__ == '__main__':
+    test_many_well(32)
