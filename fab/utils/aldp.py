@@ -112,13 +112,17 @@ def evaluate_aldp(z_sample, z_test, log_prob, transform,
     test_traj = mdtraj.Trajectory(x_d_np.reshape(-1, 22, 3), topology)
     sampled_traj = mdtraj.Trajectory(x_np.reshape(-1, 22, 3), topology)
     psi_d = mdtraj.compute_psi(test_traj)[1].reshape(-1)
-    psi_d[np.isnan(psi_d)] = 0
     phi_d = mdtraj.compute_phi(test_traj)[1].reshape(-1)
-    phi_d[np.isnan(phi_d)] = 0
+    is_nan = np.logical_or(np.isnan(psi_d), np.isnan(phi_d))
+    not_nan = np.logical_not(is_nan)
+    psi_d = psi_d[not_nan]
+    phi_d = phi_d[not_nan]
     psi = mdtraj.compute_psi(sampled_traj)[1].reshape(-1)
-    psi[np.isnan(psi)] = 0
     phi = mdtraj.compute_phi(sampled_traj)[1].reshape(-1)
-    phi[np.isnan(phi)] = 0
+    is_nan = np.logical_or(np.isnan(psi), np.isnan(phi))
+    not_nan = np.logical_not(is_nan)
+    psi = psi[not_nan]
+    phi = phi[not_nan]
 
     # Compute KLD of phi and psi
     htest_phi, _ = np.histogram(phi_d, nbins, range=[-np.pi, np.pi], density=True);
