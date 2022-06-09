@@ -5,6 +5,7 @@ target:
 flow:
   layer_nodes_per_dim: 5
   n_layers: 5
+  act_norm: false
 
 fab:
   loss_type: alpha_2_div

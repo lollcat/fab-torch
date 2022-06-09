@@ -81,8 +81,8 @@ class PrioritisedBufferTrainer:
                 annealed_importance_sampler.sample_and_log_weights(batch_size)
             x_ais = x_ais.detach()
             log_w_ais = log_w_ais.detach()
-            log_q_x = self.model.flow.log_prob(x_ais)
-            self.buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x.detach())
+            log_q_x_ais = self.model.flow.log_prob(x_ais)
+            self.buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x_ais.detach())
 
             # We now take self.n_batches_buffer_sampling gradient steps using
             # data from the replay buffer.

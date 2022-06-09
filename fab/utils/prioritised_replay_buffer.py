@@ -14,6 +14,7 @@ class PrioritisedReplayBuffer:
                  min_sample_length: int,
                  initial_sampler: Callable[[], Tuple[torch.Tensor, torch.Tensor, torch.Tensor]],
                  device: str = "cpu",
+                 sample_with_replacement: bool = False
                  ):
         """
         Create prioritised replay buffer for batched sampling and adding of data.
@@ -25,6 +26,7 @@ class PrioritisedReplayBuffer:
                 the min sample length. The initialised flow + AIS may be used here,
                 or we may desire to use AIS with more distributions to give the flow a "good start".
             device: replay buffer device
+            sample_with_replacement: Whether to sample from the buffer with replacement.
 
         The `max_length` and `min_sample_length` should be sufficiently long to prevent overfitting
         to the replay data. For example, if `min_sample_length` is equal to the
@@ -43,6 +45,7 @@ class PrioritisedReplayBuffer:
         self.current_index = 0
         self.is_full = False  # whether the buffer is full
         self.can_sample = False  # whether the buffer is full enough to begin sampling
+        self.sample_with_replacement = sample_with_replacement
 
         while self.can_sample is False:
             # fill buffer up minimum length
@@ -50,7 +53,7 @@ class PrioritisedReplayBuffer:
             self.add(x, log_w, log_q_old)
 
     @torch.no_grad()
-    def add(self, x: torch.Tensor, log_w: torch.Tensor, log_q_old: torch.Tensor):
+    def add(self, x: torch.Tensor, log_w: torch.Tensor, log_q_old: torch.Tensor) -> None:
         """Add a new batch of generated data to the replay buffer"""
         batch_size = x.shape[0]
         x = x.to(self.device)
@@ -73,10 +76,17 @@ class PrioritisedReplayBuffer:
         if not self.can_sample:
             raise Exception("Buffer must be at minimum length before calling sample")
         max_index = self.max_length if self.is_full else self.current_index
-        sample_probs = torch.exp(self.buffer.log_w[:max_index] - torch.max(self.buffer.log_w[:max_index]))
-        indices = torch.multinomial(sample_probs, num_samples=batch_size,
-                                    replacement=False).to(self.device)
-        return self.buffer.x[indices], self.buffer.log_w[indices], self.buffer.log_q_old[indices], indices
+        if self.sample_with_replacement:
+            indices = torch.distributions.Categorical(logits=self.buffer.log_w[:max_index]
+                                                      ).sample_n(batch_size)
+        else:
+            sample_probs = torch.exp(
+                self.buffer.log_w[:max_index] - torch.max(self.buffer.log_w[:max_index]))
+            indices = torch.multinomial(sample_probs, num_samples=batch_size,
+                                        replacement=False).to(self.device)
+        x, log_w, log_q_old, indices = self.buffer.x[indices], self.buffer.log_w[indices], \
+                                       self.buffer.log_q_old[indices], indices
+        return x, log_w, log_q_old, indices
 
 
     def sample_n_batches(self, batch_size: int, n_batches: int) -> \

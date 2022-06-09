@@ -89,7 +89,8 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         file.write(str(cfg))
 
     flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
-                                     layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim)
+                                     layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                     act_norm=cfg.flow.act_norm)
 
 
     if cfg.fab.transition_operator.type == "hmc":
@@ -101,7 +102,7 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
             step_tuning_method="p_accept")
     elif cfg.fab.transition_operator.type == "metropolis":
         transition_operator = Metropolis(n_transitions=cfg.fab.n_intermediate_distributions,
-                                         n_updates=cfg.transition_operator.n_inner_steps,
+                                         n_updates=cfg.fab.transition_operator.n_inner_steps,
                                          adjust_step_size=True)
     else:
         raise NotImplementedError
@@ -163,3 +164,5 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     if hasattr(cfg.logger, "list_logger"):
         plot_history(trainer.logger.history)
         plt.show()
+        print(trainer.logger.history['eval_ess_flow_p_target'][-5:])
+        print(trainer.logger.history['eval_ess_ais_p_target'][-5:])

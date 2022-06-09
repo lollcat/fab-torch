@@ -46,16 +46,24 @@ class GMM(nn.Module, TargetDistribution):
     def get_distribution(self):
         mix = torch.distributions.Categorical(self.cat_probs)
         com = torch.distributions.MultivariateNormal(self.locs,
-                                                     scale_tril=self.scale_trils)
+                                                     scale_tril=self.scale_trils,
+                                                     validate_args=False)
         return torch.distributions.MixtureSameFamily(mixture_distribution=mix,
-                                                     component_distribution=com)
+                                                     component_distribution=com,
+                                                     validate_args=False)
 
     @property
     def test_set(self) -> torch.Tensor:
         return self.sample((self.n_test_set_samples, ))
 
     def log_prob(self, x: torch.Tensor):
-        return self.distribution.log_prob(x)
+        log_prob = self.distribution.log_prob(x)
+        # Very low probability samples can cause issues (we turn off validate_args of the
+        # distribution object which typically raises an expection related to this.
+        # We manually decrease the distributions log prob to prevent them having an effect on
+        # the loss/buffer.
+        log_prob[log_prob < -1e4] = -torch.tensor(float("inf"))
+        return log_prob
 
     def sample(self, shape=(1,)):
         return self.distribution.sample(shape)
