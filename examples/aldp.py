@@ -376,13 +376,13 @@ for it in range(start_iter, max_iter):
                 # Sample
                 if transition_type == 'hmc':
                     x_ais, log_w_ais = model.annealed_importance_sampler.\
-                        sample_and_log_weights(batch_size)
+                        sample_and_log_weights(batch_size, logging=False)
                     x_ais = x_ais.detach()
                     log_w_ais = log_w_ais.detach()
                 else:
                     with torch.no_grad():
                         x_ais, log_w_ais = model.annealed_importance_sampler.\
-                            sample_and_log_weights(batch_size)
+                            sample_and_log_weights(batch_size, logging=False)
                 # Filter chirality
                 if filter_chirality_train:
                     ind_L = filter_chirality(x_ais)
@@ -415,13 +415,13 @@ for it in range(start_iter, max_iter):
                 # Sample
                 if transition_type == 'hmc':
                     x_ais, log_w_ais = model.annealed_importance_sampler.\
-                        sample_and_log_weights(batch_size)
+                        sample_and_log_weights(batch_size, logging=False)
                     x_ais = x_ais.detach()
                     log_w_ais = log_w_ais.detach()
                 else:
                     with torch.no_grad():
                         x_ais, log_w_ais = model.annealed_importance_sampler.\
-                            sample_and_log_weights(batch_size)
+                            sample_and_log_weights(batch_size, logging=False)
                 # Filter chirality
                 if filter_chirality_train:
                     ind_L = filter_chirality(x_ais)
