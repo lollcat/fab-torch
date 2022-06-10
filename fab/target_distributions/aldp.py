@@ -19,7 +19,7 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
                  energy_max=1.e+20, n_threads=4, transform='internal',
                  ind_circ_dih=[], shift_dih=False,
                  shift_dih_params={'hist_bins': 100},
-                 default_std={'bond': 0.005, 'angle': 0.1, 'dih': 0.2},
+                 default_std={'bond': 0.005, 'angle': 0.15, 'dih': 0.2},
                  env='vacuum'):
         """
         Boltzmann distribution of Alanine dipeptide
@@ -102,11 +102,10 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
 
         # Generate trajectory for coordinate transform if no data path is specified
         if data_path is None:
-            sim = app.Simulation(system.topology,
-                                        system.system,
-                                        mm.LangevinIntegrator(temperature * unit.kelvin, 1.0 / unit.picosecond,
-                                                              1.0 * unit.femtosecond),
-                                        platform=mm.Platform.getPlatformByName('CPU'))
+            sim = app.Simulation(system.topology, system.system,
+                                mm.LangevinIntegrator(temperature * unit.kelvin,
+                                                      1.0 / unit.picosecond, 1.0 * unit.femtosecond),
+                                platform=mm.Platform.getPlatformByName('Reference'))
             sim.context.setPositions(system.positions)
             sim.minimizeEnergy()
             state = sim.context.getState(getPositions=True)
