@@ -19,7 +19,7 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
                  energy_max=1.e+20, n_threads=4, transform='internal',
                  ind_circ_dih=[], shift_dih=False,
                  shift_dih_params={'hist_bins': 100},
-                 default_std={'bond': 0.005, 'angle': 0.15, 'dih': 0.2},
+                 default_std={'bond': 0.005, 'angle': 0.1, 'dih': 0.2},
                  env='vacuum'):
         """
         Boltzmann distribution of Alanine dipeptide
