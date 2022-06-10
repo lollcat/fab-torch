@@ -17,6 +17,8 @@ system:                             # Properties of molecular system
 flow:                               # Properties of the flow model
 
   type: circular-nsf                # String, type of the flow
+  circ_shift: random                # String, whether to shift circular coordinates, can be none,
+                                    # constant, or random
   base:                             # Base distribution
     type: gauss-uni                 # Type of the base dist
     params: null

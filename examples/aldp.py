@@ -108,6 +108,9 @@ bound_circ = np.pi / std_dih[ind_circ_dih]
 tail_bound = 5. * torch.ones(ndim)
 tail_bound[ind_circ] = bound_circ
 
+circ_shift = None if not 'circ_shift' in config['flow'] \
+    else config['flow']['circ_shift']
+
 for i in range(config['flow']['blocks']):
     if flow_type == 'rnvp':
         # Coupling layer
@@ -155,6 +158,16 @@ for i in range(config['flow']['blocks']):
 
     if config['flow']['actnorm']:
         layers.append(nf.flows.ActNorm(ndim))
+
+    if i % 2 == 1 and i != config['flow']['blocks'] - 1:
+        if circ_shift == 'constant':
+            layers.append(nf.flows.PeriodicShift(ind_circ, bound=bound_circ,
+                                                 shift=bound_circ))
+        elif circ_shift == 'random':
+            gen = torch.Generator().manual_seed(seed + i)
+            shift_scale = torch.rand([], generator=gen) + 0.5
+            layers.append(nf.flows.PeriodicShift(ind_circ, bound=bound_circ,
+                                                 shift=shift_scale * bound_circ))
 
 # Map input to periodic interval
 layers.append(nf.flows.PeriodicWrap(ind_circ, bound_circ))
