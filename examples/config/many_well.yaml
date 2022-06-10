@@ -19,7 +19,8 @@ training:
   seed: 0
   lr: 2e-4
   batch_size: 20
-  n_iterations: 200
+  n_iterations: null
+  n_flow_forward_pass: 5_000 # assumes split coupling where log prob & sample are same speed.
   use_gpu: false
   use_64_bit: false
   use_buffer: true # below config fields are all for use_buffer = True
@@ -35,9 +36,9 @@ training:
 
 
 evaluation:
-  n_plots: 100 # number of times we visualise the model throughout training.
-  n_eval: 200 # for calculating metrics of flow w.r.t target.
-  eval_batch_size: 10240 # must be a multiple of inner batch size
+  n_plots: 20 # number of times we visualise the model throughout training.
+  n_eval: 10 # for calculating metrics of flow w.r.t target.
+  eval_batch_size: 100 # must be a multiple of inner batch size
   n_checkpoints: 10 # number of model checkpoints saved
   save_path:  results/many_well32/
 
