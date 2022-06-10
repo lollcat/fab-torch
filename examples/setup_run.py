@@ -47,6 +47,7 @@ def get_n_iterations(
     during training for fair comparison. Due to inefficiencies in implementation this will not match
     the actual number of flow forward passes.
     """
+    # must specify either number of training iterations or flow forward passes.
     assert bool(n_training_iter) != bool(n_flow_forward_pass)
 
     if n_training_iter:
