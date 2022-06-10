@@ -8,7 +8,7 @@ target:
   log_var_scaling: 1.0
 
 flow:
-  layer_nodes_per_dim: 10
+  layer_nodes_per_dim: 20
   n_layers: 10
   act_norm: false
 
@@ -22,9 +22,9 @@ fab:
 
 training:
   seed: 0
-  lr: 3e-4
+  lr: 1e-3
   batch_size: 128
-  n_iterations: 3000
+  n_iterations: 4000
   use_gpu: true
   use_64_bit: false
   use_buffer: true # below config fields are all for use_buffer = True
@@ -32,9 +32,9 @@ training:
   n_batches_buffer_sampling: 4
   buffer_temp: 1.0 # rate that we weight new experience over old
   maximum_buffer_length: 12800
-  min_buffer_length: 1280 # heuristic: set this to n_batches_buffer_sampling*batch_size*10
+  min_buffer_length: 3560 # heuristic: set this to n_batches_buffer_sampling*batch_size*10
   log_w_clip_frac: null # null for no clipping, for non-prioritised replay
-  max_grad_norm: null # null for no clipping
+  max_grad_norm: 100.0 # null for no clipping
   w_adjust_max_clip: 10.0 # clipping of weight adjustment factor for prioritised replay
 
 

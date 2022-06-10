@@ -164,5 +164,6 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     if hasattr(cfg.logger, "list_logger"):
         plot_history(trainer.logger.history)
         plt.show()
-        print(trainer.logger.history['eval_ess_flow_p_target'][-5:])
-        print(trainer.logger.history['eval_ess_ais_p_target'][-5:])
+        print(trainer.logger.history['eval_ess_flow_p_target'][-10:])
+        print(trainer.logger.history['eval_ess_ais_p_target'][-10:])
+        print(trainer.logger.history['test_set_mean_log_prob_p_target'][-10:])

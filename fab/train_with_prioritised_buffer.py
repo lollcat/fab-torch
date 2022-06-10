@@ -108,7 +108,10 @@ class PrioritisedBufferTrainer:
                     loss.backward()
                     grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
                                                                self.max_gradient_norm)
-                    self.optimizer.step()
+                    if torch.isfinite(grad_norm):
+                        self.optimizer.step()
+                    else:
+                        print("nan grad norm in replay step")
                 else:
                     print("nan loss in replay step")
 
