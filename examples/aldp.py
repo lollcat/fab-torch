@@ -157,7 +157,7 @@ for i in range(config['flow']['blocks']):
         layers.append(nf.flows.ActNorm(ndim))
 
 # Map input to periodic interval
-layers.append(nf.flows.Periodic(ind_circ, bound_circ))
+layers.append(nf.flows.PeriodicWrap(ind_circ, bound_circ))
 
 # Base distribution
 if config['flow']['base']['type'] == 'gauss':
