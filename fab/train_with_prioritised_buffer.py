@@ -28,6 +28,7 @@ class PrioritisedBufferTrainer:
                  plot: Optional[Plotter] = None,
                  max_gradient_norm: Optional[float] = 5.0,
                  w_adjust_max_clip: float = 10,
+                 w_adjust_in_buffer_after_update: bool = False,
                  save_path: str = ""):
         self.model = model
         self.optimizer = optimizer
@@ -43,6 +44,7 @@ class PrioritisedBufferTrainer:
         self.n_batches_buffer_sampling = n_batches_buffer_sampling
         self.flow_device = next(model.flow.parameters()).device
         self.max_adjust_w_clip = w_adjust_max_clip
+        self.w_adjust_in_buffer_after_update = w_adjust_in_buffer_after_update
 
         # instead of the standard target prob, we target p^2/q
         def ais_target_log_prob(x):
@@ -81,8 +83,11 @@ class PrioritisedBufferTrainer:
                 annealed_importance_sampler.sample_and_log_weights(batch_size)
             x_ais = x_ais.detach()
             log_w_ais = log_w_ais.detach()
-            log_q_x = self.model.flow.log_prob(x_ais)
-            self.buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x.detach())
+            log_q_x_ais = self.model.flow.log_prob(x_ais)
+            self.buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x_ais.detach())
+
+            # we log info from the step of the recently generated ais points.
+            info = self.model.get_iter_info()
 
             # We now take self.n_batches_buffer_sampling gradient steps using
             # data from the replay buffer.
@@ -94,7 +99,8 @@ class PrioritisedBufferTrainer:
                 self.optimizer.zero_grad()
                 log_q_x = self.model.flow.log_prob(x)
                 # adjustment to account for change to theta since sample was last added/adjusted
-                w_adjust_pre_clip = torch.exp(log_q_old - log_q_x).detach() # no grad
+                log_w_adjust = log_q_old - log_q_x.detach()
+                w_adjust_pre_clip = torch.exp(log_w_adjust)  # no grad
                 w_adjust = torch.clip(w_adjust_pre_clip, max=self.max_adjust_w_clip)
                 # manually calculate the new form of the loss
                 loss = - torch.mean(w_adjust * log_q_x)
@@ -102,23 +108,19 @@ class PrioritisedBufferTrainer:
                     loss.backward()
                     grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
                                                                self.max_gradient_norm)
-                    self.optimizer.step()
+                    if torch.isfinite(grad_norm):
+                        self.optimizer.step()
+                    else:
+                        print("nan grad norm in replay step")
                 else:
                     print("nan loss in replay step")
-            with torch.no_grad():
-                for (x, log_w, log_q_old, indices) in mini_dataset:
-                    """Adjust importance weights in the buffer for the points in the `mini_dataset` 
-                    to account for the updated theta."""
-                    x, log_w, log_q_old, indices = x.to(self.flow_device), log_w.to(
-                        self.flow_device), \
-                                                   log_q_old.to(self.flow_device), indices.to(
-                        self.flow_device)
-                    log_q_new = self.model.flow.log_prob(x)
-                    log_adjust_insert = log_q_old - log_q_new
-                    self.buffer.adjust(log_adjust_insert, log_q_new, indices)
 
-            # we log info from the step of the recently generated ais points.
-            info = self.model.get_iter_info()
+                # Adjust log weights in the buffer.
+                if not self.w_adjust_in_buffer_after_update:
+                    with torch.no_grad():
+                        self.buffer.adjust(log_w_adjust, log_q_x, indices)
+
+
             info.update(loss=loss.cpu().detach().item(),
                         step=i,
                         grad_norm=grad_norm.cpu().detach().item(),
@@ -127,9 +129,24 @@ class PrioritisedBufferTrainer:
                         w_adjust_mean=torch.mean(w_adjust_pre_clip).detach().cpu().item(),
                         w_adjust_min=torch.min(w_adjust_pre_clip).detach().cpu().item(),
                         w_adjust_max=torch.max(w_adjust_pre_clip).detach().cpu().item(),
-                        log_w_adjust_insert_mean=torch.mean(log_adjust_insert).detach().cpu().item(),
-                        log_q_mean=torch.mean(log_q_new).detach().cpu().item()
+                        log_q_x_mean=torch.mean(log_q_x).cpu().item()
                         )
+
+            if self.w_adjust_in_buffer_after_update:
+                with torch.no_grad():
+                    for (x, log_w, log_q_old, indices) in mini_dataset:
+                        """Adjust importance weights in the buffer for the points in the `mini_dataset` 
+                        to account for the updated theta."""
+                        x, log_w, log_q_old, indices = x.to(self.flow_device), log_w.to(
+                            self.flow_device), \
+                                                       log_q_old.to(self.flow_device), indices.to(
+                            self.flow_device)
+                        log_q_new = self.model.flow.log_prob(x)
+                        log_adjust_insert = log_q_old - log_q_new
+                        self.buffer.adjust(log_adjust_insert, log_q_new, indices)
+                    info.update(log_w_adjust_insert_mean = torch.mean(log_adjust_insert).detach().cpu().item(),
+                                log_q_mean = torch.mean(log_q_new).detach().cpu().item())
+
             self.logger.write(info)
             pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"
                                  f"ess ais: {info['ess_ais']}")

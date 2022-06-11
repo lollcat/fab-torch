@@ -26,6 +26,65 @@ SetupPlotterFn = Callable[[DictConfig, TargetDistribution,
                            Optional[Union[ReplayBuffer, PrioritisedReplayBuffer]]], Plotter]
 
 
+def get_n_iterations(
+        n_training_iter: Union[int, None],
+        n_flow_forward_pass: Union[int, None],
+        batch_size: int,
+        loss_type: str,
+        n_transition_operator_inner_steps: int,
+        n_intermediate_ais_dist: int,
+        transition_operator_type: str,
+        use_buffer: bool,
+        min_buffer_length: Optional[int] = None) -> int:
+    """
+    Calculate the number of training iterations, based on the run config.
+    We define one "training iteration" as
+        - for training by KLD: 1 forward pass of the flow to estimate KLD
+        - for training by FAB: 1 forward pass of the flow and AIS
+        - for training by FAB with buffer: 1 forward pass of the flow & AIS followed by
+            n buffer sampling update steps.
+
+    Note: We aim here to do the theoretical number of forward passes required for each method
+    during training for fair comparison. Due to inefficiencies in implementation this will not match
+    the actual number of flow forward passes.
+    """
+    # must specify either number of training iterations or flow forward passes.
+    assert bool(n_training_iter) != bool(n_flow_forward_pass)
+
+    if n_training_iter:
+        return n_training_iter
+    else:
+        if loss_type[0:4] == "flow":
+            n_iter = n_flow_forward_pass
+        else:
+            if transition_operator_type == "hmc":
+                # Note this also requires differentiating the flow, which is fair as the
+                # KLD forward pass also requires a differentiation of target and flow step.
+                # +1 is for the initial sampling step.
+                n_flow_eval_per_ais_forward = \
+                    (n_transition_operator_inner_steps)*n_intermediate_ais_dist + 1
+            else:
+                assert transition_operator_type == "metropolis"
+                # +1 for the initial sampling step
+                n_flow_eval_per_ais_forward = \
+                    n_transition_operator_inner_steps*n_intermediate_ais_dist + 1
+            if use_buffer:
+                buffer_init_flow_eval = n_flow_eval_per_ais_forward * min_buffer_length
+                # we do another ais evaluation per iteration to calculate the log prob of the
+                # samples from the buffer.
+                n_flow_eval_per_iter = (n_flow_eval_per_ais_forward + 1)*batch_size
+            else:
+                buffer_init_flow_eval = 0
+                n_flow_eval_per_iter = n_flow_eval_per_ais_forward*batch_size
+            n_iter = int((n_flow_forward_pass - buffer_init_flow_eval) / n_flow_eval_per_iter)
+    print(f"{n_iter} iter for {n_flow_forward_pass} flow forward passes")
+    return n_iter
+
+
+
+
+
+
 def setup_logger(cfg: DictConfig, save_path: str) -> Logger:
     if hasattr(cfg.logger, "pandas_logger"):
         logger = PandasLogger(save=True,
@@ -89,7 +148,8 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         file.write(str(cfg))
 
     flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
-                                     layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim)
+                                     layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                     act_norm=cfg.flow.act_norm)
 
 
     if cfg.fab.transition_operator.type == "hmc":
@@ -101,7 +161,7 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
             step_tuning_method="p_accept")
     elif cfg.fab.transition_operator.type == "metropolis":
         transition_operator = Metropolis(n_transitions=cfg.fab.n_intermediate_distributions,
-                                         n_updates=cfg.transition_operator.n_inner_steps,
+                                         n_updates=cfg.fab.transition_operator.n_inner_steps,
                                          adjust_step_size=True)
     else:
         raise NotImplementedError
@@ -156,10 +216,25 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                                 w_adjust_max_clip=cfg.training.w_adjust_max_clip
                                 )
 
-    trainer.run(n_iterations=cfg.training.n_iterations, batch_size=cfg.training.batch_size,
+    n_iterations = get_n_iterations(
+                n_training_iter=cfg.training.n_iterations,
+                n_flow_forward_pass=cfg.training.n_flow_forward_pass,
+                batch_size=cfg.training.batch_size,
+                loss_type=cfg.fab.loss_type,
+                n_transition_operator_inner_steps=cfg.fab.transition_operator.n_inner_steps,
+                n_intermediate_ais_dist=cfg.fab.n_intermediate_distributions,
+                transition_operator_type=cfg.fab.transition_operator.type,
+                use_buffer=cfg.training.use_buffer,
+                min_buffer_length=cfg.training.min_buffer_length,
+                )
+
+    trainer.run(n_iterations=n_iterations, batch_size=cfg.training.batch_size,
                 n_plot=cfg.evaluation.n_plots,
                 n_eval=cfg.evaluation.n_eval, eval_batch_size=cfg.evaluation.eval_batch_size,
                 save=True, n_checkpoints=cfg.evaluation.n_checkpoints)
     if hasattr(cfg.logger, "list_logger"):
         plot_history(trainer.logger.history)
         plt.show()
+        print(trainer.logger.history['eval_ess_flow_p_target'][-10:])
+        print(trainer.logger.history['eval_ess_ais_p_target'][-10:])
+        print(trainer.logger.history['test_set_mean_log_prob_p_target'][-10:])

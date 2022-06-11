@@ -47,6 +47,8 @@ class Metropolis(TransitionOperator):
             acceptance_probability = torch.exp(x_proposed_log_prob - x_prev_log_prob)
             # not that sometimes this will be greater than one, corresonding to 100% probability of
             # acceptance
+            acceptance_probability = torch.nan_to_num(acceptance_probability, nan=0.0, posinf=0.0,
+                                                      neginf=0.0)
             accept = (acceptance_probability > torch.rand(acceptance_probability.shape
                                                           ).to(x.device)).int()
             x_prev_log_prob = accept * x_proposed_log_prob + (1 - accept) * x_prev_log_prob
