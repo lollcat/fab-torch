@@ -1,0 +1,55 @@
+defaults:
+  - override hydra/launcher: joblib
+
+target:
+  dim: 2
+  loc_scaling: 40
+  n_mixes: 40
+  log_var_scaling: 1.0
+
+flow:
+  layer_nodes_per_dim: 20
+  n_layers: 10
+  act_norm: false
+
+fab:
+  loss_type: alpha_2_div
+  transition_operator:
+    type: metropolis
+    n_inner_steps: 1
+  n_intermediate_distributions: 1
+
+
+training:
+  seed: 0
+  lr: 1e-3
+  batch_size: 128
+  n_iterations: null # either n_itertations or n_flow_forward_pass must have a value
+  n_flow_forward_pass: 500_000 # assumes split coupling where log prob & sample are same speed.
+  use_gpu: true
+  use_64_bit: false
+  use_buffer: true # below config fields are all for use_buffer = True
+  prioritised_buffer: true
+  n_batches_buffer_sampling: 4
+  buffer_temp: 1.0 # rate that we weight new experience over old
+  maximum_buffer_length: 12800
+  min_buffer_length: 512 # heuristic: set this to n_batches_buffer_sampling*batch_size*10
+  log_w_clip_frac: null # null for no clipping, for non-prioritised replay
+  max_grad_norm: 100.0 # null for no clipping
+  w_adjust_max_clip: 10.0 # clipping of weight adjustment factor for prioritised replay
+
+
+evaluation:
+  n_plots: 20 # number of times we visualise the model throughout training.
+  n_eval: 20 # for calculating metrics of flow w.r.t target.
+  eval_batch_size: 512 # must be a multiple of inner batch size
+  n_checkpoints: 10 # number of model checkpoints saved
+  save_path:  results/many_well32/
+
+
+logger:
+  list_logger: true
+#  pandas_logger:
+#    save_period: 100 # how often to save the pandas dataframe as a csv
+
+
