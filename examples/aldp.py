@@ -528,7 +528,7 @@ for it in range(start_iter, max_iter):
         warmup_scheduler.step()
 
     # Save loss
-    if (it + 1) % log_iter == 0:
+    if (it + 1) % log_iter == 0 or it == max_iter - 1:
         # Loss
         np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist,
                    delimiter=',', header='it,loss', comments='')
@@ -567,7 +567,7 @@ for it in range(start_iter, max_iter):
         if use_gpu:
             torch.cuda.empty_cache()
 
-    if (it + 1) % checkpoint_iter == 0:
+    if (it + 1) % checkpoint_iter == 0 or it == max_iter - 1:
         # Save checkpoint
         model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(),
