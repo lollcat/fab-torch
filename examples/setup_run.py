@@ -29,6 +29,7 @@ SetupPlotterFn = Callable[[DictConfig, TargetDistribution,
 def get_n_iterations(
         n_training_iter: Union[int, None],
         n_flow_forward_pass: Union[int, None],
+        batch_size: int,
         loss_type: str,
         n_transition_operator_inner_steps: int,
         n_intermediate_ais_dist: int,
@@ -71,10 +72,10 @@ def get_n_iterations(
                 buffer_init_flow_eval = n_flow_eval_per_ais_forward * min_buffer_length
                 # we do another ais evaluation per iteration to calculate the log prob of the
                 # samples from the buffer.
-                n_flow_eval_per_iter = n_flow_eval_per_ais_forward + 1
+                n_flow_eval_per_iter = (n_flow_eval_per_ais_forward + 1)*batch_size
             else:
                 buffer_init_flow_eval = 0
-                n_flow_eval_per_iter = n_flow_eval_per_ais_forward
+                n_flow_eval_per_iter = n_flow_eval_per_ais_forward*batch_size
             n_iter = int((n_flow_forward_pass - buffer_init_flow_eval) / n_flow_eval_per_iter)
     print(f"{n_iter} iter for {n_flow_forward_pass} flow forward passes")
     return n_iter
@@ -218,6 +219,7 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     n_iterations = get_n_iterations(
                 n_training_iter=cfg.training.n_iterations,
                 n_flow_forward_pass=cfg.training.n_flow_forward_pass,
+                batch_size=cfg.training.batch_size,
                 loss_type=cfg.fab.loss_type,
                 n_transition_operator_inner_steps=cfg.fab.transition_operator.n_inner_steps,
                 n_intermediate_ais_dist=cfg.fab.n_intermediate_distributions,
