@@ -59,15 +59,12 @@ def get_n_iterations(
             if transition_operator_type == "hmc":
                 # Note this also requires differentiating the flow, which is fair as the
                 # KLD forward pass also requires a differentiation of target and flow step.
-                # 1 sampling step from the flow, then n_transition_operator_inner_steps steps
-                # per AIS intermediate dist to compute the HMC inner steps, and an
-                # additional step per AIS intermediate dist to compute the acceptance probability.
+                # +1 is for the initial sampling step.
                 n_flow_eval_per_ais_forward = \
-                    (n_transition_operator_inner_steps + 1) * n_intermediate_ais_dist + 1
+                    (n_transition_operator_inner_steps)*n_intermediate_ais_dist + 1
             else:
                 assert transition_operator_type == "metropolis"
-                # We perform one sampling step from the flow and then
-                # n_transition_operator_inner_steps accept/reject steps per intermediate ais dist.
+                # +1 for the initial sampling step
                 n_flow_eval_per_ais_forward = \
                     n_transition_operator_inner_steps*n_intermediate_ais_dist + 1
             if use_buffer:
