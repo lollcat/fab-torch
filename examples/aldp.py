@@ -366,6 +366,44 @@ if 'replay_buffer' in config['training']:
         model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 else:
     use_rb = False
+    if filter_chirality_train:
+        if loss_type == 'alpha_2_div':
+            def modified_loss(bs):
+                if isinstance(model.annealed_importance_sampler.transition_operator, HamiltoneanMonteCarlo):
+                    x_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
+                else:
+                    with torch.no_grad():
+                        x_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
+                x_ais = x_ais.detach()
+                log_w_ais = log_w_ais.detach()
+                ind_L = filter_chirality(x_ais)
+                if torch.mean(1. * ind_L) > 0.1:
+                    x_ais = x_ais[ind_L, :]
+                    log_w_ais = log_w_ais[ind_L]
+                loss = model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+                return loss
+            model.loss = modified_loss
+        elif loss_type == 'flow_reverse_kl':
+            def modified_loss(bs):
+                x, log_q = model.flow.sample_and_log_prob((bs,))
+                ind_L = filter_chirality(x)
+                if torch.mean(1. * ind_L) > 0.1:
+                    x = x[ind_L, :]
+                    log_q = log_q[ind_L]
+                log_p = model.target_distribution.log_prob(x)
+                return torch.mean(log_q) - torch.mean(log_p)
+            model.loss = modified_loss
+        elif loss_type == 'flow_reverse_kl':
+            def modified_loss(bs):
+                x, log_q_x = model.flow.sample_and_log_prob((bs,))
+                ind_L = filter_chirality(x)
+                if torch.mean(1. * ind_L) > 0.1:
+                    x = x[ind_L, :]
+                    log_q_x = log_q_x[ind_L]
+                log_p_x = model.target_distribution.log_prob(x)
+                loss = - torch.mean(torch.exp(2 * (log_p_x - log_q_x)).detach() * log_q_x)
+                return loss
+            model.loss = modified_loss
 
 # Start training
 start_time = time()
