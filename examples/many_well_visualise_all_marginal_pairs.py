@@ -2,7 +2,7 @@ import torch
 from omegaconf import DictConfig
 
 
-from fab import FABModel, HamiltoneanMonteCarlo, Metropolis
+from fab import FABModel, HamiltonanMonteCarlo, Metropolis
 from fab.utils.plotting import plot_marginal_pair, plot_contours
 from examples.make_flow import make_wrapped_normflowdist
 from matplotlib import pyplot as plt
@@ -24,7 +24,7 @@ def setup_model(cfg: DictConfig, model_path):
 
     if cfg.fab.transition_operator.type == "hmc":
         # very lightweight HMC.
-        transition_operator = HamiltoneanMonteCarlo(
+        transition_operator = HamiltonanMonteCarlo(
             n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
             n_outer=1,
             epsilon=1.0, L=cfg.fab.transition_operator.n_inner_steps, dim=dim,

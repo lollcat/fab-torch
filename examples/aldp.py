@@ -12,7 +12,7 @@ from fab.utils.training import load_config
 from fab.target_distributions.aldp import AldpBoltzmann
 from fab import FABModel
 from fab.wrappers.normflow import WrappedNormFlowModel
-from fab.sampling_methods.transition_operators import HamiltoneanMonteCarlo, Metropolis
+from fab.sampling_methods.transition_operators import HamiltonanMonteCarlo, Metropolis
 from fab.utils.aldp import evaluate_aldp
 from fab.utils.aldp import filter_chirality
 from fab.utils.numerical import effective_sample_size
@@ -191,7 +191,7 @@ wrapped_flow = WrappedNormFlowModel(flow).to(device)
 transition_type = config['fab']['transition_type']
 if transition_type == 'hmc':
     # very lightweight HMC.
-    transition_operator = HamiltoneanMonteCarlo(
+    transition_operator = HamiltonanMonteCarlo(
         n_ais_intermediate_distributions=config['fab']['n_int_dist'],
         dim=ndim, L=config['fab']['n_inner'],
         epsilon=config['fab']['epsilon'] / 2,
@@ -359,7 +359,6 @@ if 'replay_buffer' in config['training']:
         buffer = PrioritisedReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
                                          min_sample_length=rb_config['min_length'] * batch_size,
                                          initial_sampler=initial_sampler, device=str(device))
-        buffer_sample = None
         # Set target distribution
         def ais_target_log_prob(x):
             return 2 * model.target_distribution.log_prob(x) - model.flow.log_prob(x)
@@ -369,7 +368,7 @@ else:
     if filter_chirality_train:
         if loss_type == 'alpha_2_div':
             def modified_loss(bs):
-                if isinstance(model.annealed_importance_sampler.transition_operator, HamiltoneanMonteCarlo):
+                if isinstance(model.annealed_importance_sampler.transition_operator, HamiltonanMonteCarlo):
                     x_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
                 else:
                     with torch.no_grad():
@@ -458,11 +457,6 @@ for it in range(start_iter, max_iter):
                 loss = model.fab_alpha_div_loss_inner(x, log_w)
         elif rb_config['type'] == 'prioritised':
             if it % rb_config['n_updates'] == 0:
-                if buffer_sample is not None:
-                    with torch.no_grad():
-                        for (x, log_w, log_q_old, indices) in buffer_sample:
-                            log_q_new = model.flow.log_prob(x)
-                            buffer.adjust(log_q_old - log_q_new, log_q_new, indices)
                 # Sample
                 if transition_type == 'hmc':
                     x_ais, log_w_ais = model.annealed_importance_sampler.\
@@ -492,11 +486,13 @@ for it in range(start_iter, max_iter):
             x, log_w, log_q_old, indices = x.to(device), log_w.to(device), \
                                            log_q_old.to(device), indices.to(device)
             log_q_x = model.flow.log_prob(x)
-            # adjustment to account for change to theta since sample was last added/adjusted
-            w_adjust = torch.exp(log_q_old - log_q_x).detach()
-            w_adjust = torch.clip(w_adjust, max=rb_config['max_adjust_w_clip'])
-            # manually calculate the new form of the loss
+            # Adjustment to account for change to theta since sample was last added/adjusted
+            log_w_adjust = log_q_old - log_q_x.detach()
+            w_adjust = torch.clip(torch.exp(log_w_adjust), max=rb_config['max_adjust_w_clip'])
+            # Manually calculate the new form of the loss
             loss = - torch.mean(w_adjust * log_q_x)
+            # Adjust buffer samples
+            buffer.adjust(log_w_adjust, log_q_x.detach(), indices)
 
     else:
         loss = model.loss(batch_size)
