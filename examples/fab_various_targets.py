@@ -2,7 +2,7 @@ import normflow as nf
 import matplotlib.pyplot as plt
 import torch
 
-from fab import FABModel, HamiltoneanMonteCarlo, Trainer, Metropolis
+from fab import FABModel, HamiltonanMonteCarlo, Trainer, Metropolis
 from fab.utils.logging import ListLogger
 from fab.utils.plotting import plot_history, plot_contours, plot_marginal_pair
 
@@ -60,7 +60,7 @@ def train_fab(
     # setup transition operator
     if transition_operator_type == "hmc":
         # very lightweight HMC.
-        transition_operator = HamiltoneanMonteCarlo(
+        transition_operator = HamiltonanMonteCarlo(
             n_ais_intermediate_distributions=n_intermediate_distributions,
             n_outer=1,
             epsilon=1.0, L=5, dim=dim,

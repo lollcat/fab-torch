@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from fab.target_distributions.base import TargetDistribution
 from fab.utils.training import DatasetIterator
-from fab.sampling_methods import AnnealedImportanceSampler, HamiltoneanMonteCarlo
+from fab.sampling_methods import AnnealedImportanceSampler, HamiltonanMonteCarlo
 from fab.wrappers.torch import WrappedTorchDist
 
 class Energy(torch.nn.Module):
@@ -92,7 +92,7 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
 
 
     def create_2d_test_set_with_ais(self, n_itermediate_distributions, test_set_size):
-        transition_operator = HamiltoneanMonteCarlo(n_itermediate_distributions, 2)
+        transition_operator = HamiltonanMonteCarlo(n_itermediate_distributions, 2)
         ais = AnnealedImportanceSampler(
             base_distribution= WrappedTorchDist(torch.distributions.MultivariateNormal(
                 loc=torch.zeros(2,),

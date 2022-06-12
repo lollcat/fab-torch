@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-from fab.sampling_methods import AnnealedImportanceSampler, Metropolis, HamiltoneanMonteCarlo
+from fab.sampling_methods import AnnealedImportanceSampler, Metropolis, HamiltonanMonteCarlo
 from fab.utils.logging import ListLogger
 from fab.target_distributions import TargetDistribution
 from fab.target_distributions.gmm import GMM
@@ -23,7 +23,7 @@ def setup_ais(dim: int = 2,
                                                                  scale_tril=3*torch.eye(dim)))
     # setup transition operator
     if transition_operator_type == "hmc":
-        transition_operator = HamiltoneanMonteCarlo(
+        transition_operator = HamiltonanMonteCarlo(
             n_ais_intermediate_distributions=n_ais_intermediate_distributions,
             n_outer=5,
             epsilon=1.0, L=5, dim=dim,
