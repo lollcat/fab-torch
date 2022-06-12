@@ -392,7 +392,7 @@ else:
                 log_p = model.target_distribution.log_prob(x)
                 return torch.mean(log_q) - torch.mean(log_p)
             model.loss = modified_loss
-        elif loss_type == 'flow_reverse_kl':
+        elif loss_type == 'flow_alpha_2_div_nis':
             def modified_loss(bs):
                 x, log_q_x = model.flow.sample_and_log_prob((bs,))
                 ind_L = filter_chirality(x)
