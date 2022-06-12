@@ -101,7 +101,10 @@ class PrioritisedBufferTrainer:
                 # adjustment to account for change to theta since sample was last added/adjusted
                 log_w_adjust = log_q_old - log_q_x.detach()
                 w_adjust_pre_clip = torch.exp(log_w_adjust)  # no grad
-                w_adjust = torch.clip(w_adjust_pre_clip, max=self.max_adjust_w_clip)
+                if self.max_adjust_w_clip is not None:
+                    w_adjust = torch.clip(w_adjust_pre_clip, max=self.max_adjust_w_clip)
+                else:
+                    w_adjust = w_adjust_pre_clip
                 # manually calculate the new form of the loss
                 loss = - torch.mean(w_adjust * log_q_x)
                 if not torch.isnan(loss) and not torch.isinf(loss):
