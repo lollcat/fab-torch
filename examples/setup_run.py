@@ -55,7 +55,7 @@ def get_n_iterations(
         return n_training_iter
     else:
         if loss_type[0:4] == "flow":
-            n_iter = n_flow_forward_pass
+            n_iter = n_flow_forward_pass / batch_size
         else:
             if transition_operator_type == "hmc":
                 # Note this also requires differentiating the flow, which is fair as the
@@ -132,9 +132,6 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                           target: TargetDistribution):
     """Create and trainer and run."""
     dim = cfg.target.dim  # applies to flow and target
-    if cfg.training.use_64_bit:
-        torch.set_default_dtype(torch.float64)
-    torch.manual_seed(cfg.training.seed)
     current_time = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
     save_path = cfg.evaluation.save_path + current_time + "/"
     logger = setup_logger(cfg, save_path)

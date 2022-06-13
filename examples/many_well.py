@@ -3,6 +3,7 @@ import hydra
 from omegaconf import DictConfig
 from fab.utils.plotting import plot_contours, plot_marginal_pair
 from examples.setup_run import setup_trainer_and_run, Plotter
+import torch
 
 
 def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
@@ -55,6 +56,9 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
 
 
 def _run(cfg: DictConfig):
+    if cfg.training.use_64_bit:
+        torch.set_default_dtype(torch.float64)
+    torch.manual_seed(cfg.training.seed)
     from fab.target_distributions.many_well import ManyWellEnergy
     assert cfg.target.dim % 2 == 0
     target = ManyWellEnergy(cfg.target.dim, a=-0.5, b=-6, use_gpu=cfg.training.use_gpu)
