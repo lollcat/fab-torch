@@ -22,7 +22,7 @@ training:
   n_iterations: null
   n_flow_forward_pass: 500_000 # assumes split coupling where log prob & sample are same speed.
   use_gpu: false
-  use_64_bit: false
+  use_64_bit: true
   use_buffer: true # below config fields are all for use_buffer = True
   prioritised_buffer: true
   n_batches_buffer_sampling: 2
