@@ -62,7 +62,9 @@ class GMM(nn.Module, TargetDistribution):
         # distribution object which typically raises an expection related to this.
         # We manually decrease the distributions log prob to prevent them having an effect on
         # the loss/buffer.
-        log_prob[log_prob < -1e4] = -torch.tensor(float("inf"))
+        mask = torch.zeros_like(log_prob)
+        mask[log_prob < -1e4] = - torch.tensor(float("inf"))
+        log_prob = log_prob + mask
         return log_prob
 
     def sample(self, shape=(1,)):
