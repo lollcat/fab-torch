@@ -176,9 +176,10 @@ class PrioritisedBufferTrainer:
             if n_plot is not None:
                 if i in plot_iter:
                     figures = self.plot(self.model)
-                    if save:
-                        for j, figure in enumerate(figures):
+                    for j, figure in enumerate(figures):
+                        if save:
                             figure.savefig(os.path.join(self.plots_dir, f"{j}_iter_{i}.png"))
+                        plt.close(figure)
 
             if n_checkpoints is not None:
                 if i in checkpoint_iter:

@@ -13,7 +13,7 @@ flow:
   act_norm: false
 
 fab:
-  loss_type: alpha_2_div
+  loss_type: flow_reverse_kl
   transition_operator:
     type: metropolis
     n_inner_steps: 1
@@ -25,11 +25,11 @@ training:
   lr: 1e-3
   batch_size: 128
   n_iterations: null # either n_itertations or n_flow_forward_pass must have a value
-  n_flow_forward_pass: 500_000 # assumes split coupling where log prob & sample are same speed.
+  n_flow_forward_pass: 10_000 # assumes split coupling where log prob & sample are same speed.
   use_gpu: true
   use_64_bit: false
-  use_buffer: true # below config fields are all for use_buffer = True
-  prioritised_buffer: true
+  use_buffer: false # below config fields are all for use_buffer = True
+  prioritised_buffer: false
   n_batches_buffer_sampling: 4
   buffer_temp: 1.0 # rate that we weight new experience over old
   maximum_buffer_length: 12800
