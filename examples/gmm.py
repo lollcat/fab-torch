@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 import hydra
 from omegaconf import DictConfig
 from fab.utils.plotting import plot_contours, plot_marginal_pair
-from examples.setup_run import setup_trainer_and_run, Plotter
+from examples.setup_run import setup_trainer_and_run_flow, Plotter
+from examples.setup_run_snf import setup_trainer_and_run_snf
 from fab.target_distributions.gmm import GMM
 import torch
 
@@ -58,7 +59,10 @@ def _run(cfg: DictConfig):
     if cfg.training.use_64_bit:
         torch.set_default_dtype(torch.float64)
         target = target.double()
-    setup_trainer_and_run(cfg, setup_plotter=setup_gmm_plotter, target=target)
+    if cfg.flow.use_snf is False:
+        setup_trainer_and_run_flow(cfg, setup_gmm_plotter, target)
+    else:
+        setup_trainer_and_run_snf(cfg, setup_gmm_plotter, target)
 
 
 @hydra.main(config_path="./config/", config_name="gmm.yaml")

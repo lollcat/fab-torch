@@ -127,8 +127,7 @@ def setup_buffer(cfg: DictConfig, fab_model: FABModel) -> Union[ReplayBuffer,
                                          initial_sampler=initial_sampler)
     return buffer
 
-
-def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
+def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                           target: TargetDistribution):
     """Create and trainer and run."""
     dim = cfg.target.dim  # applies to flow and target
@@ -144,17 +143,19 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     with open(save_path + "config.txt", "w") as file:
         file.write(str(cfg))
 
+
     flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
                                      layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
                                      act_norm=cfg.flow.act_norm)
-
 
     if cfg.fab.transition_operator.type == "hmc":
         # very lightweight HMC.
         transition_operator = HamiltonanMonteCarlo(
             n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
             n_outer=1,
-            epsilon=1.0, L=cfg.fab.transition_operator.n_inner_steps, dim=dim,
+            epsilon=1.0,
+            L=cfg.fab.transition_operator.n_inner_steps,
+            dim=dim,
             step_tuning_method="p_accept")
     elif cfg.fab.transition_operator.type == "metropolis":
         transition_operator = Metropolis(n_transitions=cfg.fab.n_intermediate_distributions,
@@ -176,7 +177,7 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                          n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
                          transition_operator=transition_operator,
                          loss_type=cfg.fab.loss_type)
-    optimizer = torch.optim.AdamW(flow.parameters(), lr=cfg.training.lr)
+    optimizer = torch.optim.Adam(flow.parameters(), lr=cfg.training.lr)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
     scheduler = None
 
@@ -235,3 +236,4 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         print(trainer.logger.history['eval_ess_flow_p_target'][-10:])
         print(trainer.logger.history['eval_ess_ais_p_target'][-10:])
         print(trainer.logger.history['test_set_mean_log_prob_p_target'][-10:])
+
