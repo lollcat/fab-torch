@@ -190,7 +190,7 @@ for i in range(n_layers):
             prop_scale = config['flow']['snf']['proposal_std'] * np.ones(ndim)
             steps = config['flow']['snf']['steps']
             proposal = nf.distributions.DiagGaussianProposal((ndim,), prop_scale)
-            lam = (i + 1) / (n_layers + 1)
+            lam = (i + 1) / n_layers
             dist = nf.distributions.LinearInterpolation(target, base, lam)
             layers.append(nf.flows.MetropolisHastings(dist, proposal, steps))
 
