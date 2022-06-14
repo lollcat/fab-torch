@@ -25,11 +25,10 @@ class GMM(nn.Module, TargetDistribution):
         self.register_buffer("cat_probs", torch.ones(n_mixes))
         self.register_buffer("locs", mean)
         self.register_buffer("scale_trils", torch.diag_embed(f.softplus(log_var)))
-        self.distribution = self.get_distribution
         self.expectation_function = quadratic_function
-        self.true_expectation = MC_estimate_true_expectation(self,
+        self.register_buffer("true_expectation", MC_estimate_true_expectation(self,
                                                              self.expectation_function,
-                                                             int(1e6)).item()
+                                                             int(1e6)))
         self.device = "cuda" if use_gpu else "cpu"
         self.to(self.device)
 
@@ -37,13 +36,11 @@ class GMM(nn.Module, TargetDistribution):
         if device == "cuda":
             if torch.cuda.is_available():
                 self.cuda()
-                self.distribution = self.get_distribution
         else:
             self.cpu()
-            self.distribution = self.get_distribution
 
     @property
-    def get_distribution(self):
+    def distribution(self):
         mix = torch.distributions.Categorical(self.cat_probs)
         com = torch.distributions.MultivariateNormal(self.locs,
                                                      scale_tril=self.scale_trils,

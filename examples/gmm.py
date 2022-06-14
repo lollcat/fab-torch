@@ -50,12 +50,14 @@ def setup_gmm_plotter(cfg: DictConfig, target: GMM, buffer=None) -> Plotter:
 
 
 def _run(cfg: DictConfig):
-    if cfg.training.use_64_bit:
-        torch.set_default_dtype(torch.float64)
-    torch.manual_seed(cfg.training.seed)
+    torch.manual_seed(0)  # seed of 0 for GMM problem
     target = GMM(dim=cfg.target.dim, n_mixes=cfg.target.n_mixes,
                  loc_scaling=cfg.target.loc_scaling, log_var_scaling=cfg.target.log_var_scaling,
                  use_gpu=cfg.training.use_gpu)
+    torch.manual_seed(cfg.training.seed)
+    if cfg.training.use_64_bit:
+        torch.set_default_dtype(torch.float64)
+        target = target.double()
     setup_trainer_and_run(cfg, setup_plotter=setup_gmm_plotter, target=target)
 
 
