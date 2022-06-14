@@ -30,9 +30,9 @@ flow:                               # Properties of the flow model
   init_identity: True               # Bool, flag whether to initialize layers as identity map
   dropout: 0.                       # Float, dropout probability for the NN layers
   snf:
-    every_n: 4                      # Int, number of layers after which to apply SNF layer
-    proposal_std: 0.03              # Float, standard deviation of the proposal distribution
-    steps: 20                       # Int, number of MCMC steps to take
+    every_n: 2                      # Int, number of layers after which to apply SNF layer
+    proposal_std: 0.1               # Float, standard deviation of the proposal distribution
+    steps: 10                       # Int, number of MCMC steps to take
 
 
 fab:
