@@ -112,13 +112,27 @@ def evaluate_aldp(z_sample, z_test, log_prob, transform,
     test_traj = mdtraj.Trajectory(x_d_np.reshape(-1, 22, 3), topology)
     sampled_traj = mdtraj.Trajectory(x_np.reshape(-1, 22, 3), topology)
     psi_d = mdtraj.compute_psi(test_traj)[1].reshape(-1)
-    psi_d[np.isnan(psi_d)] = 0
     phi_d = mdtraj.compute_phi(test_traj)[1].reshape(-1)
-    phi_d[np.isnan(phi_d)] = 0
+    is_nan = np.logical_or(np.isnan(psi_d), np.isnan(phi_d))
+    not_nan = np.logical_not(is_nan)
+    psi_d = psi_d[not_nan]
+    phi_d = phi_d[not_nan]
     psi = mdtraj.compute_psi(sampled_traj)[1].reshape(-1)
-    psi[np.isnan(psi)] = 0
     phi = mdtraj.compute_phi(sampled_traj)[1].reshape(-1)
-    phi[np.isnan(phi)] = 0
+    is_nan = np.logical_or(np.isnan(psi), np.isnan(phi))
+    not_nan = np.logical_not(is_nan)
+    psi = psi[not_nan]
+    phi = phi[not_nan]
+
+    # Compute KLD of phi and psi
+    htest_phi, _ = np.histogram(phi_d, nbins, range=[-np.pi, np.pi], density=True);
+    hgen_phi, _ = np.histogram(phi, nbins, range=[-np.pi, np.pi], density=True);
+    kld_phi = np.sum(htest_phi * np.log((htest_phi + eps) / (hgen_phi + eps))) \
+              * 2 * np.pi / nbins
+    htest_psi, _ = np.histogram(psi_d, nbins, range=[-np.pi, np.pi], density=True);
+    hgen_psi, _ = np.histogram(psi, nbins, range=[-np.pi, np.pi], density=True);
+    kld_psi = np.sum(htest_psi * np.log((htest_psi + eps) / (hgen_psi + eps))) \
+              * 2 * np.pi / nbins
 
     # Compute KLD of Ramachandran plot angles
     nbins_ram = 64
@@ -129,9 +143,9 @@ def evaluate_aldp(z_sample, z_test, log_prob, transform,
     hist_ram_gen = np.histogram2d(phi, psi, nbins_ram,
                                   range=[[-np.pi, np.pi], [-np.pi, np.pi]],
                                   density=True)[0]
-    kld_ram = np.sum(hist_ram_test * np.log(hist_ram_test + eps_ram)
-                     / np.log(hist_ram_gen + eps_ram)) \
-              * (np.pi / nbins_ram) ** 2
+    kld_ram = np.sum(hist_ram_test * np.log((hist_ram_test + eps_ram)
+                                            / (hist_ram_gen + eps_ram))) \
+              * (2 * np.pi / nbins_ram) ** 2
 
     # Save metrics
     if metric_dir is not None:
@@ -172,7 +186,7 @@ def evaluate_aldp(z_sample, z_test, log_prob, transform,
 
         # Save KLD of Ramachandran and log_p
         kld_path = os.path.join(metric_dir, 'kld_ram.csv')
-        kld_append = np.array([[iter + 1, kld_ram]])
+        kld_append = np.array([[iter + 1, kld_phi, kld_psi, kld_ram]])
         if os.path.exists(kld_path):
             kld_hist = np.loadtxt(kld_path, skiprows=1, delimiter=',')
             if len(kld_hist.shape) == 1:
@@ -181,7 +195,7 @@ def evaluate_aldp(z_sample, z_test, log_prob, transform,
         else:
             kld_hist = kld_append
         np.savetxt(kld_path, kld_hist, delimiter=',',
-                   header='it,kld', comments='')
+                   header='it,kld_phi,kld_psi,kld_ram', comments='')
 
         # Save log probability
         log_p_append = np.array([[iter + 1, log_p_avg]])
@@ -263,9 +277,25 @@ def evaluate_aldp(z_sample, z_test, log_prob, transform,
                         dpi=300)
             plt.close()
 
+        # Plot phi and psi
+        fig, ax = plt.subplots(1, 2, figsize=(20, 10))
+        x = np.linspace(-np.pi, np.pi, nbins)
+        ax[0].plot(x, htest_phi, linewidth=3)
+        ax[0].plot(x, hgen_phi, linewidth=3)
+        ax[0].tick_params(axis='both', labelsize=20)
+        ax[0].set_xlabel('$\phi$', fontsize=24)
+        ax[1].plot(x, htest_psi, linewidth=3)
+        ax[1].plot(x, hgen_psi, linewidth=3)
+        ax[1].tick_params(axis='both', labelsize=20)
+        ax[1].set_xlabel('$\psi$', fontsize=24)
+        plt.savefig(os.path.join(plot_dir, 'phi_psi_%07i.png' % (iter + 1)),
+                    dpi=300)
+        plt.close()
+
         # Ramachandran plot
         plt.figure(figsize=(10, 10))
-        plt.hist2d(phi, psi, bins=64, norm=mpl.colors.LogNorm())
+        plt.hist2d(phi, psi, bins=64, norm=mpl.colors.LogNorm(),
+                   range=[[-np.pi, np.pi], [-np.pi, np.pi]])
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
         plt.xlabel('$\phi$', fontsize=24)

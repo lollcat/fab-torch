@@ -12,7 +12,7 @@ from fab.utils.training import load_config
 from fab.target_distributions.aldp import AldpBoltzmann
 from fab import FABModel
 from fab.wrappers.normflow import WrappedNormFlowModel
-from fab.sampling_methods.transition_operators import HamiltoneanMonteCarlo, Metropolis
+from fab.sampling_methods.transition_operators import HamiltonanMonteCarlo, Metropolis
 from fab.utils.aldp import evaluate_aldp
 from fab.utils.aldp import filter_chirality
 from fab.utils.numerical import effective_sample_size
@@ -72,20 +72,23 @@ transform_mode = 'mixed' if not 'transform' in config['system'] \
     else config['system']['transform']
 shift_dih = False if not 'shift_dih' in config['system'] \
     else config['system']['shift_dih']
+env = 'vacuum' if not 'env' in config['system'] \
+    else config['system']['env']
+ind_circ_dih = [0, 1, 2, 3, 4, 5, 8, 9, 10, 13, 15, 16]
 target = AldpBoltzmann(data_path=config['data']['transform'],
                        temperature=config['system']['temperature'],
                        energy_cut=config['system']['energy_cut'],
                        energy_max=config['system']['energy_max'],
                        n_threads=config['system']['n_threads'],
                        transform=transform_mode,
-                       shift_dih=shift_dih)
+                       ind_circ_dih=ind_circ_dih,
+                       shift_dih=shift_dih,
+                       env=env)
 target = target.to(device)
 
-# Flow
+# Flow parameters
 flow_type = config['flow']['type']
 ndim = 60
-# Flow layers
-layers = []
 
 ncarts = target.coordinate_transform.transform.len_cart_inds
 permute_inv = target.coordinate_transform.transform.permute_inv.cpu().numpy()
@@ -97,14 +100,33 @@ ind = np.concatenate([ind[:3 * ncarts - 6], -np.ones(6, dtype=np.int), ind[3 * n
 ind = ind[permute_inv]
 dih_ind = ind[dih_ind_]
 
-ind_circ_ = std_dih > 0.5
-ind_circ = dih_ind[ind_circ_]
-bound_circ = np.pi / std_dih[ind_circ_]
+ind_circ = dih_ind[ind_circ_dih]
+bound_circ = np.pi / std_dih[ind_circ_dih]
 
 tail_bound = 5. * torch.ones(ndim)
 tail_bound[ind_circ] = bound_circ
 
-for i in range(config['flow']['blocks']):
+circ_shift = None if not 'circ_shift' in config['flow'] \
+    else config['flow']['circ_shift']
+
+# Base distribution
+if config['flow']['base']['type'] == 'gauss':
+    base = nf.distributions.DiagGaussian(ndim,
+                                         trainable=config['flow']['base']['learn_mean_var'])
+elif config['flow']['base']['type'] == 'gauss-uni':
+    base_scale = torch.ones(ndim)
+    base_scale[ind_circ] = bound_circ * 2
+    base = nf.distributions.UniformGaussian(ndim, ind_circ, scale=base_scale)
+    base.shape = (ndim,)
+else:
+    raise NotImplementedError('The base distribution ' + config['flow']['base']['type']
+                              + ' is not implemented')
+
+# Flow layers
+layers = []
+n_layers = config['flow']['blocks']
+
+for i in range(n_layers):
     if flow_type == 'rnvp':
         # Coupling layer
         hl = config['flow']['hidden_layers'] * [config['flow']['hidden_units']]
@@ -152,21 +174,30 @@ for i in range(config['flow']['blocks']):
     if config['flow']['actnorm']:
         layers.append(nf.flows.ActNorm(ndim))
 
-# Map input to periodic interval
-layers.append(nf.flows.Periodic(ind_circ, bound_circ))
+    if i % 2 == 1 and i != n_layers - 1:
+        if circ_shift == 'constant':
+            layers.append(nf.flows.PeriodicShift(ind_circ, bound=bound_circ,
+                                                 shift=bound_circ))
+        elif circ_shift == 'random':
+            gen = torch.Generator().manual_seed(seed + i)
+            shift_scale = torch.rand([], generator=gen) + 0.5
+            layers.append(nf.flows.PeriodicShift(ind_circ, bound=bound_circ,
+                                                 shift=shift_scale * bound_circ))
 
-# Base distribution
-if config['flow']['base']['type'] == 'gauss':
-    base = nf.distributions.DiagGaussian(ndim,
-                                         trainable=config['flow']['base']['learn_mean_var'])
-elif config['flow']['base']['type'] == 'gauss-uni':
-    base_scale = torch.ones(ndim)
-    base_scale[ind_circ] = bound_circ * 2
-    base = nf.distributions.UniformGaussian(ndim, ind_circ, scale=base_scale)
-    base.shape = (ndim,)
-else:
-    raise NotImplementedError('The base distribution ' + config['flow']['base']['type']
-                              + ' is not implemented')
+    # SNF
+    if 'snf' in config['flow']:
+        if (i + 1) % config['flow']['snf']['every_n'] == 0:
+            prop_scale = config['flow']['snf']['proposal_std'] * np.ones(ndim)
+            steps = config['flow']['snf']['steps']
+            proposal = nf.distributions.DiagGaussianProposal((ndim,), prop_scale)
+            lam = (i + 1) / n_layers
+            dist = nf.distributions.LinearInterpolation(target, base, lam)
+            layers.append(nf.flows.MetropolisHastings(dist, proposal, steps))
+
+# Map input to periodic interval
+layers.append(nf.flows.PeriodicWrap(ind_circ, bound_circ))
+
+# NormFlow model
 flow = nf.NormalizingFlow(base, layers)
 wrapped_flow = WrappedNormFlowModel(flow).to(device)
 
@@ -174,7 +205,7 @@ wrapped_flow = WrappedNormFlowModel(flow).to(device)
 transition_type = config['fab']['transition_type']
 if transition_type == 'hmc':
     # very lightweight HMC.
-    transition_operator = HamiltoneanMonteCarlo(
+    transition_operator = HamiltonanMonteCarlo(
         n_ais_intermediate_distributions=config['fab']['n_int_dist'],
         dim=ndim, L=config['fab']['n_inner'],
         epsilon=config['fab']['epsilon'] / 2,
@@ -342,13 +373,50 @@ if 'replay_buffer' in config['training']:
         buffer = PrioritisedReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
                                          min_sample_length=rb_config['min_length'] * batch_size,
                                          initial_sampler=initial_sampler, device=str(device))
-        buffer_sample = None
         # Set target distribution
         def ais_target_log_prob(x):
             return 2 * model.target_distribution.log_prob(x) - model.flow.log_prob(x)
         model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 else:
     use_rb = False
+    if filter_chirality_train:
+        if loss_type == 'alpha_2_div':
+            def modified_loss(bs):
+                if isinstance(model.annealed_importance_sampler.transition_operator, HamiltonanMonteCarlo):
+                    x_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
+                else:
+                    with torch.no_grad():
+                        x_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
+                x_ais = x_ais.detach()
+                log_w_ais = log_w_ais.detach()
+                ind_L = filter_chirality(x_ais)
+                if torch.mean(1. * ind_L) > 0.1:
+                    x_ais = x_ais[ind_L, :]
+                    log_w_ais = log_w_ais[ind_L]
+                loss = model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+                return loss
+            model.loss = modified_loss
+        elif loss_type == 'flow_reverse_kl':
+            def modified_loss(bs):
+                x, log_q = model.flow.sample_and_log_prob((bs,))
+                ind_L = filter_chirality(x)
+                if torch.mean(1. * ind_L) > 0.1:
+                    x = x[ind_L, :]
+                    log_q = log_q[ind_L]
+                log_p = model.target_distribution.log_prob(x)
+                return torch.mean(log_q) - torch.mean(log_p)
+            model.loss = modified_loss
+        elif loss_type == 'flow_alpha_2_div_nis':
+            def modified_loss(bs):
+                x, log_q_x = model.flow.sample_and_log_prob((bs,))
+                ind_L = filter_chirality(x)
+                if torch.mean(1. * ind_L) > 0.1:
+                    x = x[ind_L, :]
+                    log_q_x = log_q_x[ind_L]
+                log_p_x = model.target_distribution.log_prob(x)
+                loss = - torch.mean(torch.exp(2 * (log_p_x - log_q_x)).detach() * log_q_x)
+                return loss
+            model.loss = modified_loss
 
 # Start training
 start_time = time()
@@ -372,13 +440,13 @@ for it in range(start_iter, max_iter):
                 # Sample
                 if transition_type == 'hmc':
                     x_ais, log_w_ais = model.annealed_importance_sampler.\
-                        sample_and_log_weights(batch_size)
+                        sample_and_log_weights(batch_size, logging=False)
                     x_ais = x_ais.detach()
                     log_w_ais = log_w_ais.detach()
                 else:
                     with torch.no_grad():
                         x_ais, log_w_ais = model.annealed_importance_sampler.\
-                            sample_and_log_weights(batch_size)
+                            sample_and_log_weights(batch_size, logging=False)
                 # Filter chirality
                 if filter_chirality_train:
                     ind_L = filter_chirality(x_ais)
@@ -403,21 +471,16 @@ for it in range(start_iter, max_iter):
                 loss = model.fab_alpha_div_loss_inner(x, log_w)
         elif rb_config['type'] == 'prioritised':
             if it % rb_config['n_updates'] == 0:
-                if buffer_sample is not None:
-                    with torch.no_grad():
-                        for (x, log_w, log_q_old, indices) in buffer_sample:
-                            log_q_new = model.flow.log_prob(x)
-                            buffer.adjust(log_q_old - log_q_new, log_q_new, indices)
                 # Sample
                 if transition_type == 'hmc':
                     x_ais, log_w_ais = model.annealed_importance_sampler.\
-                        sample_and_log_weights(batch_size)
+                        sample_and_log_weights(batch_size, logging=False)
                     x_ais = x_ais.detach()
                     log_w_ais = log_w_ais.detach()
                 else:
                     with torch.no_grad():
                         x_ais, log_w_ais = model.annealed_importance_sampler.\
-                            sample_and_log_weights(batch_size)
+                            sample_and_log_weights(batch_size, logging=False)
                 # Filter chirality
                 if filter_chirality_train:
                     ind_L = filter_chirality(x_ais)
@@ -437,11 +500,13 @@ for it in range(start_iter, max_iter):
             x, log_w, log_q_old, indices = x.to(device), log_w.to(device), \
                                            log_q_old.to(device), indices.to(device)
             log_q_x = model.flow.log_prob(x)
-            # adjustment to account for change to theta since sample was last added/adjusted
-            w_adjust = torch.exp(log_q_old - log_q_x).detach()
-            w_adjust = torch.clip(w_adjust, max=rb_config['max_adjust_w_clip'])
-            # manually calculate the new form of the loss
+            # Adjustment to account for change to theta since sample was last added/adjusted
+            log_w_adjust = log_q_old - log_q_x.detach()
+            w_adjust = torch.clip(torch.exp(log_w_adjust), max=rb_config['max_adjust_w_clip'])
+            # Manually calculate the new form of the loss
             loss = - torch.mean(w_adjust * log_q_x)
+            # Adjust buffer samples
+            buffer.adjust(log_w_adjust, log_q_x.detach(), indices)
 
     else:
         loss = model.loss(batch_size)
@@ -477,7 +542,7 @@ for it in range(start_iter, max_iter):
         warmup_scheduler.step()
 
     # Save loss
-    if (it + 1) % log_iter == 0:
+    if (it + 1) % log_iter == 0 or it == max_iter - 1:
         # Loss
         np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist,
                    delimiter=',', header='it,loss', comments='')
@@ -489,6 +554,8 @@ for it in range(start_iter, max_iter):
 
         # Disable step size tuning while evaluating model
         model.transition_operator.set_eval_mode(True)
+        if use_rb and rb_config['type'] == 'prioritised':
+            model.annealed_importance_sampler.target_log_prob = model.target_distribution.log_prob
 
         # Effective sample size
         if config['fab']['transition_type'] == 'hmc':
@@ -503,6 +570,8 @@ for it in range(start_iter, max_iter):
         # Re-enable step size tuning
         if config['fab']['adjust_step_size']:
             model.transition_operator.set_eval_mode(False)
+        if use_rb and rb_config['type'] == 'prioritised':
+            model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 
         ess_append = np.array([[it + 1, effective_sample_size(base_log_w, normalised=False),
                                 effective_sample_size(ais_log_w, normalised=False)]])
@@ -512,7 +581,7 @@ for it in range(start_iter, max_iter):
         if use_gpu:
             torch.cuda.empty_cache()
 
-    if (it + 1) % checkpoint_iter == 0:
+    if (it + 1) % checkpoint_iter == 0 or it == max_iter - 1:
         # Save checkpoint
         model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(),
@@ -532,11 +601,8 @@ for it in range(start_iter, max_iter):
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
         while z_samples.shape[0] < eval_samples_flow:
-            if config['fab']['transition_type'] == 'hmc':
+            with torch.no_grad():
                 z_ = model.flow.sample((batch_size,))
-            else:
-                with torch.no_grad():
-                    z_ = model.flow.sample((batch_size,))
             if filter_chirality_eval:
                 ind_L = filter_chirality(z_)
                 if torch.mean(1. * ind_L) > 0.1:

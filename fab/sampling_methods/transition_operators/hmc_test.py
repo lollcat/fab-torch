@@ -1,7 +1,7 @@
 import torch
 
 torch.autograd.set_detect_anomaly(True)
-from fab.sampling_methods.transition_operators.hmc import HamiltoneanMonteCarlo, \
+from fab.sampling_methods.transition_operators.hmc import HamiltonanMonteCarlo, \
     HMC_STEP_TUNING_METHODS
 from fab.sampling_methods.transition_operators.testing_utils import test_transition_operator
 
@@ -14,11 +14,11 @@ def test_hmc_(
         n_iterations: int = 50,
         batch_size: int = 128):
     mass_init = torch.ones(dim)
-    hmc = HamiltoneanMonteCarlo(n_ais_intermediate_distributions=n_ais_intermediate_distributions,
-                                n_outer=10,
-                                epsilon=1.0, L=5, dim=dim,
-                                step_tuning_method=step_tuning_method,
-                                mass_init=mass_init, lr=1e-3)
+    hmc = HamiltonanMonteCarlo(n_ais_intermediate_distributions=n_ais_intermediate_distributions,
+                               n_outer=10,
+                               epsilon=1.0, L=5, dim=dim,
+                               step_tuning_method=step_tuning_method,
+                               mass_init=mass_init, lr=1e-3)
     test_transition_operator(transition_operator=hmc,
                              n_ais_intermediate_distributions=n_ais_intermediate_distributions,
                              dim=dim, n_iterations=n_iterations, n_samples=batch_size,

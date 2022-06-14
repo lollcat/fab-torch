@@ -78,7 +78,7 @@ def test_aldp():
     # Tests
     assert logp.shape == (50,)
     assert np.all(logp_np < -200)
-    assert np.all(logp_np > -300)
+    assert np.all(logp_np > -400)
 
     # Print sample values
     print("Log prob transformed Boltzmann distribution")
