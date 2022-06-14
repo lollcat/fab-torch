@@ -365,14 +365,21 @@ if 'replay_buffer' in config['training']:
                               min_sample_length=rb_config['min_length'] * batch_size,
                               initial_sampler=initial_sampler, device=str(device))
     elif rb_config['type'] == 'prioritised':
-        def initial_sampler():
-            x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
-                batch_size, logging=False)
-            log_q_x = model.flow.log_prob(x)
-            return x, log_w, log_q_x
+        buffer_path = os.path.join(cp_dir, 'buffer.pt')
+        if os.path.exists(buffer_path):
+            initial_sampler = lambda: (torch.zeros(batch_size, ndim),
+                                       torch.zeros(batch_size), torch.ones(batch_size))
+        else:
+            def initial_sampler():
+                x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
+                    batch_size, logging=False)
+                log_q_x = model.flow.log_prob(x)
+                return x, log_w, log_q_x
         buffer = PrioritisedReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
                                          min_sample_length=rb_config['min_length'] * batch_size,
                                          initial_sampler=initial_sampler, device=str(device))
+        if os.path.exists(buffer_path):
+            buffer.load(buffer_path)
         # Set target distribution
         def ais_target_log_prob(x):
             return 2 * model.target_distribution.log_prob(x) - model.flow.log_prob(x)
@@ -596,6 +603,7 @@ for it in range(start_iter, max_iter):
         # Disable step size tuning while evaluating model
         model.transition_operator.set_eval_mode(True)
         if use_rb and rb_config['type'] == 'prioritised':
+            buffer.save(os.path.join(cp_dir, 'buffer.pt'))
             model.annealed_importance_sampler.target_log_prob = model.target_distribution.log_prob
 
         # Draw samples
