@@ -52,7 +52,7 @@ def setup_model(cfg: DictConfig, model_path):
     fab_model.load(model_path, "cpu")
     return fab_model
 
-def get_target_log_prob_marginal_pair(fab_model: FABModel, i, j):
+def get_target_log_prob_marginal_pair(log_prob_2d, i, j):
     def log_prob(x):
         if i % 2 == 0:
             first_dim_x = torch.zeros_like(x)
@@ -66,7 +66,7 @@ def get_target_log_prob_marginal_pair(fab_model: FABModel, i, j):
         else:
             second_dim_x = torch.zeros_like(x)
             second_dim_x[:, 1] = x[:, 1]
-        return fab_model.target_distribution.log_prob_2D(first_dim_x) + fab_model.target_distribution.log_prob_2D(second_dim_x)
+        return log_prob_2d(first_dim_x) + log_prob_2d(second_dim_x)
     return log_prob
 
 
@@ -79,7 +79,7 @@ def plot_marginal_pairs(fab_model, dim, n_samples=500, plotting_bounds=(-3,3)):
     for i in range(n_rows):
         for j in range(n_rows):
             if i != j:
-                log_prob_target = get_target_log_prob_marginal_pair(fab_model, i, j)
+                log_prob_target = get_target_log_prob_marginal_pair(fab_model.target_distribution.log_prob_2D, i, j)
                 plot_contours(log_prob_target, bounds=plotting_bounds, ax=axs[i, j])
                 plot_marginal_pair(samples_flow, ax=axs[i, j], marginal_dims=(i, j), bounds=plotting_bounds, alpha=0.2)
 

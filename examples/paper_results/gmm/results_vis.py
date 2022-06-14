@@ -17,7 +17,8 @@ def plot_result(cfg: DictConfig, ax: plt.axes, model_name: Optional[str] = None)
 
     dim = cfg.target.dim
     flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
-                                     layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim)
+                                     layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                     act_norm=cfg.flow.act_norm)
 
     if model_name:
         path_to_model = f"{PATH}/models/{model_name}_model.pt"
