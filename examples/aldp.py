@@ -86,11 +86,9 @@ target = AldpBoltzmann(data_path=config['data']['transform'],
                        env=env)
 target = target.to(device)
 
-# Flow
+# Flow parameters
 flow_type = config['flow']['type']
 ndim = 60
-# Flow layers
-layers = []
 
 ncarts = target.coordinate_transform.transform.len_cart_inds
 permute_inv = target.coordinate_transform.transform.permute_inv.cpu().numpy()
@@ -111,7 +109,24 @@ tail_bound[ind_circ] = bound_circ
 circ_shift = None if not 'circ_shift' in config['flow'] \
     else config['flow']['circ_shift']
 
-for i in range(config['flow']['blocks']):
+# Base distribution
+if config['flow']['base']['type'] == 'gauss':
+    base = nf.distributions.DiagGaussian(ndim,
+                                         trainable=config['flow']['base']['learn_mean_var'])
+elif config['flow']['base']['type'] == 'gauss-uni':
+    base_scale = torch.ones(ndim)
+    base_scale[ind_circ] = bound_circ * 2
+    base = nf.distributions.UniformGaussian(ndim, ind_circ, scale=base_scale)
+    base.shape = (ndim,)
+else:
+    raise NotImplementedError('The base distribution ' + config['flow']['base']['type']
+                              + ' is not implemented')
+
+# Flow layers
+layers = []
+n_layers = config['flow']['blocks']
+
+for i in range(n_layers):
     if flow_type == 'rnvp':
         # Coupling layer
         hl = config['flow']['hidden_layers'] * [config['flow']['hidden_units']]
@@ -159,7 +174,7 @@ for i in range(config['flow']['blocks']):
     if config['flow']['actnorm']:
         layers.append(nf.flows.ActNorm(ndim))
 
-    if i % 2 == 1 and i != config['flow']['blocks'] - 1:
+    if i % 2 == 1 and i != n_layers - 1:
         if circ_shift == 'constant':
             layers.append(nf.flows.PeriodicShift(ind_circ, bound=bound_circ,
                                                  shift=bound_circ))
@@ -169,21 +184,20 @@ for i in range(config['flow']['blocks']):
             layers.append(nf.flows.PeriodicShift(ind_circ, bound=bound_circ,
                                                  shift=shift_scale * bound_circ))
 
+    # SNF
+    if 'snf' in config['flow']:
+        if (i + 1) % config['flow']['snf']['every_n'] == 0:
+            prop_scale = config['flow']['snf']['proposal_std'] * np.ones(ndim)
+            steps = config['flow']['snf']['steps']
+            proposal = nf.distributions.DiagGaussianProposal((ndim,), prop_scale)
+            lam = (i + 1) / n_layers
+            dist = nf.distributions.LinearInterpolation(target, base, lam)
+            layers.append(nf.flows.MetropolisHastings(dist, proposal, steps))
+
 # Map input to periodic interval
 layers.append(nf.flows.PeriodicWrap(ind_circ, bound_circ))
 
-# Base distribution
-if config['flow']['base']['type'] == 'gauss':
-    base = nf.distributions.DiagGaussian(ndim,
-                                         trainable=config['flow']['base']['learn_mean_var'])
-elif config['flow']['base']['type'] == 'gauss-uni':
-    base_scale = torch.ones(ndim)
-    base_scale[ind_circ] = bound_circ * 2
-    base = nf.distributions.UniformGaussian(ndim, ind_circ, scale=base_scale)
-    base.shape = (ndim,)
-else:
-    raise NotImplementedError('The base distribution ' + config['flow']['base']['type']
-                              + ' is not implemented')
+# NormFlow model
 flow = nf.NormalizingFlow(base, layers)
 wrapped_flow = WrappedNormFlowModel(flow).to(device)
 
