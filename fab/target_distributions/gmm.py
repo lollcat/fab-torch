@@ -72,6 +72,7 @@ class GMM(nn.Module, TargetDistribution):
                             batch_size: Optional[int] = None) -> Dict:
         expectation = importance_weighted_expectation(self.expectation_function,
                                                          samples, log_w)
+        print(expectation.device, self.true_expectation.device)
         bias_normed = np.abs(expectation - self.true_expectation) / self.true_expectation
         if log_q_fn:
             test_mean_log_prob = torch.mean(log_q_fn(self.test_set))
