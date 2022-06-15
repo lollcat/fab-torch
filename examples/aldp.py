@@ -611,7 +611,11 @@ for it in range(start_iter, max_iter):
         z_samples = z_samples[:eval_samples_flow, :]
 
         # Evaluate model and save plots
-        evaluate_aldp(z_samples, test_data, model.flow.log_prob,
+        if 'snf' in config['flow']:
+            log_prob_fn = lambda a: a.new_zeros(a.shape[0])
+        else:
+            log_prob_fn = model.flow.log_prob
+        evaluate_aldp(z_samples, test_data, log_prob_fn,
                       target.coordinate_transform, it, metric_dir=log_dir_flow,
                       plot_dir=plot_dir_flow)
 
@@ -635,7 +639,7 @@ for it in range(start_iter, max_iter):
         # Evaluate model and save plots
         if eval_samples > 0:
             z_samples = z_samples[:eval_samples, :]
-            evaluate_aldp(z_samples, test_data, model.flow.log_prob,
+            evaluate_aldp(z_samples, test_data, log_prob_fn,
                           target.coordinate_transform, it, metric_dir=log_dir_ais,
                           plot_dir=plot_dir_ais)
 
