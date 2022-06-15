@@ -75,10 +75,10 @@ class GMM(nn.Module, TargetDistribution):
         bias_normed = np.abs(expectation - self.true_expectation) / self.true_expectation
         if log_q_fn:
             test_mean_log_prob = torch.mean(log_q_fn(self.test_set))
-            summary_dict = {"test_set_mean_log_prob": test_mean_log_prob.item(),
-                            "bias_normed": bias_normed.item()}
+            summary_dict = {"test_set_mean_log_prob": test_mean_log_prob.cpu().item(),
+                            "bias_normed": bias_normed.cpu().item()}
         else:
-            summary_dict = {"bias_normed": bias_normed.item()}
+            summary_dict = {"bias_normed": bias_normed.cpu().item()}
         return summary_dict
 
 
