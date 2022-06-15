@@ -639,12 +639,13 @@ for it in range(start_iter, max_iter):
                 if torch.mean(1. * ind_L) > 0.1:
                     z_ = z_[ind_L, :]
             z_samples = torch.cat((z_samples, z_.detach()))
-        z_samples = z_samples[:eval_samples, :]
 
         # Evaluate model and save plots
-        evaluate_aldp(z_samples, test_data, model.flow.log_prob,
-                      target.coordinate_transform, it, metric_dir=log_dir_ais,
-                      plot_dir=plot_dir_ais)
+        if eval_samples > 0:
+            z_samples = z_samples[:eval_samples, :]
+            evaluate_aldp(z_samples, test_data, model.flow.log_prob,
+                          target.coordinate_transform, it, metric_dir=log_dir_ais,
+                          plot_dir=plot_dir_ais)
 
         # Re-enable step size tuning
         if config['fab']['adjust_step_size']:
