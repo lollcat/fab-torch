@@ -152,7 +152,7 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
             sum_log_prob = 0.0
             test_set_iterator = self.get_modes_test_set_iterator(batch_size=batch_size)
             for x in test_set_iterator:
-                sum_log_prob += torch.sum(log_q_fn(x))
+                sum_log_prob += torch.sum(log_q_fn(x)).cpu().item()
             with torch.no_grad():
                 test_set_from_ais = self.get_ais_based_test_set_samples(batch_size)
                 test_set_ais_samples_mean_log_prob = \

@@ -16,6 +16,43 @@ from examples.make_flow import make_normflow_snf_model
 from examples.setup_run import SetupPlotterFn, setup_logger, get_n_iterations
 
 
+class SNFModel(Model):
+    def __init__(self, snf, dim):
+        self.snf = snf
+        self.loss = self.snf.reverse_kld
+        # hack so that plotting with self.flow.sample works
+        self.flow = type('', (), {})()
+        self.flow.sample = lambda shape: snf.sample(shape[0])[0]
+        self.annealed_importance_sampler = type('', (), {})()
+        self.annealed_importance_sampler.sample_and_log_weights = \
+            lambda batch_size, *args, **kwargs: (
+            torch.zeros(batch_size, dim), torch.zeros(batch_size))
+
+    def get_iter_info(self):
+        return {}
+
+    def get_eval_info(self, outer_batch_size: int, inner_batch_size: int):
+        return {}
+
+    def parameters(self):
+        return self.snf.parameters()
+
+    def save(self,
+             path: "str"
+             ):
+        """Save FAB model to file."""
+        torch.save({'flow': self.snf.state_dict()},
+                   path)
+
+    def load(self, file_path, map_location) -> None:
+        checkpoint = torch.load(file_path, map_location=map_location)
+        try:
+            self.snf.load_state_dict(checkpoint['flow'])
+        except RuntimeError:
+            print('Flow could not be loaded. '
+                  'Perhaps there is a mismatch in the architectures.')
+
+
 def setup_trainer_and_run_snf(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                                target: TargetDistribution):
     """Create and trainer and run."""
@@ -41,35 +78,8 @@ def setup_trainer_and_run_snf(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         snf.cuda()
         print("utilising GPU")
 
-    class SNFModel(Model):
-        def __init__(self, snf):
-            self.snf = snf
-            self.loss = self.snf.reverse_kld
-            # hack so that plotting with self.flow.sample works
-            self.flow = type('', (), {})()
-            self.flow.sample = lambda shape: snf.sample(shape[0])[0]
-            self.annealed_importance_sampler = type('', (), {})()
-            self.annealed_importance_sampler.sample_and_log_weights = \
-                lambda batch_size, *args, **kwargs: (torch.zeros(batch_size, dim), torch.zeros(batch_size))
 
-        def get_iter_info(self):
-            return {}
-
-        def get_eval_info(self, outer_batch_size: int, inner_batch_size: int):
-            return {}
-
-        def parameters(self):
-            return self.snf.parameters()
-
-        def save(self,
-                 path: "str"
-                 ):
-            """Save FAB model to file."""
-            torch.save({'flow': self.snf.state_dict()},
-                       path)
-
-
-    model = SNFModel(snf)
+    model = SNFModel(snf, dim)
 
     optimizer = torch.optim.Adam(snf.parameters(), lr=cfg.training.lr)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)

@@ -6,10 +6,12 @@ target:
   log_var_scaling: 1.0
 
 flow:
-  layer_nodes_per_dim: 10
+  layer_nodes_per_dim: 60
   n_layers: 10
   act_norm: false
+  use_snf: false
 
 training:
   seed: 0
+  use_64_bit: true
 
