@@ -15,7 +15,7 @@ from fab.utils.plotting import plot_history
 import matplotlib.pyplot as plt
 import torch
 
-from fab import FABModel, HamiltonanMonteCarlo, Metropolis
+from fab import FABModel, HamiltonianMonteCarlo, Metropolis
 from examples.make_flow import make_wrapped_normflowdist
 
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
@@ -151,7 +151,7 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
 
     if cfg.fab.transition_operator.type == "hmc":
         # very lightweight HMC.
-        transition_operator = HamiltonanMonteCarlo(
+        transition_operator = HamiltonianMonteCarlo(
             n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
             n_outer=1,
             epsilon=1.0, L=cfg.fab.transition_operator.n_inner_steps, dim=dim,

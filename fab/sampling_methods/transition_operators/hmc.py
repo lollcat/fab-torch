@@ -8,7 +8,7 @@ from fab.types_ import LogProbFunc
 
 HMC_STEP_TUNING_METHODS = ["p_accept", "Expected_target_prob", "No-U"]
 
-class HamiltonanMonteCarlo(TransitionOperator):
+class HamiltonianMonteCarlo(TransitionOperator):
     def __init__(self, n_ais_intermediate_distributions: int,
                  dim: int,
                  epsilon: float = 1.0,
@@ -33,7 +33,7 @@ class HamiltonanMonteCarlo(TransitionOperator):
             - Expected_target_prob: Maximise the expected target prob by gradient descent, from
                 http://proceedings.mlr.press/v139/campbell21a/campbell21a.pdf
         """
-        super(HamiltonanMonteCarlo, self).__init__()
+        super(HamiltonianMonteCarlo, self).__init__()
         assert step_tuning_method in HMC_STEP_TUNING_METHODS
         if isinstance(mass_init, torch.Tensor):
             assert mass_init.shape == (dim, )  # check mass_init dim is correct if a vector

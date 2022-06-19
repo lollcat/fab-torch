@@ -12,7 +12,7 @@ from fab.utils.training import load_config
 from fab.target_distributions.aldp import AldpBoltzmann
 from fab import FABModel
 from fab.wrappers.normflow import WrappedNormFlowModel
-from fab.sampling_methods.transition_operators import HamiltonanMonteCarlo, Metropolis
+from fab.sampling_methods.transition_operators import HamiltonianMonteCarlo, Metropolis
 from fab.utils.aldp import evaluate_aldp
 from fab.utils.aldp import filter_chirality
 from fab.utils.numerical import effective_sample_size
@@ -205,7 +205,7 @@ wrapped_flow = WrappedNormFlowModel(flow).to(device)
 transition_type = config['fab']['transition_type']
 if transition_type == 'hmc':
     # very lightweight HMC.
-    transition_operator = HamiltonanMonteCarlo(
+    transition_operator = HamiltonianMonteCarlo(
         n_ais_intermediate_distributions=config['fab']['n_int_dist'],
         dim=ndim, L=config['fab']['n_inner'],
         epsilon=config['fab']['epsilon'] / 2,
@@ -382,7 +382,7 @@ else:
     if filter_chirality_train:
         if loss_type == 'alpha_2_div':
             def modified_loss(bs):
-                if isinstance(model.annealed_importance_sampler.transition_operator, HamiltonanMonteCarlo):
+                if isinstance(model.annealed_importance_sampler.transition_operator, HamiltonianMonteCarlo):
                     x_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
                 else:
                     with torch.no_grad():

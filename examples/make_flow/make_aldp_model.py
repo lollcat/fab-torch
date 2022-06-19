@@ -4,7 +4,7 @@ import numpy as np
 import normflow as nf
 
 from fab.target_distributions.aldp import AldpBoltzmann
-from fab.sampling_methods.transition_operators import HamiltonanMonteCarlo, Metropolis
+from fab.sampling_methods.transition_operators import HamiltonianMonteCarlo, Metropolis
 from fab.wrappers.normflow import WrappedNormFlowModel
 from fab import FABModel
 
@@ -158,7 +158,7 @@ def make_aldp_model(config, device):
     transition_type = config['fab']['transition_type']
     if transition_type == 'hmc':
         # very lightweight HMC.
-        transition_operator = HamiltonanMonteCarlo(
+        transition_operator = HamiltonianMonteCarlo(
             n_ais_intermediate_distributions=config['fab']['n_int_dist'],
             dim=ndim, L=config['fab']['n_inner'],
             epsilon=config['fab']['epsilon'] / 2,
