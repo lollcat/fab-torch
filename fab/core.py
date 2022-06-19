@@ -3,7 +3,7 @@ import torch
 
 from fab.types_ import Model
 from fab.target_distributions.base import TargetDistribution
-from fab.sampling_methods import AnnealedImportanceSampler, HamiltonanMonteCarlo, \
+from fab.sampling_methods import AnnealedImportanceSampler, HamiltonianMonteCarlo, \
     TransitionOperator
 from fab.trainable_distributions import TrainableDistribution
 from fab.utils.numerical import effective_sample_size
@@ -31,8 +31,8 @@ class FABModel(Model):
         self.ais_distribution_spacing = ais_distribution_spacing
         assert len(flow.event_shape) == 1, "Currently only 1D distributions are supported"
         if transition_operator is None:
-            self.transition_operator = HamiltonanMonteCarlo(self.n_intermediate_distributions,
-                                                            self.flow.event_shape[0])
+            self.transition_operator = HamiltonianMonteCarlo(self.n_intermediate_distributions,
+                                                             self.flow.event_shape[0])
         else:
             self.transition_operator = transition_operator
         self.annealed_importance_sampler = AnnealedImportanceSampler(
@@ -104,7 +104,7 @@ class FABModel(Model):
         """Compute the FAB loss with p^2/q as the AIS target."""
         # set ais target distribution to p^2/q
         self.set_ais_target("p^2/q")
-        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltonanMonteCarlo):
+        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltonianMonteCarlo):
             x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         else:
             with torch.no_grad():
@@ -136,7 +136,7 @@ class FABModel(Model):
 
     def fab_alpha_div_loss(self, batch_size: int) -> torch.Tensor:
         """Compute the FAB loss based on lower-bound of alpha-divergence with alpha=2."""
-        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltonanMonteCarlo):
+        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltonianMonteCarlo):
             x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         else:
             with torch.no_grad():
@@ -157,7 +157,7 @@ class FABModel(Model):
 
     def fab_forward_kl(self, batch_size: int) -> torch.Tensor:
         """Compute FAB estimate of forward kl-divergence."""
-        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltonanMonteCarlo):
+        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltonianMonteCarlo):
             x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         else:
             with torch.no_grad():
@@ -168,7 +168,7 @@ class FABModel(Model):
 
     def fab_sample_log_prob(self, batch_size: int, sample_frac: float = 1.0) -> torch.Tensor:
         """Compute FAB loss by maximising the log prob of ais samples under the flow."""
-        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltonanMonteCarlo):
+        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltonianMonteCarlo):
             x_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         else:
             with torch.no_grad():
