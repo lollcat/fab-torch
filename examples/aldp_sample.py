@@ -140,7 +140,7 @@ if n_ais_samples > 0:
 
     # Save samples
     path = os.path.join(s_dir, 'ais_samples_%03i.npz' % seed)
-    np.savez_compressed(path, samples=samples, log_q=log_w, log_p=log_p)
+    np.savez_compressed(path, samples=samples, log_w=log_w, log_p=log_p)
 
 
 
