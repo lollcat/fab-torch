@@ -52,10 +52,6 @@ if args.config_ais is not None:
 if args.precision == 'double':
     torch.set_default_dtype(torch.float64)
 
-# Set seed
-seed = config['training']['seed']
-torch.manual_seed(seed)
-
 # GPU usage
 use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
 device = torch.device('cuda' if use_gpu else 'cpu')
@@ -79,6 +75,8 @@ if args.batch_size is None:
     batch_size = config['training']['batch_size']
 else:
     batch_size = args.batch_size
+
+seed = config['training']['seed'] if args.seed is None else args.seed
 
 n_samples = args.n_samples
 n_ais_samples = args.n_ais_samples
