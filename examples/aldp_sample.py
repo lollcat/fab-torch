@@ -101,13 +101,15 @@ if n_samples > 0:
     for i in range(n_batches):
         if i == n_batches - 1:
             end = n_samples
+            end_ = n_samples % batch_size
         else:
             end = (i + 1) * batch_size
+            end_ = batch_size
         with torch.no_grad():
             z, lq = model.flow.sample_and_log_prob((batch_size,))
-            lp = model.target_distribution.log_prob(z)
-        samples[(i * batch_size):end, :] = z.detach().cpu().numpy()
-        log_q[(i * batch_size):end] = lq.detach().cpu().numpy()
+            lp = model.target_distribution.log_prob(z[:end_, :])
+        samples[(i * batch_size):end, :] = z[:end_, :].detach().cpu().numpy()
+        log_q[(i * batch_size):end] = lq[:end_].detach().cpu().numpy()
         log_p[(i * batch_size):end] = lp.detach().cpu().numpy()
 
     # Save samples
@@ -129,13 +131,15 @@ if n_ais_samples > 0:
     # Draw samples
     for i in range(n_batches):
         if i == n_batches - 1:
-            end = n_samples
+            end = n_ais_samples
+            end_ = n_ais_samples % batch_size
         else:
             end = (i + 1) * batch_size
+            end_ = batch_size
         z, lw = model.annealed_importance_sampler.sample_and_log_weights(batch_size)
-        lp = model.target_distribution.log_prob(z.detach())
-        samples[(i * batch_size):end, :] = z.detach().cpu().numpy()
-        log_w[(i * batch_size):end] = lw.detach().cpu().numpy()
+        lp = model.target_distribution.log_prob(z[:end_, :].detach())
+        samples[(i * batch_size):end, :] = z[:end_, :].detach().cpu().numpy()
+        log_w[(i * batch_size):end] = lw[:end_].detach().cpu().numpy()
         log_p[(i * batch_size):end] = lp.detach().cpu().numpy()
 
     # Save samples
