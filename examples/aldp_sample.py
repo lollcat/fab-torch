@@ -84,7 +84,7 @@ n_ais_samples = n_samples if n_ais_samples == -1 else n_ais_samples
 
 s_dir = os.path.join(root, 'samples')
 if not os.path.isdir(s_dir):
-    os.mkdir(s_dir)
+    os.makedirs(s_dir, exist_ok=True)
 
 # Sample from flow model
 if n_samples > 0:
