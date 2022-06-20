@@ -71,6 +71,7 @@ latest_cp = bg.utils.get_latest_checkpoint(cp_dir, 'model')
 
 # Load checkpoint
 model.load(latest_cp)
+model.transition_operator.set_eval_mode(True)
 
 
 # Sampling
