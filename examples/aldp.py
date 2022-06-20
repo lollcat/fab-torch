@@ -22,8 +22,8 @@ from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
 
 # Parse input arguments
-parser = argparse.ArgumentParser(description='Train Boltzmann Generator with varying '
-                                             'base distribution')
+parser = argparse.ArgumentParser(description='Train Boltzmann Generator '
+                                             'with various objectives')
 
 parser.add_argument('--config', type=str, default='../config/bm.yaml',
                     help='Path config file specifying model '
