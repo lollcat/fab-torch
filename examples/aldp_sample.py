@@ -107,8 +107,8 @@ if n_samples > 0:
             z, lq = model.flow.sample_and_log_prob((batch_size,))
             lp = model.target_distribution.log_prob(z)
         samples[(i * batch_size):end, :] = z.detach().cpu().numpy()
-        log_q[(i * batch_size):end, :] = lq.detach().cpu().numpy()
-        log_p[(i * batch_size):end, :] = lp.detach().cpu().numpy()
+        log_q[(i * batch_size):end] = lq.detach().cpu().numpy()
+        log_p[(i * batch_size):end] = lp.detach().cpu().numpy()
 
     # Save samples
     path = os.path.join(s_dir, 'flow_samples_%03i.npz' % seed)
@@ -135,8 +135,8 @@ if n_ais_samples > 0:
         z, lw = model.annealed_importance_sampler.sample_and_log_weights(batch_size)
         lp = model.target_distribution.log_prob(z.detach())
         samples[(i * batch_size):end, :] = z.detach().cpu().numpy()
-        log_w[(i * batch_size):end, :] = lw.detach().cpu().numpy()
-        log_p[(i * batch_size):end, :] = lp.detach().cpu().numpy()
+        log_w[(i * batch_size):end] = lw.detach().cpu().numpy()
+        log_p[(i * batch_size):end] = lp.detach().cpu().numpy()
 
     # Save samples
     path = os.path.join(s_dir, 'ais_samples_%03i.npz' % seed)
