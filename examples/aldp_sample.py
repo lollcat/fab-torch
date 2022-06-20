@@ -27,10 +27,10 @@ parser.add_argument('--precision', type=str, default='double',
                          'can be float, double, or mixed')
 parser.add_argument('--seed', type=int, default=0,
                     help='Seed to be used for sampling')
-parser.add_argument('n_samples', type=int, default=1000000,
+parser.add_argument('--n_samples', type=int, default=1000000,
                     help='Number of samples to be drawn '
                          'from the base model')
-parser.add_argument('n_ais_samples', type=int, default=-1,
+parser.add_argument('--n_ais_samples', type=int, default=-1,
                     help='Number of samples to be drawn with '
                          'AIS, if -1 same number of samples '
                          'as from base model are drawn')
