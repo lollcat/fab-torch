@@ -1,3 +1,3 @@
-from .hmc import HamiltonanMonteCarlo
+from .hmc import HamiltonianMonteCarlo
 from .base import TransitionOperator
 from .metropolis import Metropolis

@@ -12,7 +12,7 @@ from fab.utils.training import load_config
 from fab.target_distributions.aldp import AldpBoltzmann
 from fab import FABModel
 from fab.wrappers.normflow import WrappedNormFlowModel
-from fab.sampling_methods.transition_operators import HamiltonanMonteCarlo, Metropolis
+from fab.sampling_methods.transition_operators import HamiltonianMonteCarlo, Metropolis
 from fab.utils.aldp import evaluate_aldp
 from fab.utils.aldp import filter_chirality
 from fab.utils.numerical import effective_sample_size
@@ -22,8 +22,8 @@ from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
 
 # Parse input arguments
-parser = argparse.ArgumentParser(description='Train Boltzmann Generator with varying '
-                                             'base distribution')
+parser = argparse.ArgumentParser(description='Train Boltzmann Generator '
+                                             'with various objectives')
 
 parser.add_argument('--config', type=str, default='../config/bm.yaml',
                     help='Path config file specifying model '
@@ -205,7 +205,7 @@ wrapped_flow = WrappedNormFlowModel(flow).to(device)
 transition_type = config['fab']['transition_type']
 if transition_type == 'hmc':
     # very lightweight HMC.
-    transition_operator = HamiltonanMonteCarlo(
+    transition_operator = HamiltonianMonteCarlo(
         n_ais_intermediate_distributions=config['fab']['n_int_dist'],
         dim=ndim, L=config['fab']['n_inner'],
         epsilon=config['fab']['epsilon'] / 2,
@@ -365,14 +365,21 @@ if 'replay_buffer' in config['training']:
                               min_sample_length=rb_config['min_length'] * batch_size,
                               initial_sampler=initial_sampler, device=str(device))
     elif rb_config['type'] == 'prioritised':
-        def initial_sampler():
-            x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
-                batch_size, logging=False)
-            log_q_x = model.flow.log_prob(x)
-            return x, log_w, log_q_x
+        buffer_path = os.path.join(cp_dir, 'buffer.pt')
+        if os.path.exists(buffer_path):
+            initial_sampler = lambda: (torch.zeros(batch_size, ndim),
+                                       torch.zeros(batch_size), torch.ones(batch_size))
+        else:
+            def initial_sampler():
+                x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
+                    batch_size, logging=False)
+                log_q_x = model.flow.log_prob(x)
+                return x, log_w, log_q_x
         buffer = PrioritisedReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
                                          min_sample_length=rb_config['min_length'] * batch_size,
                                          initial_sampler=initial_sampler, device=str(device))
+        if os.path.exists(buffer_path):
+            buffer.load(buffer_path)
         # Set target distribution
         def ais_target_log_prob(x):
             return 2 * model.target_distribution.log_prob(x) - model.flow.log_prob(x)
@@ -382,7 +389,7 @@ else:
     if filter_chirality_train:
         if loss_type == 'alpha_2_div':
             def modified_loss(bs):
-                if isinstance(model.annealed_importance_sampler.transition_operator, HamiltonanMonteCarlo):
+                if isinstance(model.annealed_importance_sampler.transition_operator, HamiltonianMonteCarlo):
                     x_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
                 else:
                     with torch.no_grad():
@@ -596,6 +603,7 @@ for it in range(start_iter, max_iter):
         # Disable step size tuning while evaluating model
         model.transition_operator.set_eval_mode(True)
         if use_rb and rb_config['type'] == 'prioritised':
+            buffer.save(os.path.join(cp_dir, 'buffer.pt'))
             model.annealed_importance_sampler.target_log_prob = model.target_distribution.log_prob
 
         # Draw samples
@@ -611,7 +619,11 @@ for it in range(start_iter, max_iter):
         z_samples = z_samples[:eval_samples_flow, :]
 
         # Evaluate model and save plots
-        evaluate_aldp(z_samples, test_data, model.flow.log_prob,
+        if 'snf' in config['flow']:
+            log_prob_fn = lambda a: a.new_zeros(a.shape[0])
+        else:
+            log_prob_fn = model.flow.log_prob
+        evaluate_aldp(z_samples, test_data, log_prob_fn,
                       target.coordinate_transform, it, metric_dir=log_dir_flow,
                       plot_dir=plot_dir_flow)
 
@@ -631,12 +643,13 @@ for it in range(start_iter, max_iter):
                 if torch.mean(1. * ind_L) > 0.1:
                     z_ = z_[ind_L, :]
             z_samples = torch.cat((z_samples, z_.detach()))
-        z_samples = z_samples[:eval_samples, :]
 
         # Evaluate model and save plots
-        evaluate_aldp(z_samples, test_data, model.flow.log_prob,
-                      target.coordinate_transform, it, metric_dir=log_dir_ais,
-                      plot_dir=plot_dir_ais)
+        if eval_samples > 0:
+            z_samples = z_samples[:eval_samples, :]
+            evaluate_aldp(z_samples, test_data, log_prob_fn,
+                          target.coordinate_transform, it, metric_dir=log_dir_ais,
+                          plot_dir=plot_dir_ais)
 
         # Re-enable step size tuning
         if config['fab']['adjust_step_size']:
