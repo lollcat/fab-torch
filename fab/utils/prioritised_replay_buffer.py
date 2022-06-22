@@ -111,6 +111,27 @@ class PrioritisedReplayBuffer:
         self.buffer.log_w[indices] += log_w_adjustment.to(self.device)
         self.buffer.log_q_old[indices] = log_q.to(self.device)
 
+    def save(self, path):
+        """Save buffer to file."""
+        to_save = {'x': self.buffer.x.detach().cpu(),
+                   'log_w': self.buffer.log_w.detach().cpu(),
+                   'log_q_old': self.buffer.log_q_old.detach().cpu(),
+                   'current_index': self.current_index,
+                   'is_full': self.is_full,
+                   'can_sample': self.can_sample}
+        torch.save(to_save, path)
+
+    def load(self, path):
+        """Load buffer from file."""
+        old_buffer = torch.load(path)
+        indices = torch.arange(self.max_length)
+        self.buffer.x[indices] = old_buffer['x'].to(self.device)
+        self.buffer.log_w[indices] = old_buffer['log_w'].to(self.device)
+        self.buffer.log_q_old[indices] = old_buffer['log_q_old'].to(self.device)
+        self.current_index = old_buffer['current_index']
+        self.is_full = old_buffer['is_full']
+        self.can_sample = old_buffer['can_sample']
+
 
 
 
