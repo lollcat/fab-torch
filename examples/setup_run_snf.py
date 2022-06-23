@@ -11,14 +11,17 @@ from fab import Trainer
 from fab.target_distributions.base import TargetDistribution
 from fab.utils.plotting import plot_history
 from fab.types_ import Model
+from fab.utils.numerical import effective_sample_size
 
 from examples.make_flow import make_normflow_snf_model
 from examples.setup_run import SetupPlotterFn, setup_logger, get_n_iterations, get_load_checkpoint_dir
 
 
+
 class SNFModel(Model):
-    def __init__(self, snf, dim):
+    def __init__(self, snf, target, dim):
         self.snf = snf
+        self.target_distribution = target
         self.loss = self.snf.reverse_kld
         # hack so that plotting with self.flow.sample works
         self.flow = type('', (), {})()
@@ -32,7 +35,27 @@ class SNFModel(Model):
         return {}
 
     def get_eval_info(self, outer_batch_size: int, inner_batch_size: int):
-        return {}
+        base_samples = []
+        base_log_w_s = []
+        assert outer_batch_size % inner_batch_size == 0
+        n_batches = outer_batch_size // inner_batch_size
+        for i in range(n_batches):
+            # Initialise AIS with samples from the base distribution.
+            x, base_log_w = self.snf.sample(inner_batch_size)
+            # append base samples and log probs
+            base_samples.append(x.detach().cpu())
+            base_log_w_s.append(base_log_w.detach().cpu())
+
+        base_samples = torch.cat(base_samples, dim=0)
+        base_log_w_s = torch.cat(base_log_w_s, dim=0)
+        info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w_s, normalised=False).item()}
+        # note here that log prob of test set is actually rather forward KL.
+        target_info = self.target_distribution.performance_metrics(base_samples, base_log_w_s,
+                                                                 self.snf.log_prob,
+                                                                 batch_size=inner_batch_size)
+        info.update(target_info)
+        return info
+
 
     def parameters(self):
         return self.snf.parameters()
@@ -87,7 +110,7 @@ def setup_trainer_and_run_snf(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         snf.cuda()
         print("utilising GPU")
 
-    model = SNFModel(snf, dim)
+    model = SNFModel(snf, target, dim)
 
     optimizer = torch.optim.Adam(snf.parameters(), lr=cfg.training.lr)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
