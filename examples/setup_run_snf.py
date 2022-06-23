@@ -121,7 +121,7 @@ def setup_trainer_and_run_snf(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         model.load(os.path.join(chkpt_dir, "model.pt"), map_location)
         opt_state = torch.load(os.path.join(chkpt_dir, 'optimizer.pt'), map_location)
         optimizer.load_state_dict(opt_state)
-        print(f"loaded checkpoint: {chkpt_dir}")
+        print(f"\n\n****************loaded checkpoint: {chkpt_dir}*******************\n\n")
 
 
 

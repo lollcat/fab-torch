@@ -23,7 +23,7 @@ fab:
 
 training:
   # if checkpoint_load_dir in standard format then will load most recent, null for no loading
-  checkpoint_load_dir: /home/laurence/work/code/FAB-TORCH/results/gmm/exp1/snf/ # outer directory for checkpoints, most recent is loaded
+  checkpoint_load_dir: /home/laurence/work/code/FAB-TORCH/results/gmm/seed${training.seed}/snf/ # outer directory for checkpoints, most recent is loaded
   seed: 0
   lr: 5e-4
   batch_size: 128
@@ -47,7 +47,7 @@ evaluation:
   n_eval: 20 # for calculating metrics of flow w.r.t target.list(np.linspace(0, n_iterations - 1, n_checkpoints, dtype="int"))
   eval_batch_size: 512 # must be a multiple of inner batch size
   n_checkpoints: 10 # number of model checkpoints saved
-  save_path:  /home/laurence/work/code/FAB-TORCH/results/gmm/exp1/snf/
+  save_path:  /home/laurence/work/code/FAB-TORCH/results/gmm/seed${training.seed}/snf/
 
 
 logger:

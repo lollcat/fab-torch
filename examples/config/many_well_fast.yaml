@@ -1,4 +1,7 @@
 # with relatively small values so I can run things locally
+defaults:
+  - override hydra/launcher: joblib
+
 target:
   dim: 6
 
@@ -17,7 +20,7 @@ fab:
 
 
 training:
-  checkpoint_load_dir: /home/laurence/work/code/FAB-TORCH/results/many_well/exp1/ # or null
+  checkpoint_load_dir: /home/laurence/work/code/FAB-TORCH/results/many_well/seed${training.seed}/ # or null
   seed: 0
   lr: 2e-4
   batch_size: 20
@@ -42,7 +45,7 @@ evaluation:
   n_eval: 10 # for calculating metrics of flow w.r.t target.
   eval_batch_size: 100 # must be a multiple of inner batch size
   n_checkpoints: 10 # number of model checkpoints saved
-  save_path:  /home/laurence/work/code/FAB-TORCH/results/many_well/exp1/
+  save_path:  /home/laurence/work/code/FAB-TORCH/results/many_well/seed${training.seed}/
 
 
 

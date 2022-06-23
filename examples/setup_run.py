@@ -217,7 +217,7 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         optimizer.load_state_dict(opt_state)
         if buffer is not None:
             buffer.load(path=os.path.join(chkpt_dir, 'buffer.pt'))
-        print(f"loaded checkpoint: {chkpt_dir}")
+        print(f"\n\n****************loaded checkpoint: {chkpt_dir}*******************\n\n")
 
     plot = setup_plotter(cfg, target, buffer)
 
