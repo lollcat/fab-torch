@@ -21,3 +21,9 @@ mw_flow_nis:
 	$(ManyWellCMD) fab.loss_type=flow_alpha_2_div_nis \
 		training.checkpoint_load_dir=$(BASE_DIR)/flow_nis/seed$$\{training.seed\}\
 		evaluation.save_path=$(BASE_DIR)/flow_nis/seed$$\{training.seed\}
+
+
+mw_snf:
+	$(ManyWellCMD) flow.use_snf=True \
+		training.checkpoint_load_dir=$(BASE_DIR)/snf/seed$$\{training.seed\}\
+		evaluation.save_path=$(BASE_DIR)/snf/seed$$\{training.seed\}
