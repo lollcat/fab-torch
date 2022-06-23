@@ -13,7 +13,7 @@ from fab.utils.plotting import plot_history
 from fab.types_ import Model
 
 from examples.make_flow import make_normflow_snf_model
-from examples.setup_run import SetupPlotterFn, setup_logger, get_n_iterations
+from examples.setup_run import SetupPlotterFn, setup_logger, get_n_iterations, get_load_checkpoint_dir
 
 
 class SNFModel(Model):
@@ -44,7 +44,9 @@ class SNFModel(Model):
         torch.save({'flow': self.snf.state_dict()},
                    path)
 
-    def load(self, file_path, map_location) -> None:
+    def load(self,
+             file_path,
+             map_location):
         checkpoint = torch.load(file_path, map_location=map_location)
         try:
             self.snf.load_state_dict(checkpoint['flow'])
@@ -56,16 +58,23 @@ class SNFModel(Model):
 def setup_trainer_and_run_snf(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                                target: TargetDistribution):
     """Create and trainer and run."""
+    if cfg.training.checkpoint_load_dir is not None:
+        if not os.path.exists(cfg.training.checkpoint_load_dir):
+            print("no checkpoint loaded, starting training from scratch")
+            chkpt_dir = None
+        else:
+            chkpt_dir = get_load_checkpoint_dir(cfg.training.checkpoint_load_dir)
+    else:
+        chkpt_dir = None
     dim = cfg.target.dim  # applies to flow and target
-    current_time = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
-    save_path = cfg.evaluation.save_path + current_time + "/"
+    save_path = os.path.join(cfg.evaluation.save_path, str(datetime.now().isoformat()))
     logger = setup_logger(cfg, save_path)
     if hasattr(cfg.logger, "wandb"):
         # if using wandb then save to wandb path
         save_path = os.path.join(wandb.run.dir, save_path)
     pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
 
-    with open(save_path + "config.txt", "w") as file:
+    with open(os.path.join(save_path, "config.txt"), "w") as file:
         file.write(str(cfg))
 
     snf = make_normflow_snf_model(dim, n_flow_layers=cfg.flow.n_layers,
@@ -78,12 +87,19 @@ def setup_trainer_and_run_snf(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         snf.cuda()
         print("utilising GPU")
 
-
     model = SNFModel(snf, dim)
 
     optimizer = torch.optim.Adam(snf.parameters(), lr=cfg.training.lr)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
     scheduler = None
+
+    if chkpt_dir is not None:
+        map_location = "cuda" if torch.cuda.is_available() and cfg.training.use_gpu else "cpu"
+        model.load(os.path.join(chkpt_dir, "model.pt"), map_location)
+        opt_state = torch.load(os.path.join(chkpt_dir, 'optimizer.pt'), map_location)
+        optimizer.load_state_dict(opt_state)
+        print(f"loaded checkpoint: {chkpt_dir}")
+
 
 
     plot = setup_plotter(cfg, target)

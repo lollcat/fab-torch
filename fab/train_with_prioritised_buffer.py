@@ -188,6 +188,7 @@ class PrioritisedBufferTrainer:
                     self.model.save(os.path.join(checkpoint_path, "model.pt"))
                     torch.save(self.optimizer.state_dict(),
                                os.path.join(checkpoint_path, 'optimizer.pt'))
+                    self.buffer.save(os.path.join(checkpoint_path, 'buffer.pt'))
                     if self.optim_schedular:
                         torch.save(self.optim_schedular.state_dict(),
                                    os.path.join(self.checkpoints_dir, 'scheduler.pt'))

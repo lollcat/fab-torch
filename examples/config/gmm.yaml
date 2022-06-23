@@ -8,7 +8,7 @@ target:
   log_var_scaling: 1.0
 
 flow:
-  use_snf: false
+  use_snf: true
   layer_nodes_per_dim: 30
   n_layers: 10
   act_norm: false
@@ -22,11 +22,13 @@ fab:
 
 
 training:
+  # if checkpoint_load_dir in standard format then will load most recent, null for no loading
+  checkpoint_load_dir: /home/laurence/work/code/FAB-TORCH/results/gmm/exp1/snf/ # outer directory for checkpoints, most recent is loaded
   seed: 0
   lr: 5e-4
   batch_size: 128
   n_iterations: null # either n_itertations or n_flow_forward_pass must have a value
-  n_flow_forward_pass: 1_000_000 # assumes split coupling where log prob & sample are same speed.
+  n_flow_forward_pass: 100_000 # assumes split coupling where log prob & sample are same speed.
   use_gpu: true
   use_64_bit: true
   use_buffer: false # below config fields are all for use_buffer = True
@@ -42,10 +44,10 @@ training:
 
 evaluation:
   n_plots: 20 # number of times we visualise the model throughout training.
-  n_eval: 20 # for calculating metrics of flow w.r.t target.
+  n_eval: 20 # for calculating metrics of flow w.r.t target.list(np.linspace(0, n_iterations - 1, n_checkpoints, dtype="int"))
   eval_batch_size: 512 # must be a multiple of inner batch size
   n_checkpoints: 10 # number of model checkpoints saved
-  save_path:  results/many_well32/
+  save_path:  /home/laurence/work/code/FAB-TORCH/results/gmm/exp1/snf/
 
 
 logger:

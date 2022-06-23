@@ -1,7 +1,9 @@
+import re
 from typing import Union, Callable, Optional, List
 import os
 import pathlib
 import wandb
+import numpy as np
 from omegaconf import DictConfig
 
 from datetime import datetime
@@ -81,10 +83,6 @@ def get_n_iterations(
     return n_iter
 
 
-
-
-
-
 def setup_logger(cfg: DictConfig, save_path: str) -> Logger:
     if hasattr(cfg.logger, "pandas_logger"):
         logger = PandasLogger(save=True,
@@ -127,12 +125,38 @@ def setup_buffer(cfg: DictConfig, fab_model: FABModel) -> Union[ReplayBuffer,
                                          initial_sampler=initial_sampler)
     return buffer
 
+def get_load_checkpoint_dir(outer_checkpoint_dir):
+    # load recent checkpoint if in standard format, otherwise attempt load from checkpoint_load_dir
+    try:
+        # load the most recent checkpoint, from the most recent run.
+        chkpts = [it.path for it in os.scandir(outer_checkpoint_dir) if it.is_dir()]
+        folder_names = [it.name for it in os.scandir(outer_checkpoint_dir) if
+                        it.is_dir()]
+        times = [datetime.fromisoformat(time).timestamp() for time in folder_names]
+        # grab most recent dir with argmax on times
+        latest_chkpts_dir = os.path.join(chkpts[np.argmax(times)], "model_checkpoints")
+        iter_dirs = [it.path for it in os.scandir(latest_chkpts_dir) if it.is_dir()]
+        re_matches = [re.search(r"(.*iter_([0-9]*))", subdir) for subdir in iter_dirs]
+        iter_numbers = [int(match.groups()[1]) if match else -1 for match in re_matches]
+        chkpt_dir = re_matches[np.argmax(iter_numbers)].groups()[0]
+    except:
+        # if not matching the expected format try load from the checkpoint_load_dir
+        chkpt_dir = outer_checkpoint_dir
+    return chkpt_dir
+
 def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                           target: TargetDistribution):
     """Create and trainer and run."""
+    if cfg.training.checkpoint_load_dir is not None:
+        if not os.path.exists(cfg.training.checkpoint_load_dir):
+            print("no checkpoint loaded, starting training from scratch")
+            chkpt_dir = None
+        else:
+            chkpt_dir = get_load_checkpoint_dir(cfg.training.checkpoint_load_dir)
+    else:
+        chkpt_dir = None
     dim = cfg.target.dim  # applies to flow and target
-    current_time = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
-    save_path = cfg.evaluation.save_path + current_time + "/"
+    save_path = os.path.join(cfg.evaluation.save_path, str(datetime.now().isoformat()))
     logger = setup_logger(cfg, save_path)
     if hasattr(cfg.logger, "wandb"):
         # if using wandb then save to wandb path
@@ -140,7 +164,7 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
 
 
-    with open(save_path + "config.txt", "w") as file:
+    with open(os.path.join(save_path, "config.txt"), "w") as file:
         file.write(str(cfg))
 
 
@@ -181,14 +205,23 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
     scheduler = None
 
-
     # Create buffer if needed
     if cfg.training.use_buffer is True:
         buffer = setup_buffer(cfg, fab_model)
     else:
         buffer = None
+    if chkpt_dir is not None:
+        map_location = "cuda" if torch.cuda.is_available() and cfg.training.use_gpu else "cpu"
+        fab_model.load(os.path.join(chkpt_dir, "model.pt"), map_location)
+        opt_state = torch.load(os.path.join(chkpt_dir, 'optimizer.pt'), map_location)
+        optimizer.load_state_dict(opt_state)
+        if buffer is not None:
+            buffer.load(path=os.path.join(chkpt_dir, 'buffer.pt'))
+        print(f"loaded checkpoint: {chkpt_dir}")
 
     plot = setup_plotter(cfg, target, buffer)
+
+
 
     # Create trainer
     if cfg.training.use_buffer is False:
