@@ -99,7 +99,7 @@ def setup_logger(cfg: DictConfig, save_path: str) -> Logger:
     return logger
 
 
-def setup_buffer(cfg: DictConfig, fab_model: FABModel) -> Union[ReplayBuffer,
+def setup_buffer(cfg: DictConfig, fab_model: FABModel, auto_fill_buffer: bool) -> Union[ReplayBuffer,
                                                                 PrioritisedReplayBuffer]:
     dim = cfg.target.dim  # applies to flow and target
     if cfg.training.prioritised_buffer is False:
@@ -123,7 +123,8 @@ def setup_buffer(cfg: DictConfig, fab_model: FABModel) -> Union[ReplayBuffer,
 
         buffer = PrioritisedReplayBuffer(dim=dim, max_length=cfg.training.maximum_buffer_length,
                                          min_sample_length=cfg.training.min_buffer_length,
-                                         initial_sampler=initial_sampler)
+                                         initial_sampler=initial_sampler,
+                                         fill_buffer_during_init=auto_fill_buffer)
     return buffer
 
 def get_load_checkpoint_dir(outer_checkpoint_dir):
@@ -212,7 +213,7 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
 
     # Create buffer if needed
     if cfg.training.use_buffer is True:
-        buffer = setup_buffer(cfg, fab_model)
+        buffer = setup_buffer(cfg, fab_model, auto_fill_buffer=chkpt_dir is None)
     else:
         buffer = None
     if chkpt_dir is not None:
@@ -222,6 +223,8 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         optimizer.load_state_dict(opt_state)
         if buffer is not None:
             buffer.load(path=os.path.join(chkpt_dir, 'buffer.pt'))
+            assert buffer.can_sample, "if a buffer is loaded, it is expected to contain " \
+                                      "enough samples to sample from"
         print(f"\n\n****************loaded checkpoint: {chkpt_dir}*******************\n\n")
 
     plot = setup_plotter(cfg, target, buffer)
