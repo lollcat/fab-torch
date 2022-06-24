@@ -45,7 +45,7 @@ def setup_gmm_plotter(cfg: DictConfig, target: GMM, buffer=None) -> Plotter:
             samples_buffer = buffer.sample(n_samples)[0].detach()
             plot_marginal_pair(samples_buffer, ax=axs[2], bounds=plotting_bounds)
             axs[2].set_title("buffer samples")
-        # plt.show()
+        plt.show()
         return [fig]
     return plot
 
@@ -65,7 +65,7 @@ def _run(cfg: DictConfig):
         setup_trainer_and_run_snf(cfg, setup_gmm_plotter, target)
 
 
-@hydra.main(config_path="./config/", config_name="gmm_fast.yaml")
+@hydra.main(config_path="./config/", config_name="gmm.yaml")
 def run(cfg: DictConfig):
     _run(cfg)
 

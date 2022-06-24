@@ -140,9 +140,11 @@ def get_load_checkpoint_dir(outer_checkpoint_dir):
         re_matches = [re.search(r"(.*iter_([0-9]*))", subdir) for subdir in iter_dirs]
         iter_numbers = [int(match.groups()[1]) if match else -1 for match in re_matches]
         chkpt_dir = re_matches[np.argmax(iter_numbers)].groups()[0]
+        iter_number = np.max(iter_numbers)
     except:
-        raise Exception("Checkpoint directory did not meet expected format.")
-    return chkpt_dir
+        print("Starting training from the beginning with no checkpoint.")
+        return None, 0
+    return chkpt_dir, iter_number
 
 def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                           target: TargetDistribution):
@@ -155,10 +157,13 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         if not os.path.exists(cfg.training.checkpoint_load_dir):
             print("no checkpoint loaded, starting training from scratch")
             chkpt_dir = None
+            iter_number = 0
         else:
-            chkpt_dir = get_load_checkpoint_dir(cfg.training.checkpoint_load_dir)
+            chkpt_dir, iter_number = get_load_checkpoint_dir(cfg.training.checkpoint_load_dir)
     else:
         chkpt_dir = None
+        iter_number = 0
+
     dim = cfg.target.dim  # applies to flow and target
     save_path = os.path.join(cfg.evaluation.save_path, str(datetime.now().isoformat()))
     logger = setup_logger(cfg, save_path)
@@ -267,12 +272,16 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                 min_buffer_length=cfg.training.min_buffer_length,
                 )
 
-    trainer.run(n_iterations=n_iterations, batch_size=cfg.training.batch_size,
+    trainer.run(n_iterations=n_iterations,
+                batch_size=cfg.training.batch_size,
                 n_plot=cfg.evaluation.n_plots,
-                n_eval=cfg.evaluation.n_eval, eval_batch_size=cfg.evaluation.eval_batch_size,
-                save=True, n_checkpoints=cfg.evaluation.n_checkpoints,
+                n_eval=cfg.evaluation.n_eval,
+                eval_batch_size=cfg.evaluation.eval_batch_size,
+                save=True,
+                n_checkpoints=cfg.evaluation.n_checkpoints,
                 tlimit=cfg.training.tlimit,
-                start_time=start_time)
+                start_time=start_time,
+                start_iter=iter_number)
 
     if hasattr(cfg.logger, "list_logger"):
         plot_history(trainer.logger.history)

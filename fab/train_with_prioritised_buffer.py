@@ -103,26 +103,31 @@ class PrioritisedBufferTrainer:
             n_checkpoints: Optional[int] = None,
             save: bool = True,
             tlimit: Optional[float] = None,
-            start_time: Optional[float] = None) -> None:
+            start_time: Optional[float] = None,
+            start_iter: Optional[int] = 0) -> None:
         if save:
             pathlib.Path(self.plots_dir).mkdir(exist_ok=True)
             pathlib.Path(self.checkpoints_dir).mkdir(exist_ok=True)
         if n_checkpoints:
-            checkpoint_iter = list(np.linspace(0, n_iterations - 1, n_checkpoints, dtype="int"))
+            checkpoint_iter = list(np.linspace(1, n_iterations, n_checkpoints, dtype="int"))
         if n_eval is not None:
-            eval_iter = list(np.linspace(0, n_iterations - 1, n_eval, dtype="int"))
+            eval_iter = list(np.linspace(1, n_iterations, n_eval, dtype="int"))
             assert eval_batch_size is not None
         if n_plot is not None:
-            plot_iter = list(np.linspace(0, n_iterations - 1, n_plot, dtype="int"))
+            plot_iter = list(np.linspace(1, n_iterations, n_plot, dtype="int"))
         if tlimit is not None:
             assert n_checkpoints is not None, "Time limited specified but not checkpoints are " \
                                           "being saved."
         if start_time is not None:
             start_time = time()
 
-        pbar = tqdm(range(n_iterations))
+        if start_iter >= n_iterations:
+            raise Exception("Not running training as start_iter >= total training iterations")
+
+        pbar = tqdm(range(n_iterations - start_iter))
         max_it_time = 0.0
-        for i in pbar:
+        for pbar_iter in pbar:
+            i = pbar_iter + start_iter + 1
             it_start_time = time()
             self.optimizer.zero_grad()
             # collect samples and log weights with AIS and add to the buffer

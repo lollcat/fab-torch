@@ -90,10 +90,12 @@ def setup_trainer_and_run_snf(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         if not os.path.exists(cfg.training.checkpoint_load_dir):
             print("no checkpoint loaded, starting training from scratch")
             chkpt_dir = None
+            iter_number = 0
         else:
-            chkpt_dir = get_load_checkpoint_dir(cfg.training.checkpoint_load_dir)
+            chkpt_dir, iter_number = get_load_checkpoint_dir(cfg.training.checkpoint_load_dir)
     else:
         chkpt_dir = None
+        iter_number = 0
     dim = cfg.target.dim  # applies to flow and target
     save_path = os.path.join(cfg.evaluation.save_path, str(datetime.now().isoformat()))
     logger = setup_logger(cfg, save_path)
@@ -155,7 +157,8 @@ def setup_trainer_and_run_snf(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                 save=True,
                 n_checkpoints=cfg.evaluation.n_checkpoints,
                 tlimit=cfg.training.tlimit,
-                start_time=start_time
+                start_time=start_time,
+                start_iter=iter_number
                 )
 
     if hasattr(cfg.logger, "list_logger"):
