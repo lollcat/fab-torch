@@ -196,7 +196,9 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     if torch.cuda.is_available() and cfg.training.use_gpu:
       flow.cuda()
       transition_operator.cuda()
-      print("utilising GPU")
+      print("\n*************  Utilising GPU  ****************** \n")
+    else:
+        print("\n*************  Utilising CPU  ****************** \n")
 
 
     fab_model = FABModel(flow=flow,
