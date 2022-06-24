@@ -1,7 +1,7 @@
 # Variables
 ManyWellCMD=python examples/many_well.py -m training.seed=0,1,2 # by default seeds are run in parellel
 BASE_DIR=/home/laurence/work/code/FAB-TORCH/results
-TIMELIMIT=0.001
+TIMELIMIT=24
 
 mw_fab_buffer: # run fab with prioritised fab_buffer
 	$(ManyWellCMD) training.use_buffer=True training.prioritised_buffer=True \
