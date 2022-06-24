@@ -1,4 +1,5 @@
 import re
+import time
 from typing import Union, Callable, Optional, List
 import os
 import pathlib
@@ -147,6 +148,10 @@ def get_load_checkpoint_dir(outer_checkpoint_dir):
 def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                           target: TargetDistribution):
     """Create and trainer and run."""
+    if cfg.training.tlimit:
+        start_time = time.time()
+    else:
+        start_time = None
     if cfg.training.checkpoint_load_dir is not None:
         if not os.path.exists(cfg.training.checkpoint_load_dir):
             print("no checkpoint loaded, starting training from scratch")
@@ -262,7 +267,10 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     trainer.run(n_iterations=n_iterations, batch_size=cfg.training.batch_size,
                 n_plot=cfg.evaluation.n_plots,
                 n_eval=cfg.evaluation.n_eval, eval_batch_size=cfg.evaluation.eval_batch_size,
-                save=True, n_checkpoints=cfg.evaluation.n_checkpoints)
+                save=True, n_checkpoints=cfg.evaluation.n_checkpoints,
+                tlimit=cfg.training.tlimit,
+                start_time=start_time)
+
     if hasattr(cfg.logger, "list_logger"):
         plot_history(trainer.logger.history)
         plt.show()

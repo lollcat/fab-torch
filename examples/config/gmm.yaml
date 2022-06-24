@@ -22,6 +22,7 @@ fab:
 
 
 training:
+  tlimit: null # time limit in hours
   # if checkpoint_load_dir in standard format then will load most recent, null for no loading
   checkpoint_load_dir: /home/laurence/work/code/FAB-TORCH/results/gmm/seed${training.seed}/snf/ # outer directory for checkpoints, most recent is loaded
   seed: 0
