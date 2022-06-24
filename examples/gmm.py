@@ -65,7 +65,7 @@ def _run(cfg: DictConfig):
         setup_trainer_and_run_snf(cfg, setup_gmm_plotter, target)
 
 
-@hydra.main(config_path="./config/", config_name="gmm_fast.yaml")
+@hydra.main(config_path="./config/", config_name="gmm.yaml")
 def run(cfg: DictConfig):
     _run(cfg)
 

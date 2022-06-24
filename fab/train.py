@@ -75,12 +75,12 @@ class Trainer:
             pathlib.Path(self.plots_dir).mkdir(exist_ok=True)
             pathlib.Path(self.checkpoints_dir).mkdir(exist_ok=True)
         if n_checkpoints:
-            checkpoint_iter = list(np.linspace(0, n_iterations - 1, n_checkpoints, dtype="int"))
+            checkpoint_iter = list(np.linspace(1, n_iterations, n_checkpoints, dtype="int"))
         if n_eval is not None:
-            eval_iter = list(np.linspace(0, n_iterations - 1, n_eval, dtype="int"))
+            eval_iter = list(np.linspace(1, n_iterations, n_eval, dtype="int"))
             assert eval_batch_size is not None
         if n_plot is not None:
-            plot_iter = list(np.linspace(0, n_iterations - 1, n_plot, dtype="int"))
+            plot_iter = list(np.linspace(1, n_iterations, n_plot, dtype="int"))
         if tlimit is not None:
             assert n_checkpoints is not None, "Time limited specified but not checkpoints are " \
                                           "being saved."
