@@ -2,7 +2,7 @@
 ManyWellCMD=python examples/many_well.py -m training.seed=0,1,2 # by default seeds are run in parellel
 BASE_DIR=/home/laurence/work/code/FAB-TORCH/results
 TIMELIMIT=24
-N_FLOW_FORWARD_PASS = 50_000
+N_FLOW_FORWARD_PASS = 15_000
 
 
 mw_fab_buffer: # run fab with prioritised fab_buffer
