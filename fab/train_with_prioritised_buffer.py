@@ -222,7 +222,8 @@ class PrioritisedBufferTrainer:
                 if (time_past + max_it_time/3600) > tlimit:
                     # self.perform_eval(i, eval_batch_size, batch_size)
                     # self.make_and_save_plots(i, save)
-                    self.save_checkpoint(i)
+                    if i not in checkpoint_iter:
+                        self.save_checkpoint(i)
                     self.logger.close()
                     print(f"\nEnding training at iteration {i}, after training for {time_past:.2f} "
                           f"hours as timelimit {tlimit:.2f} hours has been reached.\n")
