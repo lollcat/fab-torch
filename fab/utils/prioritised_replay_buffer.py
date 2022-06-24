@@ -14,7 +14,8 @@ class PrioritisedReplayBuffer:
                  min_sample_length: int,
                  initial_sampler: Callable[[], Tuple[torch.Tensor, torch.Tensor, torch.Tensor]],
                  device: str = "cpu",
-                 sample_with_replacement: bool = False
+                 sample_with_replacement: bool = False,
+                 fill_buffer_during_init: bool = True,
                  ):
         """
         Create prioritised replay buffer for batched sampling and adding of data.
@@ -27,6 +28,8 @@ class PrioritisedReplayBuffer:
                 or we may desire to use AIS with more distributions to give the flow a "good start".
             device: replay buffer device
             sample_with_replacement: Whether to sample from the buffer with replacement.
+            fill_buffer_during_init: Whether to use `initial_sampler` to fill the buffer initially.
+                If a checkpoint is going to be loaded then this should be set to False.
 
         The `max_length` and `min_sample_length` should be sufficiently long to prevent overfitting
         to the replay data. For example, if `min_sample_length` is equal to the
@@ -47,10 +50,13 @@ class PrioritisedReplayBuffer:
         self.can_sample = False  # whether the buffer is full enough to begin sampling
         self.sample_with_replacement = sample_with_replacement
 
-        while self.can_sample is False:
-            # fill buffer up minimum length
-            x, log_w, log_q_old = initial_sampler()
-            self.add(x, log_w, log_q_old)
+        if fill_buffer_during_init:
+            while self.can_sample is False:
+                # fill buffer up minimum length
+                x, log_w, log_q_old = initial_sampler()
+                self.add(x, log_w, log_q_old)
+        else:
+            print("Buffer not initialised, expected that checkpoint will be loaded.")
 
     @torch.no_grad()
     def add(self, x: torch.Tensor, log_w: torch.Tensor, log_q_old: torch.Tensor) -> None:

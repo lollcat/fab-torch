@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 import hydra
 from omegaconf import DictConfig
 from fab.utils.plotting import plot_contours, plot_marginal_pair
-from examples.setup_run import setup_trainer_and_run, Plotter
+from examples.setup_run import setup_trainer_and_run_flow, Plotter
+from examples.setup_run_snf import setup_trainer_and_run_snf
 from fab.target_distributions.gmm import GMM
 import torch
 
@@ -44,22 +45,27 @@ def setup_gmm_plotter(cfg: DictConfig, target: GMM, buffer=None) -> Plotter:
             samples_buffer = buffer.sample(n_samples)[0].detach()
             plot_marginal_pair(samples_buffer, ax=axs[2], bounds=plotting_bounds)
             axs[2].set_title("buffer samples")
-        plt.show()
+        # plt.show()
         return [fig]
     return plot
 
 
 def _run(cfg: DictConfig):
-    if cfg.training.use_64_bit:
-        torch.set_default_dtype(torch.float64)
-    torch.manual_seed(cfg.training.seed)
+    torch.manual_seed(0)  # seed of 0 for GMM problem
     target = GMM(dim=cfg.target.dim, n_mixes=cfg.target.n_mixes,
                  loc_scaling=cfg.target.loc_scaling, log_var_scaling=cfg.target.log_var_scaling,
                  use_gpu=cfg.training.use_gpu)
-    setup_trainer_and_run(cfg, setup_plotter=setup_gmm_plotter, target=target)
+    torch.manual_seed(cfg.training.seed)
+    if cfg.training.use_64_bit:
+        torch.set_default_dtype(torch.float64)
+        target = target.double()
+    if cfg.flow.use_snf is False:
+        setup_trainer_and_run_flow(cfg, setup_gmm_plotter, target)
+    else:
+        setup_trainer_and_run_snf(cfg, setup_gmm_plotter, target)
 
 
-@hydra.main(config_path="./config/", config_name="gmm.yaml")
+@hydra.main(config_path="./config/", config_name="gmm_fast.yaml")
 def run(cfg: DictConfig):
     _run(cfg)
 

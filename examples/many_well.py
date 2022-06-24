@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 import hydra
 from omegaconf import DictConfig
 from fab.utils.plotting import plot_contours, plot_marginal_pair
-from examples.setup_run import setup_trainer_and_run, Plotter
+from examples.setup_run import setup_trainer_and_run_flow, Plotter
+from examples.setup_run_snf import setup_trainer_and_run_snf
 import torch
 
 
@@ -62,7 +63,10 @@ def _run(cfg: DictConfig):
     from fab.target_distributions.many_well import ManyWellEnergy
     assert cfg.target.dim % 2 == 0
     target = ManyWellEnergy(cfg.target.dim, a=-0.5, b=-6, use_gpu=cfg.training.use_gpu)
-    setup_trainer_and_run(cfg, setup_plotter=setup_many_well_plotter, target=target)
+    if cfg.flow.use_snf is False:
+        setup_trainer_and_run_flow(cfg, setup_many_well_plotter, target)
+    else:
+        setup_trainer_and_run_snf(cfg, setup_many_well_plotter, target)
 
 
 @hydra.main(config_path="./config", config_name="many_well.yaml")

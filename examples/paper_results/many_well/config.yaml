@@ -4,6 +4,7 @@ target:
 flow:
   layer_nodes_per_dim: 10
   n_layers: 10
+  act_norm: false
 
 fab:
   loss_type: alpha_2_div
@@ -11,4 +12,7 @@ fab:
     type: hmc
     n_inner_steps: 5
   n_intermediate_distributions: 4
+
+training:
+  seed: 0
 

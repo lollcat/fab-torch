@@ -5,6 +5,7 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 import pathlib
+from time import time
 import os
 
 from fab.utils.logging import Logger, ListLogger
@@ -53,6 +54,45 @@ class PrioritisedBufferTrainer:
         self.ais_target_log_prob = ais_target_log_prob  # save
         self.model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 
+    def save_checkpoint(self, i):
+        checkpoint_path = os.path.join(self.checkpoints_dir, f"iter_{i}/")
+        pathlib.Path(checkpoint_path).mkdir(exist_ok=False)
+        self.model.save(os.path.join(checkpoint_path, "model.pt"))
+        torch.save(self.optimizer.state_dict(),
+                   os.path.join(checkpoint_path, 'optimizer.pt'))
+        self.buffer.save(os.path.join(checkpoint_path, 'buffer.pt'))
+        if self.optim_schedular:
+            torch.save(self.optim_schedular.state_dict(),
+                       os.path.join(self.checkpoints_dir, 'scheduler.pt'))
+
+    def make_and_save_plots(self, i, save):
+        figures = self.plot(self.model)
+        for j, figure in enumerate(figures):
+            if save:
+                figure.savefig(os.path.join(self.plots_dir, f"{j}_iter_{i}.png"))
+            else:
+                plt.show()
+            plt.close(figure)
+
+    def perform_eval(self, i, eval_batch_size, batch_size):
+        # set ais distribution to target for evaluation of ess
+        self.model.annealed_importance_sampler.transition_operator.set_eval_mode(True)
+        self.model.annealed_importance_sampler.target_log_prob = self.model.target_distribution.log_prob
+        eval_info_true_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
+                                                         inner_batch_size=batch_size)
+        # set ais distribution back to p^2/q.
+        self.model.annealed_importance_sampler.target_log_prob = self.ais_target_log_prob
+        eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
+                                                              inner_batch_size=batch_size)
+        self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
+        eval_info = {}
+        eval_info.update({key + "_p_target": val for key, val in eval_info_true_target.items()})
+        eval_info.update(
+            {key + "_p2overq_target": val for key, val in eval_info_practical_target.items()})
+
+        eval_info.update(step=i)
+        self.logger.write(eval_info)
+
 
     def run(self,
             n_iterations: int,
@@ -61,9 +101,9 @@ class PrioritisedBufferTrainer:
             n_eval: Optional[int] = None,
             n_plot: Optional[int] = None,
             n_checkpoints: Optional[int] = None,
-            save: bool = True) -> None:
-
-
+            save: bool = True,
+            tlimit: Optional[float] = None,
+            start_time: Optional[float] = None) -> None:
         if save:
             pathlib.Path(self.plots_dir).mkdir(exist_ok=True)
             pathlib.Path(self.checkpoints_dir).mkdir(exist_ok=True)
@@ -74,9 +114,16 @@ class PrioritisedBufferTrainer:
             assert eval_batch_size is not None
         if n_plot is not None:
             plot_iter = list(np.linspace(0, n_iterations - 1, n_plot, dtype="int"))
+        if tlimit is not None:
+            assert n_checkpoints is not None, "Time limited specified but not checkpoints are " \
+                                          "being saved."
+        if start_time is not None:
+            start_time = time()
 
         pbar = tqdm(range(n_iterations))
+        max_it_time = 0.0
         for i in pbar:
+            it_start_time = time()
             self.optimizer.zero_grad()
             # collect samples and log weights with AIS and add to the buffer
             x_ais, log_w_ais = self.model.\
@@ -156,40 +203,36 @@ class PrioritisedBufferTrainer:
 
             if n_eval is not None:
                 if i in eval_iter:
-                    # set ais distribution to target for evaluation of ess
-                    self.model.annealed_importance_sampler.transition_operator.set_eval_mode(True)
-                    self.model.annealed_importance_sampler.target_log_prob = self.model.target_distribution.log_prob
-                    eval_info_true_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
-                                                         inner_batch_size=batch_size)
-                    # set ais distribution back to p^2/q.
-                    self.model.annealed_importance_sampler.target_log_prob = self.ais_target_log_prob
-                    eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
-                                                inner_batch_size=batch_size)
-                    self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
-                    eval_info = {}
-                    eval_info.update({key + "_p_target": val for key, val in eval_info_true_target.items()})
-                    eval_info.update({key + "_p2overq_target": val for key, val in eval_info_practical_target.items()})
-
-                    eval_info.update(step=i)
-                    self.logger.write(eval_info)
+                    self.perform_eval(i, eval_batch_size, batch_size)
 
             if n_plot is not None:
                 if i in plot_iter:
-                    figures = self.plot(self.model)
-                    for j, figure in enumerate(figures):
-                        if save:
-                            figure.savefig(os.path.join(self.plots_dir, f"{j}_iter_{i}.png"))
-                        plt.close(figure)
+                    self.make_and_save_plots(i, save)
 
             if n_checkpoints is not None:
                 if i in checkpoint_iter:
-                    checkpoint_path = os.path.join(self.checkpoints_dir, f"iter_{i}/")
-                    pathlib.Path(checkpoint_path).mkdir(exist_ok=False)
-                    self.model.save(os.path.join(checkpoint_path, "model.pt"))
-                    torch.save(self.optimizer.state_dict(),
-                               os.path.join(checkpoint_path, 'optimizer.pt'))
-                    if self.optim_schedular:
-                        torch.save(self.optim_schedular.state_dict(),
-                                   os.path.join(self.checkpoints_dir, 'scheduler.pt'))
+                    self.save_checkpoint(i)
+
+
+            max_it_time = max(max_it_time, time() - it_start_time)
+
+            # End job if necessary
+            if tlimit is not None:
+                time_past = (time() - start_time) / 3600
+                if (time_past + max_it_time/3600) > tlimit:
+                    # self.perform_eval(i, eval_batch_size, batch_size)
+                    # self.make_and_save_plots(i, save)
+                    if i not in checkpoint_iter:
+                        self.save_checkpoint(i)
+                    self.logger.close()
+                    print(f"\nEnding training at iteration {i}, after training for {time_past:.2f} "
+                          f"hours as timelimit {tlimit:.2f} hours has been reached.\n")
+                    return
+
+        print(f"\n Run completed in {(time() - start_time)/3600:.2f} hours")
+        if tlimit is None:
+            print("Timelimit not set")
+        else:
+            print(f"Run finished before timelimit of {tlimit:.2f} hours was reached.")
 
         self.logger.close()

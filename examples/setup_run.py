@@ -1,7 +1,10 @@
+import re
+import time
 from typing import Union, Callable, Optional, List
 import os
 import pathlib
 import wandb
+import numpy as np
 from omegaconf import DictConfig
 
 from datetime import datetime
@@ -55,7 +58,7 @@ def get_n_iterations(
         return n_training_iter
     else:
         if loss_type[0:4] == "flow":
-            n_iter = n_flow_forward_pass / batch_size
+            n_iter = n_flow_forward_pass // batch_size
         else:
             if transition_operator_type == "hmc":
                 # Note this also requires differentiating the flow, which is fair as the
@@ -81,10 +84,6 @@ def get_n_iterations(
     return n_iter
 
 
-
-
-
-
 def setup_logger(cfg: DictConfig, save_path: str) -> Logger:
     if hasattr(cfg.logger, "pandas_logger"):
         logger = PandasLogger(save=True,
@@ -100,7 +99,7 @@ def setup_logger(cfg: DictConfig, save_path: str) -> Logger:
     return logger
 
 
-def setup_buffer(cfg: DictConfig, fab_model: FABModel) -> Union[ReplayBuffer,
+def setup_buffer(cfg: DictConfig, fab_model: FABModel, auto_fill_buffer: bool) -> Union[ReplayBuffer,
                                                                 PrioritisedReplayBuffer]:
     dim = cfg.target.dim  # applies to flow and target
     if cfg.training.prioritised_buffer is False:
@@ -124,16 +123,44 @@ def setup_buffer(cfg: DictConfig, fab_model: FABModel) -> Union[ReplayBuffer,
 
         buffer = PrioritisedReplayBuffer(dim=dim, max_length=cfg.training.maximum_buffer_length,
                                          min_sample_length=cfg.training.min_buffer_length,
-                                         initial_sampler=initial_sampler)
+                                         initial_sampler=initial_sampler,
+                                         fill_buffer_during_init=auto_fill_buffer)
     return buffer
 
+def get_load_checkpoint_dir(outer_checkpoint_dir):
+    try:
+        # load the most recent checkpoint, from the most recent run.
+        chkpts = [it.path for it in os.scandir(outer_checkpoint_dir) if it.is_dir()]
+        folder_names = [it.name for it in os.scandir(outer_checkpoint_dir) if
+                        it.is_dir()]
+        times = [datetime.fromisoformat(time).timestamp() for time in folder_names]
+        # grab most recent dir with argmax on times
+        latest_chkpts_dir = os.path.join(chkpts[np.argmax(times)], "model_checkpoints")
+        iter_dirs = [it.path for it in os.scandir(latest_chkpts_dir) if it.is_dir()]
+        re_matches = [re.search(r"(.*iter_([0-9]*))", subdir) for subdir in iter_dirs]
+        iter_numbers = [int(match.groups()[1]) if match else -1 for match in re_matches]
+        chkpt_dir = re_matches[np.argmax(iter_numbers)].groups()[0]
+    except:
+        raise Exception("Checkpoint directory did not meet expected format.")
+    return chkpt_dir
 
-def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
+def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                           target: TargetDistribution):
     """Create and trainer and run."""
+    if cfg.training.tlimit:
+        start_time = time.time()
+    else:
+        start_time = None
+    if cfg.training.checkpoint_load_dir is not None:
+        if not os.path.exists(cfg.training.checkpoint_load_dir):
+            print("no checkpoint loaded, starting training from scratch")
+            chkpt_dir = None
+        else:
+            chkpt_dir = get_load_checkpoint_dir(cfg.training.checkpoint_load_dir)
+    else:
+        chkpt_dir = None
     dim = cfg.target.dim  # applies to flow and target
-    current_time = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
-    save_path = cfg.evaluation.save_path + current_time + "/"
+    save_path = os.path.join(cfg.evaluation.save_path, str(datetime.now().isoformat()))
     logger = setup_logger(cfg, save_path)
     if hasattr(cfg.logger, "wandb"):
         # if using wandb then save to wandb path
@@ -141,20 +168,22 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
 
 
-    with open(save_path + "config.txt", "w") as file:
+    with open(os.path.join(save_path, "config.txt"), "w") as file:
         file.write(str(cfg))
+
 
     flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
                                      layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
                                      act_norm=cfg.flow.act_norm)
-
 
     if cfg.fab.transition_operator.type == "hmc":
         # very lightweight HMC.
         transition_operator = HamiltonianMonteCarlo(
             n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
             n_outer=1,
-            epsilon=1.0, L=cfg.fab.transition_operator.n_inner_steps, dim=dim,
+            epsilon=1.0,
+            L=cfg.fab.transition_operator.n_inner_steps,
+            dim=dim,
             step_tuning_method="p_accept")
     elif cfg.fab.transition_operator.type == "metropolis":
         transition_operator = Metropolis(n_transitions=cfg.fab.n_intermediate_distributions,
@@ -168,7 +197,9 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     if torch.cuda.is_available() and cfg.training.use_gpu:
       flow.cuda()
       transition_operator.cuda()
-      print("utilising GPU")
+      print("\n*************  Utilising GPU  ****************** \n")
+    else:
+        print("\n*************  Utilising CPU  ****************** \n")
 
 
     fab_model = FABModel(flow=flow,
@@ -176,18 +207,29 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                          n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
                          transition_operator=transition_operator,
                          loss_type=cfg.fab.loss_type)
-    optimizer = torch.optim.AdamW(flow.parameters(), lr=cfg.training.lr)
+    optimizer = torch.optim.Adam(flow.parameters(), lr=cfg.training.lr)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
     scheduler = None
 
-
     # Create buffer if needed
     if cfg.training.use_buffer is True:
-        buffer = setup_buffer(cfg, fab_model)
+        buffer = setup_buffer(cfg, fab_model, auto_fill_buffer=chkpt_dir is None)
     else:
         buffer = None
+    if chkpt_dir is not None:
+        map_location = "cuda" if torch.cuda.is_available() and cfg.training.use_gpu else "cpu"
+        fab_model.load(os.path.join(chkpt_dir, "model.pt"), map_location)
+        opt_state = torch.load(os.path.join(chkpt_dir, 'optimizer.pt'), map_location)
+        optimizer.load_state_dict(opt_state)
+        if buffer is not None:
+            buffer.load(path=os.path.join(chkpt_dir, 'buffer.pt'))
+            assert buffer.can_sample, "if a buffer is loaded, it is expected to contain " \
+                                      "enough samples to sample from"
+        print(f"\n\n****************loaded checkpoint: {chkpt_dir}*******************\n\n")
 
     plot = setup_plotter(cfg, target, buffer)
+
+
 
     # Create trainer
     if cfg.training.use_buffer is False:
@@ -228,10 +270,14 @@ def setup_trainer_and_run(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     trainer.run(n_iterations=n_iterations, batch_size=cfg.training.batch_size,
                 n_plot=cfg.evaluation.n_plots,
                 n_eval=cfg.evaluation.n_eval, eval_batch_size=cfg.evaluation.eval_batch_size,
-                save=True, n_checkpoints=cfg.evaluation.n_checkpoints)
+                save=True, n_checkpoints=cfg.evaluation.n_checkpoints,
+                tlimit=cfg.training.tlimit,
+                start_time=start_time)
+
     if hasattr(cfg.logger, "list_logger"):
         plot_history(trainer.logger.history)
         plt.show()
         print(trainer.logger.history['eval_ess_flow_p_target'][-10:])
         print(trainer.logger.history['eval_ess_ais_p_target'][-10:])
         print(trainer.logger.history['test_set_mean_log_prob_p_target'][-10:])
+
