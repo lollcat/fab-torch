@@ -127,7 +127,6 @@ def setup_buffer(cfg: DictConfig, fab_model: FABModel) -> Union[ReplayBuffer,
     return buffer
 
 def get_load_checkpoint_dir(outer_checkpoint_dir):
-    # load recent checkpoint if in standard format, otherwise attempt load from checkpoint_load_dir
     try:
         # load the most recent checkpoint, from the most recent run.
         chkpts = [it.path for it in os.scandir(outer_checkpoint_dir) if it.is_dir()]
@@ -141,8 +140,7 @@ def get_load_checkpoint_dir(outer_checkpoint_dir):
         iter_numbers = [int(match.groups()[1]) if match else -1 for match in re_matches]
         chkpt_dir = re_matches[np.argmax(iter_numbers)].groups()[0]
     except:
-        # if not matching the expected format try load from the checkpoint_load_dir
-        chkpt_dir = outer_checkpoint_dir
+        raise Exception("Checkpoint directory did not meet expected format.")
     return chkpt_dir
 
 def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,

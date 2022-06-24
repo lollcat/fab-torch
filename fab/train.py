@@ -138,7 +138,7 @@ class Trainer:
                     self.logger.close()
                     print(f"\nEnding training at iteration {i}, after training for {time_past:.2f} "
                           f"hours as timelimit {tlimit:.2f} hours has been reached.\n")
-                    break
+                    return
 
         print(f"\n Run completed in {(time() - start_time)/3600:.2f} hours")
         if tlimit is None:

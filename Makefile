@@ -27,4 +27,4 @@ mw_flow_nis:
 mw_snf:
 	$(ManyWellCMD) flow.use_snf=True \
 		training.checkpoint_load_dir=$(BASE_DIR)/snf/seed$$\{training.seed\}\
-		evaluation.save_path=$(BASE_DIR)/snf/seed$$\{training.seed\}
+		evaluation.save_path=$(BASE_DIR)/snf/seed$$\{training.seed\} training.tlimit=$(TIMELIMIT)
