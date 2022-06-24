@@ -26,7 +26,7 @@ training:
   lr: 2e-4
   batch_size: 20
   n_iterations: null
-  n_flow_forward_pass: 20_000 # assumes split coupling where log prob & sample are same speed.
+  n_flow_forward_pass: 30_000 # assumes split coupling where log prob & sample are same speed.
   use_gpu: True
   use_64_bit: true
   use_buffer: false # below config fields are all for use_buffer = True

@@ -3,6 +3,7 @@ ManyWellCMD=python examples/many_well.py -m training.seed=0,1,2 # by default see
 BASE_DIR=/home/laurence/work/code/FAB-TORCH/results
 TIMELIMIT=24
 
+
 mw_fab_buffer: # run fab with prioritised fab_buffer
 	$(ManyWellCMD) training.use_buffer=True training.prioritised_buffer=True \
 		training.checkpoint_load_dir=$(BASE_DIR)/fab_buffer/seed$$\{training.seed\}  \

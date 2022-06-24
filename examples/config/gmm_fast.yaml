@@ -8,13 +8,13 @@ target:
   log_var_scaling: 1.0
 
 flow:
-  use_snf: true
+  use_snf: false
   layer_nodes_per_dim: 30
   n_layers: 10
   act_norm: false
 
 fab:
-  loss_type: alpha_2_div # flow_reverse_kl
+  loss_type: p2_over_q_alpha_2_div # alpha_2_div # flow_reverse_kl
   transition_operator:
     type: metropolis
     n_inner_steps: 1
@@ -24,9 +24,9 @@ fab:
 training:
   tlimit: null # time limit in hours
   # if checkpoint_load_dir in standard format then will load most recent, null for no loading
-  checkpoint_load_dir: /home/laurence/work/code/FAB-TORCH/results/gmm/seed${training.seed}/snf/ # outer directory for checkpoints, most recent is loaded
+  checkpoint_load_dir: null# outer directory for checkpoints, most recent is loaded
   seed: 0
-  lr: 5e-4
+  lr: 1e-4
   batch_size: 128
   n_iterations: null # either n_itertations or n_flow_forward_pass must have a value
   n_flow_forward_pass: 100_000 # assumes split coupling where log prob & sample are same speed.

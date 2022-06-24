@@ -103,7 +103,8 @@ class PrioritisedBufferTrainer:
             n_checkpoints: Optional[int] = None,
             save: bool = True,
             tlimit: Optional[float] = None,
-            start_time: Optional[float] = None) -> None:
+            start_time: Optional[float] = None,
+            start_iter: Optional[int] = 0) -> None:
         if save:
             pathlib.Path(self.plots_dir).mkdir(exist_ok=True)
             pathlib.Path(self.checkpoints_dir).mkdir(exist_ok=True)
@@ -120,9 +121,13 @@ class PrioritisedBufferTrainer:
         if start_time is not None:
             start_time = time()
 
-        pbar = tqdm(range(n_iterations))
+        if start_iter >= n_iterations:
+            raise Exception("Not running training as start_iter >= total training iterations")
+
+        pbar = tqdm(range(n_iterations - start_iter))
         max_it_time = 0.0
-        for i in pbar:
+        for pbar_iter in pbar:
+            i = pbar_iter + start_iter + 1
             it_start_time = time()
             self.optimizer.zero_grad()
             # collect samples and log weights with AIS and add to the buffer
