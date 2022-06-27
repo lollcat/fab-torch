@@ -20,7 +20,7 @@ fab:
 
 training:
   tlimit: null # time limit in hours
-  checkpoint_load_dir: /home/laurence/work/code/FAB-TORCH/results/many_well/seed${training.seed}/ # or null
+  checkpoint_load_dir: null # or null
   seed: 0
   lr: 1e-4
   batch_size: 512
@@ -28,8 +28,8 @@ training:
   n_flow_forward_pass: 3_000_000_000
   use_gpu: true
   use_64_bit: true
-  use_buffer: false
-  prioritised_buffer: false
+  use_buffer: true
+  prioritised_buffer: true
   buffer_temp: 0.0 # rate that we weight new experience over old
   n_batches_buffer_sampling: 8
   maximum_buffer_length: 512000

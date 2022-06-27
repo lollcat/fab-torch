@@ -22,6 +22,13 @@ def effective_sample_size(log_w: torch.Tensor, normalised=False):
         log_w = F.softmax(log_w, dim=0)
     return 1 / torch.sum(log_w ** 2) / log_w.shape[0]
 
+def effective_sample_size_over_p(log_w: torch.Tensor):
+    """Estimate the effective sample size using samples from the target.
+    Note that these log weights must be calculated with a normalised target log prob."""
+    # effective sample size, see https://arxiv.org/abs/1602.03572
+    assert len(log_w.shape) == 1
+    return 1 / torch.mean(torch.exp(log_w))
+
 
 def quadratic_function(x: torch.Tensor):
     # example function that we may want to calculate expectations over
