@@ -25,11 +25,11 @@ def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str]
                                        target=target
                                        )
         if model_name:
-            path_to_model = f"{PATH}/models/{model_name}_model.pt"
+            path_to_model = f"{PATH}/models/{model_name}_seed1.pt"
             checkpoint = torch.load(path_to_model, map_location="cpu")
             snf.load_state_dict(checkpoint['flow'])
         # wrap appropriately
-        snf = SNFModel(snf, cfg.target.dim)
+        snf = SNFModel(snf, target, cfg.target.dim)
         flow = snf.flow
     else:
         flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
@@ -37,7 +37,7 @@ def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str]
                                          act_norm=cfg.flow.act_norm)
 
         if model_name:
-            path_to_model = f"{PATH}/models/{model_name}_model.pt"
+            path_to_model = f"{PATH}/models/{model_name}_seed1.pt"
             checkpoint = torch.load(path_to_model, map_location="cpu")
             flow._nf_model.load_state_dict(checkpoint['flow'])
 
@@ -48,7 +48,7 @@ def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str]
 
 @hydra.main(config_path="./", config_name="config.yaml")
 def run(cfg: DictConfig):
-    model_names = [None, "fab_with_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     titles = ["Initialisation", "fab with buffer", "fab no buffer",
               "KLD over flow", r"$D_{\alpha=2}(p || q)$ over flow", "SNF"]
 
