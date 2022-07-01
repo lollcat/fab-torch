@@ -80,7 +80,7 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e4)):
 
 @hydra.main(config_path="./", config_name="config.yaml")
 def main(cfg: DictConfig):
-    model_names = ["fab_buffer", "fab_no_buffer", "snf"] # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    model_names = ["flow_kld"] # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     seeds = [1, 2, 3]
     num_samples = int(5e4)
 
@@ -99,7 +99,7 @@ def main(cfg: DictConfig):
     print(results.groupby("model_name").mean()[keys].to_latex())
     print("\n ******* std ********************** \n")
     print((results.groupby("model_name").std()[keys]*1.96).to_latex())
-    results.to_csv(open("/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/many_well_results.csv", "w"))
+    results.to_csv(open("/examples/paper_results/many_well/many_well_flow_kld.csv", "w"))
     print("overall results")
     print(results[["model_name", "seed"] + keys])
 

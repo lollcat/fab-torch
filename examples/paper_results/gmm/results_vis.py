@@ -2,6 +2,8 @@ import os
 from typing import Optional
 import hydra
 import matplotlib.pyplot as plt
+from matplotlib import rc
+import matplotlib as mpl
 from omegaconf import DictConfig
 from examples.make_flow import make_wrapped_normflowdist
 from examples.setup_run_snf import make_normflow_snf_model, SNFModel
@@ -49,11 +51,25 @@ def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str]
 @hydra.main(config_path="./", config_name="config.yaml")
 def run(cfg: DictConfig):
     model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
-    titles = ["Initialisation", "fab with buffer", "fab no buffer",
+    titles = ["Initialisation", "FAB with buffer", "FAB no buffer",
               "KLD over flow", r"$D_{\alpha=2}(p || q)$ over flow", "SNF"]
 
+    mpl.rcParams['figure.dpi'] = 300
+    rc('font', **{'family': 'serif', 'serif': ['Times']})
+    rc('text', usetex=True)
+    rc('axes', titlesize=12, labelsize=10)  # fontsize of the axes title and labels
+    #rc('legend', fontsize=6)
+    rc('xtick', labelsize=9)
+    rc('ytick', labelsize=9)
+
     n_rows, n_cols = 2, 3
-    fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols*4, n_rows*4))
+    size = 3.2
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols*size, n_rows*size))
+    axs[0, 0].set_ylabel("r$x_2$")
+    axs[1, 0].set_ylabel("r$x_2$")
+    for i in range(n_cols):
+        axs[-1, i].set_xlabel(r"$x_1$")
+
     axs = axs.flatten()
 
     plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
