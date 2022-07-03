@@ -37,30 +37,33 @@ def load_model(cfg: DictConfig, target, model_name: str):
         checkpoint = torch.load(path_to_model, map_location="cpu")
         flow._nf_model.load_state_dict(checkpoint['flow'])
 
-        # transition_operator = HamiltonianMonteCarlo(
-        #     n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
-        #     n_outer=1,
-        #     epsilon=1.0,
-        #     L=cfg.fab.transition_operator.n_inner_steps,
-        #     dim=dim,
-        #     step_tuning_method="p_accept")
+        transition_operator = HamiltonianMonteCarlo(
+            n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
+            n_outer=1,
+            epsilon=1.0,
+            L=cfg.fab.transition_operator.n_inner_steps,
+            dim=dim,
+            step_tuning_method="p_accept")
 
-        # model = FABModel(flow=flow,
-        #          target_distribution=target,
-        #          n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
-        #          transition_operator=transition_operator,
-        #          loss_type=cfg.fab.loss_type)
+        transition_operator.load_state_dict(checkpoint['trans_op'])
 
-        # No need to do AIS, as we aren't interested in metrics after AIS for now.
-        transition_operator = Metropolis(n_transitions=1,
-                                         n_updates=1,
-                                         adjust_step_size=False)
 
         model = FABModel(flow=flow,
                  target_distribution=target,
-                 n_intermediate_distributions=1,
+                 n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
                  transition_operator=transition_operator,
                  loss_type=cfg.fab.loss_type)
+
+        # No need to do AIS, as we aren't interested in metrics after AIS for now.
+        # transition_operator = Metropolis(n_transitions=1,
+        #                                  n_updates=1,
+        #                                  adjust_step_size=False)
+
+        # model = FABModel(flow=flow,
+        #          target_distribution=target,
+        #          n_intermediate_distributions=1,
+        #          transition_operator=transition_operator,
+        #          loss_type=cfg.fab.loss_type)
     return model
 
 
@@ -73,14 +76,13 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e4)):
         torch.set_default_dtype(torch.float64)
         target = target.double()
     model = load_model(cfg, target, model_name)
-    with torch.no_grad():
-        eval = model.get_eval_info(num_samples, 500)
+    eval = model.get_eval_info(num_samples, 500)
     return eval
 
 
 @hydra.main(config_path="./", config_name="config.yaml")
 def main(cfg: DictConfig):
-    model_names = ["flow_kld"] # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    model_names = ["fab_buffer", "fab_no_buffer"] # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     seeds = [1, 2, 3]
     num_samples = int(5e4)
 
@@ -94,12 +96,13 @@ def main(cfg: DictConfig):
                              model_name=model_name)
             results = results.append(eval_info, ignore_index=True)
 
-    keys = ["eval_ess_flow", 'test_set_ais_mean_log_prob', 'test_set_modes_mean_log_prob']
+    keys = ["eval_ess_flow", 'test_set_ais_mean_log_prob', 'test_set_modes_mean_log_prob', 'eval_ess_ais']
+    # keys = ["eval_ess_flow", 'test_set_ais_mean_log_prob', 'test_set_modes_mean_log_prob']
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[keys].to_latex())
     print("\n ******* std ********************** \n")
     print((results.groupby("model_name").std()[keys]*1.96).to_latex())
-    results.to_csv(open("/examples/paper_results/many_well/many_well_flow_kld.csv", "w"))
+    results.to_csv(open("/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/many_well_withais.csv", "w"))
     print("overall results")
     print(results[["model_name", "seed"] + keys])
 

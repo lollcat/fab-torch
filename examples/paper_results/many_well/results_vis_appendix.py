@@ -72,11 +72,11 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
 @hydra.main(config_path="./", config_name="config.yaml")
 def run(cfg: DictConfig):
     torch.set_default_dtype(torch.float64)
-    # model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
-    # titles = ["Initialisation", "FAB with buffer", "FAB no buffer",
-    #           "KLD over flow", r"$D_{\alpha=2}(p || q)$ over flow", "SNF"]
-    model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "snf"]
-    titles = ["Initialisation", "FAB with buffer", "FAB no buffer", "KLD over flow", "SNF"]
+    model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    titles = ["Initialisation", "FAB with buffer", "FAB no buffer",
+              "KLD over flow", r"$D_{\alpha=2}(p || q)$ over flow", "SNF"]
+    # model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "snf"]
+    # titles = ["Initialisation", "FAB with buffer", "FAB no buffer", "KLD over flow", "SNF"]
 
     width, height = 10, 15
     fig = plt.figure(constrained_layout=True, figsize=(width, height))
