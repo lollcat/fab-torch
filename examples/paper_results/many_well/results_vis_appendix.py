@@ -2,6 +2,8 @@ import os
 from typing import Optional
 import hydra
 import matplotlib.pyplot as plt
+from matplotlib import rc
+import matplotlib as mpl
 from omegaconf import DictConfig
 from examples.make_flow import make_wrapped_normflowdist
 from examples.many_well_visualise_all_marginal_pairs import get_target_log_prob_marginal_pair
@@ -71,12 +73,19 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
 
 @hydra.main(config_path="./", config_name="config.yaml")
 def run(cfg: DictConfig):
+    mpl.rcParams['figure.dpi'] = 300
+    rc('font', **{'family': 'serif', 'serif': ['Times']})
+    rc('text', usetex=True)
+    rc('figure', titlesize=15)
+    rc('axes', titlesize=13, labelsize=13)  # fontsize of the axes title and labels
+    #rc('legend', fontsize=6)
+    rc('xtick', labelsize=11)
+    rc('ytick', labelsize=11)
+
     torch.set_default_dtype(torch.float64)
     model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
-    titles = ["Initialisation", "FAB with buffer", "FAB no buffer",
-              "KLD over flow", r"$D_{\alpha=2}(p || q)$ over flow", "SNF"]
-    # model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "snf"]
-    # titles = ["Initialisation", "FAB with buffer", "FAB no buffer", "KLD over flow", "SNF"]
+    titles = ["Initialisation", "FAB w/ buffer (ours)", "FAB w/o buffer (ours)",
+              "Flow w/ KLD", r"Flow w/ $D_{\alpha=2}$", "SNF w/ KLD"]
 
     width, height = 10, 15
     fig = plt.figure(constrained_layout=True, figsize=(width, height))

@@ -67,7 +67,7 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e4)):
 def main(cfg: DictConfig):
     model_names = ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     seeds = [1, 2, 3]
-    num_samples = int(500)
+    num_samples = int(5e3)
 
     results = pd.DataFrame()
     for model_name in model_names:

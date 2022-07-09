@@ -30,11 +30,14 @@ def effective_sample_size_over_p(log_w: torch.Tensor):
     return 1 / torch.mean(torch.exp(log_w))
 
 
-def quadratic_function(x: torch.Tensor):
+
+def quadratic_function(x: torch.Tensor, seed: int = 0):
+    torch.random.manual_seed(seed)
     # example function that we may want to calculate expectations over
     x_shift = 2*torch.randn(x.shape[-1]).to(x.device)
     A = 2*torch.rand((x.shape[-1], x.shape[-1])).to(x.device)
     b = torch.rand(x.shape[-1]).to(x.device)
+    torch.seed() # set back to random number
     x = x + x_shift
     return torch.einsum("bi,ij,bj->b", x, A, x) + torch.einsum("i,bi->b", b, x)
 

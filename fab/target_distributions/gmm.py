@@ -28,7 +28,7 @@ class GMM(nn.Module, TargetDistribution):
         self.expectation_function = quadratic_function
         self.register_buffer("true_expectation", MC_estimate_true_expectation(self,
                                                              self.expectation_function,
-                                                             int(1e6)))
+                                                             int(1e7)))
         self.device = "cuda" if use_gpu else "cpu"
         self.to(self.device)
 

@@ -2,6 +2,8 @@ import os
 from typing import Optional
 import hydra
 import matplotlib.pyplot as plt
+from matplotlib import rc
+import matplotlib as mpl
 from omegaconf import DictConfig
 from examples.make_flow import make_wrapped_normflowdist
 from examples.many_well_visualise_all_marginal_pairs import get_target_log_prob_marginal_pair
@@ -54,20 +56,29 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
 
 @hydra.main(config_path="./", config_name="config.yaml")
 def run(cfg: DictConfig):
+    mpl.rcParams['figure.dpi'] = 300
+    rc('font', **{'family': 'serif', 'serif': ['Times']})
+    rc('text', usetex=True)
+    rc('figure', titlesize=15)
+    rc('axes', titlesize=13, labelsize=13)  # fontsize of the axes title and labels
+    #rc('legend', fontsize=6)
+    rc('xtick', labelsize=11)
+    rc('ytick', labelsize=11)
+
     model_names = ["fab_buffer", "flow_kld"]
-    titles = ["FAB", "KLD over flow"]
+    titles = ["FAB w/ buffer", "Flow w/ KLD"]
 
     width, height = 10, 6
     fig = plt.figure(constrained_layout=True, figsize=(width, height))
     subfigs = fig.subfigures(1, 2, wspace=0.01)
 
     plot_marginals(cfg, subfigs[0], model_names[0], plot_y_label=True)
-    subfigs[0].suptitle("Flow trained with FAB")
+    subfigs[0].suptitle(titles[0])
 
     plot_marginals(cfg, subfigs[1], model_names[1], plot_y_label=False)
-    subfigs[1].suptitle("Flow trained with KLD")
+    subfigs[1].suptitle(titles[1])
 
-    fig.suptitle(' ', fontsize='xx-large')
+    #fig.suptitle(' ', fontsize='xx-large')
     plt.show()
 
 

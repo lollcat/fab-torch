@@ -14,7 +14,7 @@ import torch
 PATH = os.getcwd()
 
 def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str] = None):
-    n_samples: int = 800
+    n_samples: int = int(1e4)
     alpha = 0.3
     plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
 
@@ -51,22 +51,22 @@ def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str]
 @hydra.main(config_path="./", config_name="config.yaml")
 def run(cfg: DictConfig):
     model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
-    titles = ["Initialisation", "FAB with buffer", "FAB no buffer",
-              "KLD over flow", r"$D_{\alpha=2}(p || q)$ over flow", "SNF"]
+    titles = ["Initialisation", "FAB w/ buffer (ours)", "FAB w/o buffer (ours)",
+              "Flow w/ KLD", r"Flow w/ $D_{\alpha=2}$", "SNF w/ KLD"]
 
     mpl.rcParams['figure.dpi'] = 300
     rc('font', **{'family': 'serif', 'serif': ['Times']})
     rc('text', usetex=True)
-    rc('axes', titlesize=12, labelsize=10)  # fontsize of the axes title and labels
+    rc('axes', titlesize=15, labelsize=13)  # fontsize of the axes title and labels
     #rc('legend', fontsize=6)
-    rc('xtick', labelsize=9)
-    rc('ytick', labelsize=9)
+    rc('xtick', labelsize=11)
+    rc('ytick', labelsize=11)
 
     n_rows, n_cols = 2, 3
     size = 3.2
     fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols*size, n_rows*size))
-    axs[0, 0].set_ylabel("r$x_2$")
-    axs[1, 0].set_ylabel("r$x_2$")
+    axs[0, 0].set_ylabel(r"$x_2$")
+    axs[1, 0].set_ylabel(r"$x_2$")
     for i in range(n_cols):
         axs[-1, i].set_xlabel(r"$x_1$")
 
