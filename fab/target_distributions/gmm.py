@@ -67,20 +67,24 @@ class GMM(nn.Module, TargetDistribution):
     def sample(self, shape=(1,)):
         return self.distribution.sample(shape)
 
-    def performance_metrics(self, samples: torch.Tensor, log_w: torch.Tensor,
-                            log_q_fn: Optional[LogProbFunc] = None,
-                            batch_size: Optional[int] = None) -> Dict:
+    def evaluate_expectation(self, samples, log_w):
         expectation = importance_weighted_expectation(self.expectation_function,
                                                          samples, log_w)
         true_expectation = self.true_expectation.to(expectation.device)
-        bias_normed = np.abs(expectation - true_expectation) / true_expectation
+        bias_normed = (expectation - true_expectation) / true_expectation
+        return bias_normed
+
+    def performance_metrics(self, samples: torch.Tensor, log_w: torch.Tensor,
+                            log_q_fn: Optional[LogProbFunc] = None,
+                            batch_size: Optional[int] = None) -> Dict:
+        bias_normed = self.expectation_function(samples, log_w)
         if log_q_fn:
             log_q_test = log_q_fn(self.test_set)
             log_p_test = self.log_prob(self.test_set)
             test_mean_log_prob = torch.mean(log_q_test)
             ess_over_p = effective_sample_size_over_p(log_p_test - log_q_test)
             summary_dict = {"test_set_mean_log_prob": test_mean_log_prob.cpu().item(),
-                            "bias_normed": bias_normed.cpu().item(),
+                            "bias_normed": torch.abs(bias_normed).cpu().item(),
                             "ess_over_p": ess_over_p.detach().cpu().item()
                             }
         else:
