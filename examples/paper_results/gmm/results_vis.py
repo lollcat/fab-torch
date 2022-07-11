@@ -14,7 +14,7 @@ import torch
 PATH = os.getcwd()
 
 def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str] = None):
-    n_samples: int = int(1e4)
+    n_samples: int = 800
     alpha = 0.3
     plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
 
@@ -50,9 +50,9 @@ def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str]
 
 @hydra.main(config_path="./", config_name="config.yaml")
 def run(cfg: DictConfig):
-    model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
-    titles = ["Initialisation", "FAB w/ buffer (ours)", "FAB w/o buffer (ours)",
-              "Flow w/ KLD", r"Flow w/ $D_{\alpha=2}$", "SNF w/ KLD"]
+    model_names = [None, "flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
+    titles = ["Initialisation", r"Flow w/ $D_{\alpha=2}$",
+              "Flow w/ KLD", "SNF w/ KLD", "FAB w/o buffer (ours)", "FAB w/ buffer (ours)"]
 
     mpl.rcParams['figure.dpi'] = 300
     rc('font', **{'family': 'serif', 'serif': ['Times']})

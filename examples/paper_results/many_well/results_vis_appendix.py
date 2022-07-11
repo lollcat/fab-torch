@@ -83,9 +83,9 @@ def run(cfg: DictConfig):
     rc('ytick', labelsize=11)
 
     torch.set_default_dtype(torch.float64)
-    model_names = [None, "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
-    titles = ["Initialisation", "FAB w/ buffer (ours)", "FAB w/o buffer (ours)",
-              "Flow w/ KLD", r"Flow w/ $D_{\alpha=2}$", "SNF w/ KLD"]
+    model_names = [None, "flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
+    titles = ["Initialisation", r"Flow w/ $D_{\alpha=2}$", "Flow w/ KLD", "SNF w/ KLD", "FAB w/o buffer (ours)",
+              "FAB w/ buffer (ours)"]
 
     width, height = 10, 15
     fig = plt.figure(constrained_layout=True, figsize=(width, height))

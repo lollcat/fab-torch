@@ -65,8 +65,8 @@ def run(cfg: DictConfig):
     rc('xtick', labelsize=11)
     rc('ytick', labelsize=11)
 
-    model_names = ["fab_buffer", "flow_kld"]
-    titles = ["FAB w/ buffer", "Flow w/ KLD"]
+    model_names = ["flow_kld", "fab_buffer"]
+    titles = ["Flow w/ KLD", "FAB w/ buffer (ours)"]
 
     width, height = 10, 6
     fig = plt.figure(constrained_layout=True, figsize=(width, height))

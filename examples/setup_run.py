@@ -172,6 +172,19 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         save_path = os.path.join(wandb.run.dir, save_path)
     pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
 
+    n_iterations = get_n_iterations(
+        n_training_iter=cfg.training.n_iterations,
+        n_flow_forward_pass=cfg.training.n_flow_forward_pass,
+        batch_size=cfg.training.batch_size,
+        loss_type=cfg.fab.loss_type,
+        n_transition_operator_inner_steps=cfg.fab.transition_operator.n_inner_steps,
+        n_intermediate_ais_dist=cfg.fab.n_intermediate_distributions,
+        transition_operator_type=cfg.fab.transition_operator.type,
+        use_buffer=cfg.training.use_buffer,
+        min_buffer_length=cfg.training.min_buffer_length,
+    )
+    cfg.training.n_iterations = n_iterations
+
 
     with open(os.path.join(save_path, "config.txt"), "w") as file:
         file.write(str(cfg))
@@ -260,17 +273,6 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                                 w_adjust_max_clip=cfg.training.w_adjust_max_clip
                                 )
 
-    n_iterations = get_n_iterations(
-                n_training_iter=cfg.training.n_iterations,
-                n_flow_forward_pass=cfg.training.n_flow_forward_pass,
-                batch_size=cfg.training.batch_size,
-                loss_type=cfg.fab.loss_type,
-                n_transition_operator_inner_steps=cfg.fab.transition_operator.n_inner_steps,
-                n_intermediate_ais_dist=cfg.fab.n_intermediate_distributions,
-                transition_operator_type=cfg.fab.transition_operator.type,
-                use_buffer=cfg.training.use_buffer,
-                min_buffer_length=cfg.training.min_buffer_length,
-                )
 
     trainer.run(n_iterations=n_iterations,
                 batch_size=cfg.training.batch_size,
