@@ -28,7 +28,7 @@ class PrioritisedBufferTrainer:
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None,
                  max_gradient_norm: Optional[float] = 5.0,
-                 w_adjust_max_clip: float = 10,
+                 w_adjust_max_clip: float = 10.0,
                  w_adjust_in_buffer_after_update: bool = False,
                  save_path: str = ""):
         self.model = model

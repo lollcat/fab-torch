@@ -55,9 +55,10 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
 
     for i in range(2):
         for j in range(2):
-            target_log_prob = get_target_log_prob_marginal_pair(target.log_prob_2D, i, j+2)
+            # target_log_prob = get_target_log_prob_marginal_pair(target.log_prob_2D, i, j+2, dim)
+            target_log_prob = get_target_log_prob_marginal_pair(target.log_prob, i, j + 2, dim)
             plot_contours(target_log_prob, bounds=plotting_bounds, ax=axs[i, j],
-                          n_contour_levels=20)
+                          n_contour_levels=20, grid_width_n_points=100)
             plot_marginal_pair(samples_flow, marginal_dims=(i, j+2),
                                ax=axs[i, j], bounds=plotting_bounds, alpha=alpha)
 
