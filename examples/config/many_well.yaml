@@ -22,8 +22,8 @@ training:
   tlimit: null # time limit in hours
   checkpoint_load_dir: null # or null
   seed: 0
-  lr: 1e-4
-  batch_size: 512
+  lr: 3e-4
+  batch_size: 2048
   n_iterations: null
   n_flow_forward_pass: 10_000_000_000
   use_gpu: true
@@ -33,7 +33,7 @@ training:
   buffer_temp: 0.0 # rate that we weight new experience over old
   n_batches_buffer_sampling: 8
   maximum_buffer_length: 512000
-  min_buffer_length: 12560
+  min_buffer_length: 65536
   log_w_clip_frac: null
   max_grad_norm: 100.0
   w_adjust_max_clip: null # clipping of weight adjustment factor for prioritised replay

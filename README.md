@@ -19,11 +19,9 @@ minutes locally.
    for a more challenging target distribution (256 modes). We recommend running this with GPU 
    turned on.
 
-**Double Well Boltzmann distribution samples vs contours**
-![Double Well samples vs contours](./examples/images/double_well_samples_vs_contours.png)
 
 **Gaussian Mixture Model samples vs contours**
-![Gaussian Mixture Model samples vs contours](./examples/images/gmm_samples_vs_contours.png)
+![Gaussian Mixture Model samples vs contours](./examples/paper_results/gmm/plots/MoG.png)
 
 
 ## About the code 
@@ -34,5 +32,4 @@ train a flow with this loss (or other flow - loss combinations that meet the spe
 ### Normalizing Flow Libraries
 We offer a simple wrapper that allows for various normalising flow libraries to be plugged into 
 this repository. The main library we rely on is 
-[Normflow](github.com/VincentStimper/normalizing-flows), however we also supply wrappers for 
-[nflows](https://github.com/bayesiains/nflows) and flowtorch (TBD). 
+[Normflow](github.com/VincentStimper/normalizing-flows). 
