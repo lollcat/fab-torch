@@ -34,5 +34,5 @@ train a flow with this loss (or other flow - loss combinations that meet the spe
 ### Normalizing Flow Libraries
 We offer a simple wrapper that allows for various normalising flow libraries to be plugged into 
 this repository. The main library we rely on is 
-[Normflow](github.com/VincentStimper/normalizing-flows), however we also supply wrappers for 
+[normflows](github.com/VincentStimper/normalizing-flows), however we also supply wrappers for 
 [nflows](https://github.com/bayesiains/nflows) and flowtorch (TBD). 

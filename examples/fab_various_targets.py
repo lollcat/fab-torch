@@ -1,4 +1,4 @@
-import normflow as nf
+import normflows as nf
 import matplotlib.pyplot as plt
 import torch
 
@@ -8,7 +8,7 @@ from fab.utils.plotting import plot_history, plot_contours, plot_marginal_pair
 
 from examples.make_flow import make_wrapped_normflowdist, make_wrapped_nflows_dist
 
-FLOW_LIBS = ["normflow", "nflows"]
+FLOW_LIBS = ["normflows", "nflows"]
 TARGET_NAMES = ["TwoMoons", "GMM", "ManyWell"]
 LOSS_TYPES = ["alpha_2_div", "forward_kl", "sample_log_prob"]
 
@@ -28,7 +28,7 @@ def train_fab(
 ) -> None:
     assert dim == 2, "currently the below plotting functions are only designed for 2 dim targets"
     torch.manual_seed(seed)
-    if flow_lib == "normflow":
+    if flow_lib == "normflows":
         flow = make_wrapped_normflowdist(dim, n_flow_layers=n_flow_layers)
     elif flow_lib == "nflows":
         flow = make_wrapped_nflows_dist(dim, n_flow_layers=n_flow_layers)

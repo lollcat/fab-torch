@@ -1,6 +1,6 @@
 import numpy as np
-import normflow as nf
-from fab.wrappers.normflow import WrappedNormFlowModel
+import normflows as nf
+from fab.wrappers.normflows import WrappedNormFlowModel
 from fab.trainable_distributions import TrainableDistribution
 
 
@@ -64,7 +64,7 @@ def make_wrapped_normflowdist(
         n_flow_layers: int = 5,
         layer_nodes_per_dim: int = 10,
         act_norm: bool = True) -> TrainableDistribution:
-    """Created a wrapped Normflow distribution using the example from the normflow page."""
+    """Created a wrapped normflows distribution using the example from the normflows page."""
     base = nf.distributions.base.DiagGaussian(dim)
     flows = make_normflow_flow(dim, n_flow_layers=n_flow_layers,
                                layer_nodes_per_dim=layer_nodes_per_dim,
@@ -83,7 +83,7 @@ def make_normflow_model(
         layer_nodes_per_dim: int = 10,
         act_norm: bool = True) \
         -> nf.NormalizingFlow:
-    """Created Normflow distribution using the example from the normflow page."""
+    """Created normflows distribution using the example from the normflows page."""
     base = nf.distributions.base.DiagGaussian(dim)
     flows = make_normflow_flow(dim,
                                n_flow_layers=n_flow_layers,
@@ -105,7 +105,7 @@ def make_normflow_snf_model(
         mh_prop_scale: float = 0.1,
         mh_steps: int = 10) \
         -> nf.NormalizingFlow:
-    """Created Normflow distribution with sampling layers."""
+    """Created normflows distribution with sampling layers."""
     base = nf.distributions.base.DiagGaussian(dim)
     flows = make_normflow_snf(base,
                               target,
