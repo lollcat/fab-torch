@@ -1,11 +1,11 @@
-from fab.wrappers.normflow import WrappedNormFlowModel
+from fab.wrappers.normflows import WrappedNormFlowModel
 from fab.trainable_distributions import TrainableDistribution
-import normflow as nf
+import normflows as nf
 
 
 def make_wrapped_normflowdist(
         dim: int = 2) -> TrainableDistribution:
-    """Created a wrapped Normflow distribution using the example from the normflow page."""
+    """Created a wrapped normflows distribution using the example from the normflows page."""
     base = nf.distributions.base.DiagGaussian(dim)
 
     # Define list of flows

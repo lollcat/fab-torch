@@ -1,5 +1,5 @@
-defaults:
-  - override hydra/launcher: joblib
+#defaults:
+#  - override hydra/launcher: joblib
 
 target:
   dim: 32
