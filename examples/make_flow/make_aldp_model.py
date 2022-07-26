@@ -1,11 +1,11 @@
 import torch
 import numpy as np
 
-import normflow as nf
+import normflows as nf
 
 from fab.target_distributions.aldp import AldpBoltzmann
 from fab.sampling_methods.transition_operators import HamiltonianMonteCarlo, Metropolis
-from fab.wrappers.normflow import WrappedNormFlowModel
+from fab.wrappers.normflows import WrappedNormFlowModel
 from fab import FABModel
 
 
@@ -150,7 +150,7 @@ def make_aldp_model(config, device):
     # Map input to periodic interval
     layers.append(nf.flows.PeriodicWrap(ind_circ, bound_circ))
 
-    # NormFlow model
+    # normflows model
     flow = nf.NormalizingFlow(base, layers)
     wrapped_flow = WrappedNormFlowModel(flow).to(device)
 

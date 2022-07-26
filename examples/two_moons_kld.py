@@ -1,6 +1,6 @@
 
 
-import normflow as nf
+import normflows as nf
 import matplotlib.pyplot as plt
 import torch
 
