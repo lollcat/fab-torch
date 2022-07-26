@@ -78,17 +78,21 @@ class GMM(nn.Module, TargetDistribution):
                             log_q_fn: Optional[LogProbFunc] = None,
                             batch_size: Optional[int] = None) -> Dict:
         bias_normed = self.evaluate_expectation(samples, log_w)
+        bias_no_correction = self.evaluate_expectation(samples, torch.ones_like(log_w))
         if log_q_fn:
             log_q_test = log_q_fn(self.test_set)
             log_p_test = self.log_prob(self.test_set)
             test_mean_log_prob = torch.mean(log_q_test)
             ess_over_p = effective_sample_size_over_p(log_p_test - log_q_test)
-            summary_dict = {"test_set_mean_log_prob": test_mean_log_prob.cpu().item(),
-                            "bias_normed": torch.abs(bias_normed).cpu().item(),
-                            "ess_over_p": ess_over_p.detach().cpu().item()
+            summary_dict = {
+                "test_set_mean_log_prob": test_mean_log_prob.cpu().item(),
+                "bias_normed": torch.abs(bias_normed).cpu().item(),
+                "bias_no_correction": torch.abs(bias_no_correction).cpu().item(),
+                "ess_over_p": ess_over_p.detach().cpu().item()
                             }
         else:
-            summary_dict = {"bias_normed": bias_normed.cpu().item()}
+            summary_dict = {"bias_normed": bias_normed.cpu().item(),
+                            "bias_no_correction": torch.abs(bias_no_correction).cpu().item()}
         return summary_dict
 
 

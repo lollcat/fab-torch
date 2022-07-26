@@ -4,8 +4,8 @@ RESULTS_DIR=/home/laurence/work/code/FAB-TORCH/results
 TIMELIMIT=None
 N_FLOW_FORWARD_PASS = 10_000_000_000
 
-
 gmm_fab_buffer: # run fab with prioritised fab_buffer
+	cd ../../../ ; pwd;
 	$(GMMCMD) training.use_buffer=True training.prioritised_buffer=True \
 		training.checkpoint_load_dir=$(RESULTS_DIR)/fab_buffer/seed$$\{training.seed\}  \
 		evaluation.save_path=$(RESULTS_DIR)/fab_buffer/seed$$\{training.seed\} \

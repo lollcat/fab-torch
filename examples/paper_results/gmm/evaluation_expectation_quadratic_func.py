@@ -61,31 +61,44 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e3), n_repeats=1
         target = target.double()
 
     biases = []
+    biases_unweighted = []
     for i in range(n_repeats):
         if model_name[:6] == "target":
             samples = target.sample((num_samples, ))
             log_w = torch.ones(samples.shape[0])
+            samples_unweighted = samples  # fake
+            log_w_unweighted = log_w  # fake
         else:
             model = load_model(cfg, target, model_name)
             if model_name and model_name[0:3] == "snf":
                 samples, log_w = model.snf.sample(num_samples)
+                valid_indices_unweighted = ~ (torch.softmax(log_w, axis=0) == 0)
+                samples_unweighted = samples[valid_indices_unweighted]
+                log_w_unweighted = torch.ones_like(log_w[valid_indices_unweighted])
             else:
                 samples, log_q = model.flow.sample_and_log_prob((num_samples, ))
-                valid_indices = ~torch.isinf(log_q) & ~torch.isnan(log_q)
-                samples, log_q = samples[valid_indices], log_q[valid_indices]
                 log_w = target.log_prob(samples) - log_q
+                valid_indices = ~torch.isinf(log_w) & ~torch.isnan(log_w)
+                samples, log_w = samples[valid_indices], log_w[valid_indices]
+                valid_indices_unweighted = ~ (torch.softmax(log_w, axis=0) == 0)
+                samples_unweighted = samples[valid_indices_unweighted]
+                log_w_unweighted = torch.ones_like(log_w[valid_indices_unweighted])
         normed_bias = target.evaluate_expectation(samples, log_w).detach().cpu()
+        normed_bias_unweighted = target.evaluate_expectation(samples_unweighted,
+                                                             log_w_unweighted).detach().cpu()
         biases.append(normed_bias)
-    info = {"bias": np.abs(np.mean(biases)),
-            "std": np.std(biases)}
+        biases_unweighted.append(normed_bias_unweighted)
+    info = {"bias": np.mean(np.abs(biases)),
+            "std": np.std(biases),
+            "bias_unweighted": np.abs(np.mean(biases_unweighted))}
     return info
 
 
-@hydra.main(config_path="./", config_name="config.yaml")
+@hydra.main(config_path="../../config", config_name="gmm.yaml")
 def main(cfg: DictConfig):
     model_names = ["target", "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     seeds = [1, 2, 3]
-    num_samples = int(1e3)
+    num_samples = int(1000)
 
     results = pd.DataFrame()
     for model_name in model_names:
@@ -98,16 +111,16 @@ def main(cfg: DictConfig):
             results = results.append(eval_info, ignore_index=True)
         print(results)
 
-    fields = ["bias", "std"]
+    fields = ["bias", "bias_unweighted"]
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[fields])
     print("\n ******* std ********************** \n")
     print(results.groupby("model_name").std()[fields])
-    results.to_csv(open(FILENAME, "w"))
+    results.to_csv(open(FILENAME_EXPECTATION_INFO, "w"))
 
+FILENAME_EXPECTATION_INFO = "/home/laurence/work/code/FAB-TORCH/examples/paper_results/gmm/gmm_results_expectation.csv"
 
 if __name__ == '__main__':
-    FILENAME = "/home/laurence/work/code/FAB-TORCH/examples/paper_results/gmm/gmm_results_expectation.csv"
     if True:
         main()
     else:

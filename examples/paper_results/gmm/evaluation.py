@@ -78,14 +78,17 @@ def main(cfg: DictConfig):
                              model_name=model_name)
             results = results.append(eval_info, ignore_index=True)
 
+    keys = ["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]
     print("\n *******  mean  ********************** \n")
-    print(results.groupby("model_name").mean()[["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
+    print(results.groupby("model_name").mean()[keys])
     print("\n ******* std ********************** \n")
-    print(results.groupby("model_name").std()[["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
+    print(results.groupby("model_name").std()[keys])
     print("overall results")
     print(results[["model_name", "seed", "eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
-    # results.to_csv(open("/examples/paper_results/gmm/gmm_results.csv", "w"))
+    results.to_csv(open(FILENAME_EVAL_INFO, "w"))
 
+
+FILENAME_EVAL_INFO = "/home/laurence/work/code/FAB-TORCH/examples/paper_results/gmm/gmm_results.csv"
 
 if __name__ == '__main__':
     main()

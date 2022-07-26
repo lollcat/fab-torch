@@ -28,8 +28,8 @@ training:
   n_flow_forward_pass: 10_000_000_000
   use_gpu: true
   use_64_bit: true
-  use_buffer: true
-  prioritised_buffer: true
+  use_buffer: false
+  prioritised_buffer: false
   buffer_temp: 0.0 # rate that we weight new experience over old
   n_batches_buffer_sampling: 8
   maximum_buffer_length: 512000

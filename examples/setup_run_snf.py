@@ -27,10 +27,12 @@ class SNFModel(Model):
         # hack so that plotting with self.flow.sample works
         self.flow = type('', (), {})()
         self.flow.sample = lambda shape: snf.sample(shape[0])[0]
+        self.flow.log_prob = lambda x: self.snf.log_prob(x)
         self.annealed_importance_sampler = type('', (), {})()
         self.annealed_importance_sampler.sample_and_log_weights = \
             lambda batch_size, *args, **kwargs: (
             torch.zeros(batch_size, dim), torch.zeros(batch_size))
+
 
     def get_iter_info(self):
         return {}

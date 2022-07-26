@@ -57,7 +57,7 @@ def get_n_iterations(
     if n_training_iter:
         return n_training_iter
     else:
-        if loss_type[0:4] == "flow":
+        if loss_type[0:4] == "flow" or loss_type[:6] == "target":
             n_iter = n_flow_forward_pass // batch_size
         else:
             if transition_operator_type == "hmc":

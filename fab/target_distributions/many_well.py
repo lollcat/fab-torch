@@ -1,5 +1,7 @@
 from typing import Optional, Dict
 
+import numpy as np
+
 from fab.types_ import LogProbFunc
 
 import torch
@@ -49,13 +51,23 @@ class DoubleWellEnergy(Energy, nn.Module):
     def log_prob(self, x):
         return torch.squeeze(-self.energy(x))
 
+    @property
+    def log_Z_2D(self):
+        if self._a == -0.5 and self._b == -6 and self._c == 1.0:
+            log_Z_dim0 = np.log(11784.50927)
+            log_Z_dim1 = 0.5 * np.log(2 * torch.pi)
+            return log_Z_dim0 + log_Z_dim1
+        else:
+            raise NotImplementedError
+
 
 
 class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
     """Many Well target distribution create by repeating the Double Well Boltzmann distribution."""
     def __init__(self, dim=4, use_gpu: bool = True,
-                 n_intermediate_distributions=1000,
-                 ais_test_set_size=500,
+                 n_intermediate_distributions: int =1000,
+                 ais_test_set_size: int =500,
+                 normalised: bool = False,
                  *args, **kwargs):
         assert dim % 2 == 0
         self.n_wells = dim // 2
@@ -92,7 +104,15 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
                 self.device = "cpu"
         else:
             self.device = "cpu"
+        self.normalised = normalised
 
+    @property
+    def log_Z(self):
+        return torch.tensor(self.log_Z_2D * self.n_wells)
+
+    @property
+    def Z(self):
+        return torch.exp(self.log_Z)
 
     def create_2d_test_set_with_ais(self, n_itermediate_distributions, test_set_size):
         transition_operator = HamiltonianMonteCarlo(n_itermediate_distributions, 2)
@@ -131,11 +151,15 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
                                device=self.device)
 
     def log_prob(self, x):
-        return torch.sum(
+        log_prob = torch.sum(
             torch.stack(
                 [super(ManyWellEnergy, self).log_prob(x[:, i*2:i*2+2])
                  for i in range(self.n_wells)]),
             dim=0)
+        if self.normalised:
+            return log_prob - self.log_Z
+        else:
+            return log_prob
 
     def log_prob_2D(self, x):
         # for plotting, given 2D x
@@ -148,7 +172,6 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
             return {}
         else:
             del samples
-            del log_w
             sum_log_prob = 0.0
             test_set_iterator = self.get_modes_test_set_iterator(batch_size=batch_size)
             with torch.no_grad():
@@ -156,11 +179,18 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
                     log_q_x = torch.sum(log_q_fn(x)).cpu()
                     sum_log_prob += log_q_x
                 test_set_from_ais = self.get_ais_based_test_set_samples(batch_size)
-                test_set_ais_samples_mean_log_prob = \
-                    torch.mean(log_q_fn(test_set_from_ais))
+                log_q_test_ais = log_q_fn(test_set_from_ais)
+                test_set_ais_samples_mean_log_prob = torch.mean(log_q_test_ais)
+                forward_kl = torch.mean(self.log_prob(test_set_from_ais) - self.log_Z
+                                        - log_q_test_ais)
+                # Check accuracy in estimating normalisation constant.
+                Z_estimate = torch.exp(torch.logsumexp(log_w, axis=0) - np.log(log_w.shape[0]))
+                MSE_Z_estimate = torch.abs((Z_estimate - self.Z)/self.Z)
             info = {
                 "test_set_modes_mean_log_prob":
                     (sum_log_prob / test_set_iterator.test_set_n_points).cpu().item(),
-                "test_set_ais_mean_log_prob": (test_set_ais_samples_mean_log_prob).cpu().item()
+                "test_set_ais_mean_log_prob": (test_set_ais_samples_mean_log_prob).cpu().item(),
+                "MSE_log_Z_estimate": MSE_Z_estimate.cpu().item(),
+                "forward_kl": forward_kl.cpu().item()
             }
             return info

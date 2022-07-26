@@ -68,13 +68,12 @@ def load_model(cfg: DictConfig, target, model_name: str):
 
 
 
-def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e4)):
-    torch.set_default_dtype(torch.float32)
-    torch.manual_seed(cfg.training.seed)
-    target = ManyWellEnergy(cfg.target.dim, a=-0.5, b=-6, use_gpu=False)
-    if cfg.training.use_64_bit:
-        torch.set_default_dtype(torch.float64)
-        target = target.double()
+def evaluate(cfg: DictConfig, model_name: str, target, num_samples=int(5e4)):
+    test_set_ais = target.get_ais_based_test_set_samples(num_samples)
+    test_set_log_prob_over_p = torch.mean(target.log_prob(test_set_ais) - target.log_Z).cpu().item()
+    test_set_modes_log_prob_over_p = torch.mean(target.log_prob(target._test_set) - target.log_Z)
+    print(f"test set log prob under p: {test_set_log_prob_over_p:.2f}")
+    print(f"modes test set log prob under p: {test_set_modes_log_prob_over_p:.2f}")
     model = load_model(cfg, target, model_name)
     eval = model.get_eval_info(num_samples, 500)
     return eval
@@ -82,38 +81,55 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e4)):
 
 @hydra.main(config_path="../../config", config_name="many_well.yaml")
 def main(cfg: DictConfig):
-    model_names = ["fab_buffer", "fab_no_buffer"] # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    model_names = ["snf"]  # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     seeds = [1, 2, 3]
-    num_samples = int(5e4)
+    num_samples = int(1e3)
+
 
     results = pd.DataFrame()
     for model_name in model_names:
+        torch.set_default_dtype(torch.float32)
+        torch.manual_seed(cfg.training.seed)
+        target = ManyWellEnergy(cfg.target.dim, a=-0.5, b=-6, use_gpu=False)#,
+                                # normalised=model_name == "snf")
+        if cfg.training.use_64_bit:
+            torch.set_default_dtype(torch.float64)
+            target = target.double()
         for seed in seeds:
             name = model_name + f"_seed{seed}"
             print(f"get results for {name}")
-            eval_info = evaluate(cfg, name, num_samples)
+            eval_info = evaluate(cfg, name, target, num_samples)
             eval_info.update(seed=seed,
                              model_name=model_name)
             results = results.append(eval_info, ignore_index=True)
 
-    keys = ["eval_ess_flow", 'test_set_ais_mean_log_prob', 'test_set_modes_mean_log_prob', 'eval_ess_ais']
-    # keys = ["eval_ess_flow", 'test_set_ais_mean_log_prob', 'test_set_modes_mean_log_prob']
+    # Note for the SNF, that - test_set_ais_mean_log_prob is approximately the forward KL divergence,
+    # if we use the normalised log prob.
+
+    results.loc[results["model_name"] == "snf", "forward_kl"] = list((- results[results["model_name"] == "snf"]["test_set_ais_mean_log_prob"]).values)
+    keys = ["eval_ess_flow", 'test_set_ais_mean_log_prob', 'test_set_modes_mean_log_prob',
+            'eval_ess_ais', 'MSE_log_Z_estimate', "forward_kl"]
+    keys = ['MSE_log_Z_estimate']
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[keys].to_latex())
     print("\n ******* std ********************** \n")
-    print((results.groupby("model_name").std()[keys]*1.96).to_latex())
+    print((results.groupby("model_name").std()[keys]).to_latex())
     results.to_csv(open("/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/many_well_withais.csv", "w"))
+
     print("overall results")
     print(results[["model_name", "seed"] + keys])
 
 
 if __name__ == '__main__':
-    main()
-    # results = pd.read_csv(open("gmm_results.csv", "r"))
-    # print("mean")
-    # print(results.groupby("model_name").mean()[["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
-    # print("std")
-    # print(results.groupby("model_name").std()[["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
-    # results.to_csv(open("gmm_results.csv", "w"))
-    # print("overall results")
-    # print(results[["model_name", "seed", "eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
+    load = False
+    if not load:
+        main()
+    else:
+        results = pd.read_csv(open("many_well_with_forward_kl.csv", "r"))
+        print("mean")
+        print(results.groupby("model_name").mean()[["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
+        print("std")
+        print(results.groupby("model_name").std()[["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
+        results.to_csv(open("gmm_results.csv", "w"))
+        print("overall results")
+        print(results[["model_name", "seed", "eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])

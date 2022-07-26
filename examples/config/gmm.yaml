@@ -15,7 +15,7 @@ flow:
 
 
 fab:
-  loss_type: alpha_2_div
+  loss_type: forward_kl
   transition_operator:
     type: metropolis
     n_inner_steps: 1
@@ -24,6 +24,7 @@ fab:
 
 training:
   checkpoint_load_dir: null
+  tlimit: null
   seed: 0
   lr: 1e-4
   batch_size: 128
@@ -31,8 +32,8 @@ training:
   n_flow_forward_pass: 10_000_000
   use_gpu: true
   use_64_bit: true
-  use_buffer: true # below config fields are all for use_buffer = True
-  prioritised_buffer: true
+  use_buffer: false # below config fields are all for use_buffer = True
+  prioritised_buffer: false
   n_batches_buffer_sampling: 4
   buffer_temp: 1.0 # rate that we weight new experience over old
   maximum_buffer_length: 12800
@@ -48,3 +49,12 @@ evaluation:
   eval_batch_size: 512 # must be a multiple of inner batch size
   n_checkpoints: 10 # number of model checkpoints saved
   save_path:  results/many_well32/
+
+logger:
+#  pandas_logger:
+#    save_period: 100 # how often to save the pandas dataframe as a csv
+  wandb:
+    name: GMM_${fab.loss_type}
+    project: fab
+    entity: flow-ais-bootstrap
+    tags: [alpha_2_loss]
