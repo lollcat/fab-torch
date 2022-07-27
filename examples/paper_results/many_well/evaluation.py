@@ -69,9 +69,9 @@ def load_model(cfg: DictConfig, target, model_name: str):
 
 
 def evaluate(cfg: DictConfig, model_name: str, target, num_samples=int(5e4)):
-    test_set_ais = target.get_ais_based_test_set_samples(num_samples)
-    test_set_log_prob_over_p = torch.mean(target.log_prob(test_set_ais) - target.log_Z).cpu().item()
-    test_set_modes_log_prob_over_p = torch.mean(target.log_prob(target._test_set) - target.log_Z)
+    test_set_exact = target.sample((num_samples, ))
+    test_set_log_prob_over_p = torch.mean(target.log_prob(test_set_exact) - target.log_Z).cpu().item()
+    test_set_modes_log_prob_over_p = torch.mean(target.log_prob(target._test_set_modes) - target.log_Z)
     print(f"test set log prob under p: {test_set_log_prob_over_p:.2f}")
     print(f"modes test set log prob under p: {test_set_modes_log_prob_over_p:.2f}")
     model = load_model(cfg, target, model_name)
@@ -81,7 +81,7 @@ def evaluate(cfg: DictConfig, model_name: str, target, num_samples=int(5e4)):
 
 @hydra.main(config_path="../../config", config_name="many_well.yaml")
 def main(cfg: DictConfig):
-    model_names = ["snf"]  # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    model_names = ["fab_buffer"]  # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     seeds = [1, 2, 3]
     num_samples = int(1e3)
 
@@ -90,8 +90,7 @@ def main(cfg: DictConfig):
     for model_name in model_names:
         torch.set_default_dtype(torch.float32)
         torch.manual_seed(cfg.training.seed)
-        target = ManyWellEnergy(cfg.target.dim, a=-0.5, b=-6, use_gpu=False)#,
-                                # normalised=model_name == "snf")
+        target = ManyWellEnergy(cfg.target.dim, a=-0.5, b=-6, use_gpu=False)
         if cfg.training.use_64_bit:
             torch.set_default_dtype(torch.float64)
             target = target.double()
@@ -107,9 +106,8 @@ def main(cfg: DictConfig):
     # if we use the normalised log prob.
 
     results.loc[results["model_name"] == "snf", "forward_kl"] = list((- results[results["model_name"] == "snf"]["test_set_ais_mean_log_prob"]).values)
-    keys = ["eval_ess_flow", 'test_set_ais_mean_log_prob', 'test_set_modes_mean_log_prob',
+    keys = ["eval_ess_flow", 'test_set_exact_mean_log_prob', 'test_set_modes_mean_log_prob',
             'eval_ess_ais', 'MSE_log_Z_estimate', "forward_kl"]
-    keys = ['MSE_log_Z_estimate']
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[keys].to_latex())
     print("\n ******* std ********************** \n")

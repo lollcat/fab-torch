@@ -12,7 +12,7 @@ flow:
   use_snf: false
 
 fab:
-  loss_type: alpha_2_div
+  loss_type: forward_kl
   transition_operator:
     type: hmc
     n_inner_steps: 5
@@ -20,8 +20,8 @@ fab:
 
 
 training:
-  tlimit: 0.05 # time limit in hours
-  checkpoint_load_dir: /home/laurence/work/code/FAB-TORCH/results/many_well/seed${training.seed}/ # or null
+  tlimit: null # time limit in hours
+  checkpoint_load_dir: null
   seed: 0
   lr: 2e-4
   batch_size: 20
