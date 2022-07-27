@@ -29,9 +29,6 @@ def load_model(cfg: DictConfig, target, log_prob_scale_factor = 0.0):
                                    act_norm=cfg.flow.act_norm,
                                    target=target_snf
                                    )
-    path_to_model = f"{PATH}/models/snf_seed1.pt"
-    checkpoint = torch.load(path_to_model, map_location="cpu")
-    snf.load_state_dict(checkpoint['flow'])
     # wrap appropriately
     snf = SNFModel(snf, target_snf, cfg.target.dim)
     return snf
@@ -39,7 +36,7 @@ def load_model(cfg: DictConfig, target, log_prob_scale_factor = 0.0):
 
 def evaluate(cfg: DictConfig, target, num_samples=int(100), log_prob_scale_factor = 0.0):
     torch.manual_seed(0)
-    test_set_ais = target.get_ais_based_test_set_samples(num_samples)
+    test_set_ais = target.sample((num_samples,))
     model = load_model(cfg, target, log_prob_scale_factor=log_prob_scale_factor)
     torch.manual_seed(0)
     log_w_ais = model.snf.log_prob(test_set_ais)
@@ -71,6 +68,7 @@ def main(cfg: DictConfig):
         eval_info.update(log_prob_scale_factor=log_prob_scale_factor)
         results = results.append(eval_info, ignore_index=True)
         print(f"run {log_prob_scale_factor}")
+    print(results)
     pass
 
 if __name__ == '__main__':
