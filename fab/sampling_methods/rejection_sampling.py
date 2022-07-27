@@ -7,7 +7,8 @@ def rejection_sampling(n_samples: int, proposal: torch.distributions.Distributio
                        target_log_prob_fn: Callable, k: float) -> torch.Tensor:
     """Rejection sampling. See Pattern Recognition and ML by Bishop Chapter 11.1"""
     z_0 = proposal.sample((n_samples*10,))
-    u_0 = torch.distributions.Uniform(0, k*torch.exp(proposal.log_prob(z_0))).sample()
+    u_0 = torch.distributions.Uniform(0, k*torch.exp(proposal.log_prob(z_0)))\
+        .sample().to(z_0)
     accept = torch.exp(target_log_prob_fn(z_0)) > u_0
     samples = z_0[accept]
     if samples.shape[0] >= n_samples:

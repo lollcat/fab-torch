@@ -81,10 +81,9 @@ def evaluate(cfg: DictConfig, model_name: str, target, num_samples=int(5e4)):
 
 @hydra.main(config_path="../../config", config_name="many_well.yaml")
 def main(cfg: DictConfig):
-    model_names = ["fab_buffer"]  # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    model_names = ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     seeds = [1, 2, 3]
-    num_samples = int(1e3)
-
+    num_samples = int(5e4)
 
     results = pd.DataFrame()
     for model_name in model_names:
@@ -105,17 +104,19 @@ def main(cfg: DictConfig):
     # Note for the SNF, that - test_set_ais_mean_log_prob is approximately the forward KL divergence,
     # if we use the normalised log prob.
 
-    results.loc[results["model_name"] == "snf", "forward_kl"] = list((- results[results["model_name"] == "snf"]["test_set_ais_mean_log_prob"]).values)
+    results.loc[results["model_name"] == "snf", "forward_kl"] = list((- results[results["model_name"] == "snf"]["test_set_exact_mean_log_prob"]).values)
     keys = ["eval_ess_flow", 'test_set_exact_mean_log_prob', 'test_set_modes_mean_log_prob',
             'eval_ess_ais', 'MSE_log_Z_estimate', "forward_kl"]
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[keys].to_latex())
     print("\n ******* std ********************** \n")
     print((results.groupby("model_name").std()[keys]).to_latex())
-    results.to_csv(open("/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/many_well_withais.csv", "w"))
+    results.to_csv(open(FILENAME_EVAL_INFO, "w"))
 
     print("overall results")
     print(results[["model_name", "seed"] + keys])
+
+FILENAME_EVAL_INFO = "/examples/paper_results/many_well/many_well_results_no_snf.csv"
 
 
 if __name__ == '__main__':

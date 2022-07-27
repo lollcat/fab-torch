@@ -12,7 +12,7 @@ flow:
   use_snf: false
 
 fab:
-  loss_type: forward_kl
+  loss_type: target_forward_kl
   transition_operator:
     type: hmc
     n_inner_steps: 5

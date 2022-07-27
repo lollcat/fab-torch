@@ -93,8 +93,11 @@ class DoubleWellEnergy(Energy, nn.Module):
 
     def sample(self, shape):
         if self._a == -0.5 and self._b == -6 and self._c == 1.0:
-            dim2_samples = torch.distributions.Normal(0, 1).sample(shape)
             dim1_samples = self.sample_first_dimension(shape)
+            dim2_samples = torch.distributions.Normal(
+                torch.tensor(0.0).to(dim1_samples.device),
+                torch.tensor(1.0).to(dim1_samples.device)
+            ).sample(shape)
             return torch.stack([dim1_samples, dim2_samples], dim=-1)
         else:
             raise NotImplementedError
