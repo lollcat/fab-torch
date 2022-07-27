@@ -1,6 +1,6 @@
 import numpy as np
 import normflows as nf
-from fab.wrappers.normflow import WrappedNormFlowModel
+from fab.wrappers.normflows import WrappedNormFlowModel
 from fab.trainable_distributions import TrainableDistribution
 
 
