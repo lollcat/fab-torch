@@ -96,7 +96,7 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e3), n_repeats=1
 
 @hydra.main(config_path="../../config", config_name="gmm.yaml")
 def main(cfg: DictConfig):
-    model_names = ["target", "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    model_names = ["target", "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "target_kld", "snf"]
     seeds = [1, 2, 3]
     num_samples = int(1000)
 
