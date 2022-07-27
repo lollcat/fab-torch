@@ -5,60 +5,11 @@ import numpy as np
 from fab.types_ import LogProbFunc
 
 import torch
-import torch.nn as nn
 from fab.target_distributions.base import TargetDistribution
 from fab.utils.training import DatasetIterator
 from fab.sampling_methods import AnnealedImportanceSampler, HamiltonianMonteCarlo
 from fab.wrappers.torch import WrappedTorchDist
-
-class Energy(torch.nn.Module):
-    """
-    https://zenodo.org/record/3242635#.YNna8uhKjIW
-    """
-    def __init__(self, dim):
-        super().__init__()
-        self._dim = dim
-
-    def _energy(self, x):
-        raise NotImplementedError()
-
-    def energy(self, x, temperature=None):
-        assert x.shape[-1] == self._dim, "`x` does not match `dim`"
-        if temperature is None:
-            temperature = 1.
-        return self._energy(x) / temperature
-
-    def force(self, x, temperature=None):
-        x = x.requires_grad_(True)
-        e = self.energy(x, temperature=temperature)
-        return -torch.autograd.grad(e.sum(), x)[0]
-
-
-class DoubleWellEnergy(Energy, nn.Module):
-    def __init__(self, dim, a=0.0, b=-4., c=1.):
-        super().__init__(dim)
-        self._a = a
-        self._b = b
-        self._c = c
-
-    def _energy(self, x):
-        d = x[:, [0]]
-        v = x[:, 1:]
-        e1 = self._a * d + self._b * d.pow(2) + self._c * d.pow(4)
-        e2 = 0.5 * v.pow(2).sum(dim=-1, keepdim=True)
-        return e1 + e2
-
-    def log_prob(self, x):
-        return torch.squeeze(-self.energy(x))
-
-    @property
-    def log_Z_2D(self):
-        if self._a == -0.5 and self._b == -6 and self._c == 1.0:
-            log_Z_dim0 = np.log(11784.50927)
-            log_Z_dim1 = 0.5 * np.log(2 * torch.pi)
-            return log_Z_dim0 + log_Z_dim1
-        else:
-            raise NotImplementedError
+from fab.target_distributions.double_well import DoubleWellEnergy
 
 
 
