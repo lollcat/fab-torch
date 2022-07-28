@@ -10,15 +10,14 @@ if __name__ == '__main__':
 
 
     keys1 = ["eval_ess_flow", "test_set_mean_log_prob"]
-
     keys2 = ["bias", "bias_unweighted"]
-    columns = ["flow_nis", "flow_kld", "target_kld", "snf", "fab_no_buffer", "fab_buffer"]
-    column_names = ["Flow w/ $D_{\\alpha=2}$", "Flow w/ KLD", "Flow w/ ML",
+    columns = ["target_kld", "flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
+    column_names = ["Flow w/ ML", "Flow w/ $D_{\\alpha=2}$", "Flow w/ KLD",
                     "SNF w/ KLD", "\emph{FAB w/o buffer}", "\emph{FAB w/ buffer}"]
     means_eval = df_eval_info.groupby("model_name").mean()[keys1]
-    stds_eval = df_eval_info.groupby("model_name").std()[keys1]
+    stds_eval = df_eval_info.groupby("model_name").sem(ddof=0)[keys1]
     means_exp = df_expectation_info.groupby("model_name").mean()[keys2]
-    stds_exp = df_expectation_info.groupby("model_name").std()[keys2]
+    stds_exp = df_expectation_info.groupby("model_name").sem(ddof=0)[keys2]
 
     table_values_string = ""
 

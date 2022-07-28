@@ -50,12 +50,15 @@ def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str]
 
 @hydra.main(config_path="../../config", config_name="gmm.yaml")
 def run(cfg: DictConfig):
-    # model_names = [None, "flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
-    # titles = ["Initialisation", r"Flow w/ $D_{\alpha=2}$",
-    #           "Flow w/ KLD", "SNF w/ KLD", "FAB w/o buffer (ours)", "FAB w/ buffer (ours)"]
-    model_names = [None, "target_kld", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
-    titles = ["Initialisation", "Flow w/ ML", "Flow w/ KLD",
-              "SNF w/ KLD", "FAB w/o buffer (ours)", "FAB w/ buffer (ours)"]
+    appendix = True
+    if appendix:
+        model_names = ["target_kld", "flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
+        titles = ["Flow w/ ML", r"Flow w/ $D_{\alpha=2}$", "Flow w/ KLD",
+                  "SNF w/ KLD", "FAB w/o buffer (ours)", "FAB w/ buffer (ours)"]
+    else:
+        model_names = [None, "target_kld", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
+        titles = ["Initialisation", "Flow w/ ML", "Flow w/ KLD",
+                  "SNF w/ KLD", "FAB w/o buffer (ours)", "FAB w/ buffer (ours)"]
     mpl.rcParams['figure.dpi'] = 300
     rc('font', **{'family': 'serif', 'serif': ['Times']})
     rc('text', usetex=True)
@@ -89,7 +92,11 @@ def run(cfg: DictConfig):
         ax.set_title(title)
 
     plt.tight_layout()
-    plt.savefig("/home/laurence/work/code/FAB-TORCH/examples/paper_results/gmm/plots/MoG.png", bbox_inches="tight")
+    if appendix:
+        plt.savefig("/home/laurence/work/code/FAB-TORCH/examples/paper_results/gmm/plots/MoG_appendix.png",
+                bbox_inches="tight")
+    else:
+        plt.savefig("/home/laurence/work/code/FAB-TORCH/examples/paper_results/gmm/plots/MoG.png", bbox_inches="tight")
     plt.show()
 
 

@@ -2,6 +2,7 @@ import hydra
 from examples.setup_run_snf import make_normflow_snf_model, SNFModel
 
 from fab.target_distributions.many_well import ManyWellEnergy
+from examples.paper_results.many_well.old_target_many_well import ManyWellEnergy as OldManyWellEnergy
 import pandas as pd
 import os
 from omegaconf import DictConfig
@@ -16,11 +17,18 @@ PATH = os.getcwd()
 def load_model(cfg: DictConfig, target, model_name: str):
     dim = cfg.target.dim
     if model_name and model_name[0:3] == "snf":
+        torch.set_default_dtype(torch.float32)
+        torch.manual_seed(cfg.training.seed)
+        # Have to overwrite target to load the SNF that was trained with this model.
+        target_old = OldManyWellEnergy(cfg.target.dim, a=-0.5, b=-6, use_gpu=False)
+        if cfg.training.use_64_bit:
+            torch.set_default_dtype(torch.float64)
+            target_old = target_old.double()
         snf = make_normflow_snf_model(dim,
                                        n_flow_layers=cfg.flow.n_layers,
                                        layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
                                        act_norm=cfg.flow.act_norm,
-                                       target=target
+                                       target=target_old
                                        )
         if model_name:
             path_to_model = f"{PATH}/models/{model_name}.pt"
@@ -28,6 +36,7 @@ def load_model(cfg: DictConfig, target, model_name: str):
             snf.load_state_dict(checkpoint['flow'])
         # wrap appropriately
         snf = SNFModel(snf, target, cfg.target.dim)
+        snf.target_distribution = target  # overwrite
         return snf
     else:
         flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
@@ -101,12 +110,9 @@ def main(cfg: DictConfig):
                              model_name=model_name)
             results = results.append(eval_info, ignore_index=True)
 
-    # Note for the SNF, that - test_set_ais_mean_log_prob is approximately the forward KL divergence,
-    # if we use the normalised log prob.
 
-    results.loc[results["model_name"] == "snf", "forward_kl"] = list((- results[results["model_name"] == "snf"]["test_set_exact_mean_log_prob"]).values)
     keys = ["eval_ess_flow", 'test_set_exact_mean_log_prob', 'test_set_modes_mean_log_prob',
-            'eval_ess_ais', 'MSE_log_Z_estimate', "forward_kl"]
+            'MSE_log_Z_estimate', "forward_kl"]
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[keys].to_latex())
     print("\n ******* std ********************** \n")
@@ -116,7 +122,7 @@ def main(cfg: DictConfig):
     print("overall results")
     print(results[["model_name", "seed"] + keys])
 
-FILENAME_EVAL_INFO = "/examples/paper_results/many_well/many_well_results_no_snf.csv"
+FILENAME_EVAL_INFO = "/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/many_well_results_no_ml.csv"
 
 
 if __name__ == '__main__':

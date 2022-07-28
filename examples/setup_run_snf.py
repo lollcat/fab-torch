@@ -44,15 +44,18 @@ class SNFModel(Model):
         n_batches = outer_batch_size // inner_batch_size
         for i in range(n_batches):
             # Initialise AIS with samples from the base distribution.
-            x, base_log_w = self.snf.sample(inner_batch_size)
+            x, base_log_q_hat = self.snf.sample(inner_batch_size)
+            base_log_w = self.target_distribution.log_prob(x) - base_log_q_hat
             # append base samples and log probs
             base_samples.append(x.detach().cpu())
             base_log_w_s.append(base_log_w.detach().cpu())
 
         base_samples = torch.cat(base_samples, dim=0)
         base_log_w_s = torch.cat(base_log_w_s, dim=0)
+        # Z_estimate = torch.exp(torch.logsumexp(base_log_w_s, axis=0) - np.log(base_log_w_s.shape[0]))
         info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w_s, normalised=False).item()}
-        # note here that log prob of test set is actually rather forward KL.
+        # note here that log prob of test set is actually the pi(x_0) - \sum_i S(x_i).
+        # So the value of KL divergence will still be correct.
         target_info = self.target_distribution.performance_metrics(base_samples, base_log_w_s,
                                                                  self.snf.log_prob,
                                                                  batch_size=inner_batch_size)

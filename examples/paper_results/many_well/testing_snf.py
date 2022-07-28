@@ -54,7 +54,6 @@ def main(cfg: DictConfig):
     log_prob_scale_factors = [0, 1, 10, 10, 70]
     num_samples = int(1e3)
 
-
     results = pd.DataFrame()
     torch.set_default_dtype(torch.float32)
     torch.manual_seed(cfg.training.seed)

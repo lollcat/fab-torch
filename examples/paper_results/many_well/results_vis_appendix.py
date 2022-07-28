@@ -85,7 +85,8 @@ def run(cfg: DictConfig):
 
     torch.set_default_dtype(torch.float64)
     model_names = [None, "flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
-    titles = ["Initialisation", r"Flow w/ $D_{\alpha=2}$", "Flow w/ KLD", "SNF w/ KLD", "FAB w/o buffer (ours)",
+    titles = ["Initialisation", r"Flow w/ $D_{\alpha=2}$", "Flow w/ KLD", "SNF w/ KLD",
+              "FAB w/o buffer (ours)",
               "FAB w/ buffer (ours)"]
 
     width, height = 10, 15
