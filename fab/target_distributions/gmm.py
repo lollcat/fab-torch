@@ -6,13 +6,13 @@ import torch.nn as nn
 import torch.nn.functional as f
 from fab.target_distributions.base import TargetDistribution
 from fab.utils.numerical import MC_estimate_true_expectation, quadratic_function, \
-    importance_weighted_expectation
+    importance_weighted_expectation, effective_sample_size_over_p
 import numpy as np
 
 
 class GMM(nn.Module, TargetDistribution):
     def __init__(self, dim, n_mixes, loc_scaling, log_var_scaling=0.1, seed=0,
-                 n_test_set_samples=500, use_gpu=True):
+                 n_test_set_samples=1000, use_gpu=True):
         super(GMM, self).__init__()
         self.seed = seed
         self.n_mixes = n_mixes
@@ -28,7 +28,7 @@ class GMM(nn.Module, TargetDistribution):
         self.expectation_function = quadratic_function
         self.register_buffer("true_expectation", MC_estimate_true_expectation(self,
                                                              self.expectation_function,
-                                                             int(1e6)))
+                                                             int(1e7)))
         self.device = "cuda" if use_gpu else "cpu"
         self.to(self.device)
 
@@ -67,22 +67,34 @@ class GMM(nn.Module, TargetDistribution):
     def sample(self, shape=(1,)):
         return self.distribution.sample(shape)
 
-    def performance_metrics(self, samples: torch.Tensor, log_w: torch.Tensor,
-                            log_q_fn: Optional[LogProbFunc] = None,
-                            batch_size: Optional[int] = None) -> Dict:
+    def evaluate_expectation(self, samples, log_w):
         expectation = importance_weighted_expectation(self.expectation_function,
                                                          samples, log_w)
         true_expectation = self.true_expectation.to(expectation.device)
-        bias_normed = np.abs(expectation - true_expectation) / true_expectation
+        bias_normed = (expectation - true_expectation) / true_expectation
+        return bias_normed
+
+    def performance_metrics(self, samples: torch.Tensor, log_w: torch.Tensor,
+                            log_q_fn: Optional[LogProbFunc] = None,
+                            batch_size: Optional[int] = None) -> Dict:
+        bias_normed = self.evaluate_expectation(samples, log_w)
+        bias_no_correction = self.evaluate_expectation(samples, torch.ones_like(log_w))
         if log_q_fn:
-            test_mean_log_prob = torch.mean(log_q_fn(self.test_set))
-            summary_dict = {"test_set_mean_log_prob": test_mean_log_prob.cpu().item(),
-                            "bias_normed": bias_normed.cpu().item()}
+            log_q_test = log_q_fn(self.test_set)
+            log_p_test = self.log_prob(self.test_set)
+            test_mean_log_prob = torch.mean(log_q_test)
+            ess_over_p = effective_sample_size_over_p(log_p_test - log_q_test)
+            summary_dict = {
+                "test_set_mean_log_prob": test_mean_log_prob.cpu().item(),
+                "bias_normed": torch.abs(bias_normed).cpu().item(),
+                "bias_no_correction": torch.abs(bias_no_correction).cpu().item(),
+                "ess_over_p": ess_over_p.detach().cpu().item()
+                            }
         else:
-            summary_dict = {"bias_normed": bias_normed.cpu().item()}
+            summary_dict = {"bias_normed": bias_normed.cpu().item(),
+                            "bias_no_correction": torch.abs(bias_no_correction).cpu().item()}
         return summary_dict
 
 
 if __name__ == '__main__':
     target = GMM(dim=2, n_mixes=2, loc_scaling=1.0)
-    target.test_set

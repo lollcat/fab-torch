@@ -1,3 +1,6 @@
+defaults:
+  - override hydra/launcher: joblib
+
 target:
   dim: 32
 
@@ -5,6 +8,7 @@ flow:
   layer_nodes_per_dim: 10
   n_layers: 10
   act_norm: false
+  use_snf: false
 
 fab:
   loss_type: alpha_2_div
@@ -13,6 +17,38 @@ fab:
     n_inner_steps: 5
   n_intermediate_distributions: 4
 
+
 training:
+  tlimit: null # time limit in hours
+  checkpoint_load_dir: null # or null
   seed: 0
+  lr: 1e-4
+  batch_size: 512
+  n_iterations: null
+  n_flow_forward_pass: 3_000_000_000
+  use_gpu: true
+  use_64_bit: true
+  use_buffer: true
+  prioritised_buffer: true
+  buffer_temp: 0.0 # rate that we weight new experience over old
+  n_batches_buffer_sampling: 8
+  maximum_buffer_length: 512000
+  min_buffer_length: 12560
+  log_w_clip_frac: null
+  max_grad_norm: 100.0
+  w_adjust_max_clip: null # clipping of weight adjustment factor for prioritised replay
+
+
+evaluation:
+  n_plots: 50 # number of times we visualise the model throughout training.
+  n_eval: 50 # for calculating metrics of flow w.r.t target.
+  eval_batch_size: 2048 # must be a multiple of inner batch size
+  n_checkpoints: 10 # number of model checkpoints saved
+  save_path:  /home/laurence/work/code/FAB-TORCH/results/many_well/seed${training.seed}/
+
+
+
+logger:
+  pandas_logger:
+    save_period: 100 # how often to save the pandas dataframe as a csv
 

@@ -23,7 +23,8 @@ class FABModel(Model):
         assert loss_type in ["alpha_2_div", "forward_kl", "sample_log_prob",
                              "flow_forward_kl", "flow_alpha_2_div",
                              "flow_reverse_kl", "p2_over_q_alpha_2_div",
-                             "flow_alpha_2_div_unbiased", "flow_alpha_2_div_nis"]
+                             "flow_alpha_2_div_unbiased", "flow_alpha_2_div_nis",
+                             "target_forward_kl"]
         self.loss_type = loss_type
         self.flow = flow
         self.target_distribution = target_distribution
@@ -64,6 +65,8 @@ class FABModel(Model):
             return self.p2_over_q_alpha_2_div(args)
         elif self.loss_type == "flow_alpha_2_div_nis":
             return self.flow_alpha_2_div_nis(args)
+        elif self.loss_type == "target_forward_kl":
+            return self.target_forward_kl(args)
         else:
             raise NotImplementedError
 
@@ -146,6 +149,11 @@ class FABModel(Model):
         loss = self.fab_alpha_div_loss_inner(x_ais, log_w_ais)
         return loss
 
+    def target_forward_kl(self, batch_size: int) -> torch.Tensor:
+        """Assumes we can sample from the target distribution"""
+        x = self.target_distribution.sample((batch_size,))
+        return self.flow_forward_kl(x)
+
     def flow_forward_kl(self, x: torch.Tensor) -> torch.Tensor:
         """Compute forward KL-divergence of flow"""
         return -torch.mean(self.flow.log_prob(x))
@@ -177,7 +185,7 @@ class FABModel(Model):
         return - torch.mean(log_q_x)
 
     def get_iter_info(self) -> Dict[str, Any]:
-        if self.loss_type[0:4] == "flow":
+        if self.loss_type[0:4] == "flow" or self.loss_type[:6] == "target":
             return {}
         else:
             return self.annealed_importance_sampler.get_logging_info()

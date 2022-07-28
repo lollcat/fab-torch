@@ -153,7 +153,8 @@ class AnnealedImportanceSampler:
             for j in range(1, self.n_intermediate_distributions+1):
                 x, log_w = self.perform_transition(x, log_w, j)
 
-            x, log_w = self._remove_nan_and_infs(x, log_w, descriptor="chain end")
+            x, log_w = self._remove_nan_and_infs(x, log_w, descriptor="chain end",
+                                                 raise_exception=False)
             # append ais samples and log probs
             ais_samples.append(x.detach().cpu())
             ais_log_w.append(log_w.detach().cpu())
@@ -167,7 +168,8 @@ class AnnealedImportanceSampler:
         return base_samples, base_log_w_s, ais_samples, ais_log_w
 
     def _remove_nan_and_infs(self, x: torch.Tensor, log_p_or_log_w: torch.Tensor,
-                             descriptor: str = "chain init") -> Tuple[
+                             descriptor: str = "chain init",
+                             raise_exception: bool = True) -> Tuple[
         torch.Tensor, torch.Tensor]:
         """Remove any NaN points or log probs / log weights. During the chain initialisation the
         flow can generate Nan/Infs making this function necessary in the first step of AIS. Sometimes
@@ -176,7 +178,11 @@ class AnnealedImportanceSampler:
         # first remove samples that have inf/nan log w
         valid_indices = ~torch.isinf(log_p_or_log_w) & ~torch.isnan(log_p_or_log_w)
         if torch.sum(valid_indices) == 0:  # no valid indices
-            raise Exception(f"No valid points generated in sampling the {descriptor}")
+            if raise_exception:
+                raise Exception(f"No valid points generated in sampling the {descriptor}")
+            else:
+                print(f"No valid points generated in sampling the {descriptor}")
+                return x, log_p_or_log_w
         if valid_indices.all():
             pass
         else:

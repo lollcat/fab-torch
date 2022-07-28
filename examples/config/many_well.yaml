@@ -20,7 +20,7 @@ fab:
 
 training:
   tlimit: null # time limit in hours
-  checkpoint_load_dir: /home/laurence/work/code/FAB-TORCH/results/many_well/seed${training.seed}/ # or null
+  checkpoint_load_dir: null # or null
   seed: 0
   lr: 3e-4
   batch_size: 2048

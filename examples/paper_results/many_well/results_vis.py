@@ -2,6 +2,8 @@ import os
 from typing import Optional
 import hydra
 import matplotlib.pyplot as plt
+from matplotlib import rc
+import matplotlib as mpl
 from omegaconf import DictConfig
 from examples.make_flow import make_wrapped_normflowdist
 from examples.many_well_visualise_all_marginal_pairs import get_target_log_prob_marginal_pair
@@ -26,7 +28,7 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
                                      act_norm=cfg.flow.act_norm)
 
     if model_name:
-        path_to_model = f"{PATH}/models/{model_name}_model.pt"
+        path_to_model = f"{PATH}/models/{model_name}_seed1.pt"
         checkpoint = torch.load(path_to_model, map_location="cpu")
         flow._nf_model.load_state_dict(checkpoint['flow'])
 
@@ -36,9 +38,10 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
 
     for i in range(2):
         for j in range(2):
-            target_log_prob = get_target_log_prob_marginal_pair(target.log_prob_2D, i, j+2)
+            # target_log_prob = get_target_log_prob_marginal_pair(target.log_prob_2D, i, j+2, dim)
+            target_log_prob = get_target_log_prob_marginal_pair(target.log_prob, i, j + 2, dim)
             plot_contours(target_log_prob, bounds=plotting_bounds, ax=axs[i, j],
-                          n_contour_levels=20)
+                          n_contour_levels=20, grid_width_n_points=100)
             plot_marginal_pair(samples_flow, marginal_dims=(i, j+2),
                                ax=axs[i, j], bounds=plotting_bounds, alpha=alpha)
 
@@ -54,20 +57,29 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
 
 @hydra.main(config_path="./", config_name="config.yaml")
 def run(cfg: DictConfig):
-    model_names = ["fab_with_buffer", "kld"]
-    titles = ["fab", "KLD over flow"]
+    mpl.rcParams['figure.dpi'] = 300
+    rc('font', **{'family': 'serif', 'serif': ['Times']})
+    rc('text', usetex=True)
+    rc('figure', titlesize=15)
+    rc('axes', titlesize=13, labelsize=13)  # fontsize of the axes title and labels
+    #rc('legend', fontsize=6)
+    rc('xtick', labelsize=11)
+    rc('ytick', labelsize=11)
+
+    model_names = ["fab_buffer", "flow_kld"]
+    titles = ["FAB w/ buffer (ours)", "Flow w/ KLD"]
 
     width, height = 10, 6
     fig = plt.figure(constrained_layout=True, figsize=(width, height))
     subfigs = fig.subfigures(1, 2, wspace=0.01)
 
     plot_marginals(cfg, subfigs[0], model_names[0], plot_y_label=True)
-    subfigs[0].suptitle("Flow trained with FAB")
+    subfigs[0].suptitle(titles[0])
 
     plot_marginals(cfg, subfigs[1], model_names[1], plot_y_label=False)
-    subfigs[1].suptitle("Flow trained with KLD")
+    subfigs[1].suptitle(titles[1])
 
-    fig.suptitle(' ', fontsize='xx-large')
+    #fig.suptitle(' ', fontsize='xx-large')
     plt.show()
 
 

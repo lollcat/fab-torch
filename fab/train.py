@@ -145,10 +145,10 @@ class Trainer:
                           f"hours as timelimit {tlimit:.2f} hours has been reached.\n")
                     return
 
-        print(f"\n Run completed in {(time() - start_time)/3600:.2f} hours")
         if tlimit is None:
             print("Timelimit not set")
         else:
-            print(f"Run finished before timelimit of {tlimit:.2f} hours was reached.")
+            print(f"\n Run completed in {(time() - start_time) / 3600:.2f} hours \n")
+            print(f"Run finished before timelimit of {tlimit:.2f} hours was reached. \n")
 
         self.logger.close()

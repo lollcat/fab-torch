@@ -28,7 +28,7 @@ class PrioritisedBufferTrainer:
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None,
                  max_gradient_norm: Optional[float] = 5.0,
-                 w_adjust_max_clip: float = 10,
+                 w_adjust_max_clip: float = 10.0,
                  w_adjust_in_buffer_after_update: bool = False,
                  save_path: str = ""):
         self.model = model
@@ -234,10 +234,11 @@ class PrioritisedBufferTrainer:
                           f"hours as timelimit {tlimit:.2f} hours has been reached.\n")
                     return
 
-        print(f"\n Run completed in {(time() - start_time)/3600:.2f} hours")
+
         if tlimit is None:
             print("Timelimit not set")
         else:
-            print(f"Run finished before timelimit of {tlimit:.2f} hours was reached.")
+            print(f"\n Run completed in {(time() - start_time) / 3600:.2f} hours \n")
+            print(f"Run finished before timelimit of {tlimit:.2f} hours was reached. \n")
 
         self.logger.close()
