@@ -12,9 +12,9 @@ system:                             # Properties of molecular system
   energy_cut: 1.e+8                 # Double, energy level at which regularization shall be applied
   energy_max: 1.e+20                # Double, maximum level at which energies will be clamped
   n_threads: 18                     # Int, number of threads to be used, number of cores if null
-  transform: internal
-  shift_dih: False
-  env: implicit
+  transform: internal               # String, type of the transformation
+  shift_dih: False                  # Bool, flag whether to shift dihedral angles
+  env: implicit                     # String, environment of the molecule, can be implicit or vacuum
 
 
 flow:                               # Properties of the flow model
@@ -41,8 +41,8 @@ fab:
   transition_type: hmc              # String, type of transition operator used
   n_int_dist: 8                     # Int, number of intermediate distributions
   n_inner: 4                        # Int, number of steps between intermediate distributions
-  epsilon: 0.1
-  adjust_step_size: True
+  epsilon: 0.1                      # Double, step size of HMC
+  adjust_step_size: True            # Bool, flag whether to adjust step size
   loss_type: alpha_2_div            # String, loss to be used
 
 
@@ -50,7 +50,7 @@ fab:
 training:                           # Properties of the training procedure
 
   max_iter: 50000                   # Int, maximum number of iteration
-  warmup_iter: 1000
+  warmup_iter: 1000                 # Int, number of iterations used for warmup
   optimizer: adam                   # String, name of the optimizer
   batch_size: 1024                  # Int, batch size used during training
   learning_rate: 5.e-4              # Double, learning rate used during training
@@ -67,6 +67,6 @@ training:                           # Properties of the training procedure
   log_iter: 5000                    # Int, number of iterations after which loss is saved
   checkpoint_iter: 25000            # Int, number of iterations after which checkpoint is saved
   eval_samples: 0                   # Int, number of samples to draw when evaluating the model
-  filter_chirality: train           # Bool, flag whether to filter for chirality during evaluation
+  filter_chirality: train           # String, whether to filter chirality during training or evaluation
   seed: 0                           # Int, seed to be used for the random number generator
-  save_root: experiments/aldp/fab_buff/00
+  save_root: experiments/aldp/fab_buff/00 # String, root directory for saving the output
