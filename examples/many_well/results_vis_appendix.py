@@ -73,7 +73,7 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
 
 
 
-@hydra.main(config_path="/", config_name="config.yaml")
+@hydra.main(config_path="../config", config_name="many_well.yaml")
 def run(cfg: DictConfig):
     mpl.rcParams['figure.dpi'] = 300
     rc('font', **{'family': 'serif', 'serif': ['Times']})
@@ -97,7 +97,6 @@ def run(cfg: DictConfig):
     for i, (ax, model_name, title) in enumerate(zip(subfigs[:len(titles)], model_names, titles)):
         plot_marginals(cfg, subfigs[i], model_names[i], plot_y_label=True)
         ax.suptitle(title)
-    plt.savefig("/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/plots/many_well_appendix.png", bbox_inches="tight")
     plt.show()
 
 

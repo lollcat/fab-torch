@@ -20,6 +20,7 @@ python examples/gmm/run.py -m training.seed=0,1,2 fab.loss_type=flow_reverse_kld
 # SNF using reverse KLD
 python examples/gmm/run.py -m training.seed=0,1,2 flow.use_snf=True
 ```
+
 The config file for this experiment is [here](../config/gmm.yaml), where you can change the hyper-parameters.
 These commands will (1) save plots of the model throughout training, (2) save metrics logged via 
 the logger, and (3) save the model parameters, which may be loaded and analysed with the 
@@ -38,7 +39,3 @@ Trained models may be evaluated using the code in
 [`evaluation.py`](evaluation.py) and [`evaluation_expectation_quadratic_func.py`](evaluation_expectation_quadratic_func.py).
 Furthermore [`results_vis.py`](results_vis.py) may be used to obtain the plot from the paper
 visualising each of the modes. 
-
-## Further Notes
-By 10 August 2022 we will upload a Colab notebook that installs this repository, runs 
-these examples and performs visualisation of results. 

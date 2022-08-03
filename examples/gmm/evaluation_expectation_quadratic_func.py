@@ -27,7 +27,7 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e3), n_repeats=1
     biases = []
     biases_unweighted = []
     for i in range(n_repeats):
-        if model_name[:6] == "target":
+        if model_name == "target":  # evaluate expectation using samples from the target.
             samples = target.sample((num_samples, ))
             log_w = torch.ones(samples.shape[0])
             samples_unweighted = samples  # fake
@@ -65,7 +65,7 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e3), n_repeats=1
 
 @hydra.main(config_path="../config", config_name="gmm.yaml")
 def main(cfg: DictConfig):
-    model_names = ["target_kld", "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "target_kld", "snf"]
+    model_names = ["target", "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "target_kld", "snf"]
     seeds = [1, 2, 3]
     num_samples = int(1000)
 
@@ -84,18 +84,10 @@ def main(cfg: DictConfig):
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[fields])
     print("\n ******* std ********************** \n")
-    print(results.groupby("model_name").std()[fields])
+    print(results.groupby("model_name").sem(ddof=0)[fields])
     results.to_csv(open(FILENAME_EXPECTATION_INFO, "w"))
 
 FILENAME_EXPECTATION_INFO = "/examples/paper_results/gmm/gmm_results_expectation.csv"
 
 if __name__ == '__main__':
-    if True:
-        main()
-    else:
-        results = pd.read_csv(open(FILENAME, "r"))
-        fields = ["bias", "std"]
-        print("\n *******  mean  ********************** \n")
-        print(results.groupby("model_name").mean()[fields])
-        print("\n ******* std ********************** \n")
-        print(results.groupby("model_name").std()[fields])
+    main()

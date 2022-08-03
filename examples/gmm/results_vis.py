@@ -92,12 +92,8 @@ def run(cfg: DictConfig):
         ax.set_title(title)
 
     plt.tight_layout()
-    if appendix:
-        plt.savefig("/home/laurence/work/code/FAB-TORCH/examples/paper_results/gmm/plots/MoG_appendix.png",
-                bbox_inches="tight")
-    else:
-        plt.savefig("/home/laurence/work/code/FAB-TORCH/examples/paper_results/gmm/plots/MoG.png", bbox_inches="tight")
     plt.show()
+
 
 
 if __name__ == '__main__':
