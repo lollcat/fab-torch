@@ -38,13 +38,6 @@ minimisation, with the Many Well problem target contours in the background.
 This visualisation is for the marginal pairs of the distributions for the first four elements of the x.
 ![Many Well distribution FAB vs training by KL divergence minimisation](examples/many_well/plots/many_well.png)
 
-**Alanine Dipeptide distribution**
-
-
-## About the code
-The FAB loss (without the prioritised buffer), as other losses (e.g. KL divergence minimisation) can be found in [core.py](fab/core.py), and we provide a simple training loop to 
-## Experiments
-
 ### Alanine dipeptide
 
 In our final experiment, we approximate the Boltzmann distribution of alanine dipeptide in an 
