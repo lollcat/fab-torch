@@ -36,7 +36,6 @@ def load_model(cfg: DictConfig, target, model_name: str):
             snf.load_state_dict(checkpoint['flow'])
         # wrap appropriately
         snf = SNFModel(snf, target, cfg.target.dim)
-        snf.target_distribution = target  # overwrite
         return snf
     else:
         flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
@@ -90,7 +89,7 @@ def evaluate(cfg: DictConfig, model_name: str, target, num_samples=int(5e4)):
 
 @hydra.main(config_path="../../config", config_name="many_well.yaml")
 def main(cfg: DictConfig):
-    model_names = ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    model_names = ["target_kld"] # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     seeds = [1, 2, 3]
     num_samples = int(5e4)
 
@@ -122,7 +121,7 @@ def main(cfg: DictConfig):
     print("overall results")
     print(results[["model_name", "seed"] + keys])
 
-FILENAME_EVAL_INFO = "/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/many_well_results_no_ml.csv"
+FILENAME_EVAL_INFO = "/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/many_well_results_ml_only.csv"
 
 
 if __name__ == '__main__':

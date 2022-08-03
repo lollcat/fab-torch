@@ -83,12 +83,14 @@ class GMM(nn.Module, TargetDistribution):
             log_q_test = log_q_fn(self.test_set)
             log_p_test = self.log_prob(self.test_set)
             test_mean_log_prob = torch.mean(log_q_test)
+            kl_forward = torch.mean(log_p_test - log_q_test)
             ess_over_p = effective_sample_size_over_p(log_p_test - log_q_test)
             summary_dict = {
                 "test_set_mean_log_prob": test_mean_log_prob.cpu().item(),
                 "bias_normed": torch.abs(bias_normed).cpu().item(),
                 "bias_no_correction": torch.abs(bias_no_correction).cpu().item(),
-                "ess_over_p": ess_over_p.detach().cpu().item()
+                "ess_over_p": ess_over_p.detach().cpu().item(),
+                "kl_forward": kl_forward.detach().cpu().item()
                             }
         else:
             summary_dict = {"bias_normed": bias_normed.cpu().item(),

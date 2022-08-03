@@ -99,10 +99,15 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
         if log_q_fn is None:
             return {}
         else:
+            n_batches = log_w.shape[0] // batch_size # Used later for estimation of test set probabilities.
+
+
             del samples
+            n_runs = 50
+            log_w = torch.stack(log_w.split(n_runs), dim=-1)
             # Check accuracy in estimating normalisation constant.
-            Z_estimate = torch.exp(torch.logsumexp(log_w, axis=0) - np.log(log_w.shape[0]))
-            MSE_Z_estimate = torch.abs((Z_estimate - self.Z) / self.Z)
+            Z_estimate = torch.exp(torch.logsumexp(log_w, axis=-1) - np.log(log_w.shape[-1]))
+            MSE_Z_estimate = torch.mean(torch.abs((Z_estimate - self.Z) / self.Z))
 
 
             sum_log_prob = 0.0
@@ -115,7 +120,7 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
                     log_q_x_modes = torch.sum(log_q_fn(x)).cpu()
                     sum_log_prob += log_q_x_modes
 
-                n_batches = log_w.shape[0] // batch_size
+
                 for _ in range(n_batches):
                     # Samples from p test set.
                     x_exact = self.sample((batch_size,))

@@ -7,9 +7,11 @@ if __name__ == '__main__':
     df_eval_info = pd.read_csv(open(FILENAME_EVAL_INFO, "r"))
     keys1 = ['eval_ess_flow', 'test_set_exact_mean_log_prob', 'test_set_modes_mean_log_prob',
              "forward_kl", 'MSE_log_Z_estimate']
-    columns = ["flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
-    column_names = ["Flow w/ $D_{\\alpha=2}$", "Flow w/ KLD",
-                    "SNF w/ KLD", "\emph{FAB w/o buffer}", "\emph{FAB w/ buffer}"]
+    columns = ["target_kld"]
+    column_names = ["Flow w/ ML"]
+    # columns = ["flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
+    # column_names = ["Flow w/ $D_{\\alpha=2}$", "Flow w/ KLD",
+    #                 "SNF w/ KLD", "\emph{FAB w/o buffer}", "\emph{FAB w/ buffer}"]
     # keys1 = ['eval_ess_flow', 'test_set_exact_mean_log_prob', 'test_set_modes_mean_log_prob',
     #          "forward_kl", 'MSE_log_Z_estimate', ]
     # columns = ["target_kld", "flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]

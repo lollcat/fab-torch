@@ -26,7 +26,7 @@ class SNFModel(Model):
         self.loss = self.snf.reverse_kld
         # hack so that plotting with self.flow.sample works
         self.flow = type('', (), {})()
-        self.flow.sample = lambda shape: snf.sample(shape[0])[0]
+        self.flow.sample = lambda shape: self.snf.sample(shape[0])[0]
         self.flow.log_prob = lambda x: self.snf.log_prob(x)
         self.annealed_importance_sampler = type('', (), {})()
         self.annealed_importance_sampler.sample_and_log_weights = \

@@ -71,6 +71,7 @@ def main(cfg: DictConfig):
 
     results = pd.DataFrame()
     for model_name in model_names:
+        print(model_name)
         for seed in seeds:
             name = model_name + f"_seed{seed}"
             eval_info = evaluate(cfg, name, num_samples)
@@ -78,11 +79,11 @@ def main(cfg: DictConfig):
                              model_name=model_name)
             results = results.append(eval_info, ignore_index=True)
 
-    keys = ["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]
+    keys = ["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob", 'kl_forward']
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[keys])
     print("\n ******* std ********************** \n")
-    print(results.groupby("model_name").std()[keys])
+    print(results.groupby("model_name").sem(ddof=0)[keys])
     print("overall results")
     print(results[["model_name", "seed", "eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
     results.to_csv(open(FILENAME_EVAL_INFO, "w"))
