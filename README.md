@@ -46,11 +46,11 @@ is visualized in the figure below. The right figure shows the probability densit
 dihedral angle $\phi$ comparing the ground truth, which was obtrained with a molecular dynamics
 (MD) simulation, the models trained with our method as well as maximum likelihood on MD samples.
 
-![Alanine dipeptide and its dihedral angles; Comparison of probability densities](./examples/paper_results/aldp/aldp_phi.png)
+![Alanine dipeptide and its dihedral angles; Comparison of probability densities](examples/aldp/plots/aldp_phi.png)
 
 Furthermore, we compared the Ramachandran plots of the different methods in the following figure.
 
-![Ramachandran plot of alanine dipeptide](./examples/paper_results/aldp/ramachandran.png)
+![Ramachandran plot of alanine dipeptide](examples/aldp/plots/ramachandran.png)
 
 To reproduce our experiment, use the [`examples/aldp/train.py`](examples/aldp/train.py) script.
 The respective configuration files are located in [`examples/aldp/config`](examples/aldp/config).

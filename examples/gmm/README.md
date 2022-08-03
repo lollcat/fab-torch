@@ -31,3 +31,7 @@ Trained models may be evaluated using the code in
 [`evaluation.py`](evaluation.py) and [`evaluation_expectation_quadratic_func.py`](evaluation_expectation_quadratic_func.py).
 Furthermore [`results_vis.py`](results_vis.py) may be used to obtain the plot from the paper
 visualising each of the modes. 
+
+## Further Notes
+By 10 August 2022 we will upload a Colab notebook that installs this repository, runs 
+these examples and performs visualisation of results. 

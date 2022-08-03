@@ -48,7 +48,7 @@ evaluation:
   n_eval: 20 # for calculating metrics of flow w.r.t target.
   eval_batch_size: 512 # must be a multiple of inner batch size
   n_checkpoints: 10 # number of model checkpoints saved
-  save_path:  results/many_well32/
+  save_path:  /results/gmm/seed${training.seed}/
 
 logger:
   pandas_logger:

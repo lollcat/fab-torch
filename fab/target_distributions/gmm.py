@@ -7,7 +7,6 @@ import torch.nn.functional as f
 from fab.target_distributions.base import TargetDistribution
 from fab.utils.numerical import MC_estimate_true_expectation, quadratic_function, \
     importance_weighted_expectation, effective_sample_size_over_p
-import numpy as np
 
 
 class GMM(nn.Module, TargetDistribution):
