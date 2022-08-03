@@ -8,7 +8,7 @@ import os
 
 PATH = os.getcwd()
 
-@hydra.main(config_path="./", config_name="config.yaml")
+@hydra.main(config_path="/", config_name="config.yaml")
 def run(cfg: DictConfig):
     dim = cfg.target.dim
     target = ManyWellEnergy(cfg.target.dim, a=-0.5, b=-6, use_gpu=False)

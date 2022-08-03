@@ -1,15 +1,14 @@
 import os
-from typing import Optional
 import hydra
 import matplotlib.pyplot as plt
 from matplotlib import rc
 import matplotlib as mpl
 from omegaconf import DictConfig
 from examples.make_flow import make_wrapped_normflowdist
-from examples.many_well_visualise_all_marginal_pairs import get_target_log_prob_marginal_pair
+from examples.many_well.many_well_visualise_all_marginal_pairs import get_target_log_prob_marginal_pair
 from fab.utils.plotting import plot_contours, plot_marginal_pair
 from fab.target_distributions.many_well import ManyWellEnergy
-from examples.paper_results.many_well.old_target_many_well import ManyWellEnergy as OldManyWellEnergy
+from examples.many_well.old_target_many_well import ManyWellEnergy as OldManyWellEnergy
 import torch
 from examples.setup_run_snf import make_normflow_snf_model, SNFModel
 
@@ -82,7 +81,8 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
 
 
 
-@hydra.main(config_path="./", config_name="config.yaml")
+
+@hydra.main(config_path="/", config_name="config.yaml")
 def run(cfg: DictConfig):
     mpl.rcParams['figure.dpi'] = 300
     rc('font', **{'family': 'serif', 'serif': ['Times']})
@@ -94,29 +94,19 @@ def run(cfg: DictConfig):
     rc('ytick', labelsize=11)
 
     torch.set_default_dtype(torch.float64)
-    model_names = ["target_kld", "flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
-    titles = ["Flow w/ ML", r"Flow w/ $D_{\alpha=2}$", "Flow w/ KLD", "SNF w/ KLD",
-              "FAB w/o buffer (ours)",
-              "FAB w/ buffer (ours)"]
+    model_name = None
     # model_names = [None, "flow_nis", "flow_kld", "snf", "fab_no_buffer", "fab_buffer"]
-    # titles = ["Initialisation", r"Flow w/ $D_{\alpha=2}$", "Flow w/ KLD", "SNF w/ KLD",
+    # itles = ["Initialisation", r"Flow w/ $D_{\alpha=2}$", "Flow w/ KLD", "SNF w/ KLD",
     #           "FAB w/o buffer (ours)",
     #           "FAB w/ buffer (ours)"]
 
-    width, height = 10, 15
+    width, height = 6, 6
     fig = plt.figure(constrained_layout=True, figsize=(width, height))
-    subfigs = fig.subfigures(3, 2, wspace=0.01).flatten()
+    subfigs = fig.subfigures()
 
-    for i, (ax, model_name, title) in enumerate(zip(subfigs[:len(titles)], model_names, titles)):
-        plot_marginals(cfg, subfigs[i], model_names[i], plot_y_label=True)
-        ax.suptitle(title)
-
-    # plot_marginals(cfg, subfigs[0], model_names[0], plot_y_label=True)
-    # subfigs[0].suptitle("Flow trained with FAB")
-    #
-    # plot_marginals(cfg, subfigs[1], model_names[1], plot_y_label=False)
-    # subfigs[1].suptitle("Flow trained with KLD")
-    plt.savefig("/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/plots/many_well_appendix.png", bbox_inches="tight")
+    plot_marginals(cfg, subfigs, model_name, plot_y_label=True)
+    plt.tight_layout()
+    plt.savefig("/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/plots/many_well_appendix_init.png", bbox_inches="tight")
     plt.show()
 
 

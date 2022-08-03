@@ -48,7 +48,7 @@ def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str]
     plot_marginal_pair(samples_flow, ax=ax, bounds=plotting_bounds, alpha=alpha)
 
 
-@hydra.main(config_path="../../config", config_name="gmm.yaml")
+@hydra.main(config_path="../config", config_name="gmm.yaml")
 def run(cfg: DictConfig):
     appendix = True
     if appendix:

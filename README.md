@@ -22,7 +22,7 @@ python examples/gmm/run.py training.use_buffer=True training.prioritised_buffer=
 To run the full set of experiments see the [README](../examples/gmm/README.md) for the GMM experiments. 
 
 The below plot shows samples from various trained models, with the GMM problem target contours in the background.
-![Gaussian Mixture Model samples vs contours](./examples/paper_results/gmm/plots/MoG.png)
+![Gaussian Mixture Model samples vs contours](examples/gmm/plots/MoG.png)
 
 ### Many Well distribution
 The 32 Many Well distribution is made up of 16 repeats of the Double Well distribution, 
@@ -37,7 +37,7 @@ To run the full set of experiments see the [README](./examples/many_well/README.
 The below plot shows samples for our model (FAB) vs training a flow by reverse KL divergence 
 minimisation, with the Many Well problem target contours in the background. 
 This visualisation is for the marginal pairs of the distributions for the first four elements of the x.
-![Many Well distribution FAB vs training by KL divergence minimisation](./examples/paper_results/many_well/plots/many_well.png)
+![Many Well distribution FAB vs training by KL divergence minimisation](examples/many_well/plots/many_well.png)
 
 **Alanine Dipeptide distribution**
 

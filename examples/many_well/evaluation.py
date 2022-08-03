@@ -2,13 +2,13 @@ import hydra
 from examples.setup_run_snf import make_normflow_snf_model, SNFModel
 
 from fab.target_distributions.many_well import ManyWellEnergy
-from examples.paper_results.many_well.old_target_many_well import ManyWellEnergy as OldManyWellEnergy
+from examples.many_well.old_target_many_well import ManyWellEnergy as OldManyWellEnergy
 import pandas as pd
 import os
 from omegaconf import DictConfig
 import torch
 
-from fab import FABModel, HamiltonianMonteCarlo, Metropolis
+from fab import FABModel, HamiltonianMonteCarlo
 from examples.make_flow import make_wrapped_normflowdist
 
 
@@ -87,7 +87,7 @@ def evaluate(cfg: DictConfig, model_name: str, target, num_samples=int(5e4)):
     return eval
 
 
-@hydra.main(config_path="../../config", config_name="many_well.yaml")
+@hydra.main(config_path="../config", config_name="many_well.yaml")
 def main(cfg: DictConfig):
     model_names = ["target_kld"] # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     seeds = [1, 2, 3]
@@ -121,7 +121,7 @@ def main(cfg: DictConfig):
     print("overall results")
     print(results[["model_name", "seed"] + keys])
 
-FILENAME_EVAL_INFO = "/home/laurence/work/code/FAB-TORCH/examples/paper_results/many_well/many_well_results_ml_only.csv"
+FILENAME_EVAL_INFO = "/examples/many_well/many_well_results_ml_only.csv"
 
 
 if __name__ == '__main__':

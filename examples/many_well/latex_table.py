@@ -1,5 +1,5 @@
 import pandas as pd
-from examples.paper_results.many_well.evaluation import FILENAME_EVAL_INFO
+from examples.many_well.evaluation import FILENAME_EVAL_INFO
 
 
 

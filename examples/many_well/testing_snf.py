@@ -48,7 +48,7 @@ def evaluate(cfg: DictConfig, target, num_samples=int(100), log_prob_scale_facto
     return eval
 
 
-@hydra.main(config_path="../../config", config_name="many_well.yaml")
+@hydra.main(config_path="../config", config_name="many_well.yaml")
 def main(cfg: DictConfig):
     model_names = ["snf"]
     log_prob_scale_factors = [0, 1, 10, 10, 70]
