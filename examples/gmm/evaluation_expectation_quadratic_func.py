@@ -1,53 +1,17 @@
 import hydra
-from examples.setup_run_snf import make_normflow_snf_model, SNFModel
 
-from fab.target_distributions.gmm import GMM
 import pandas as pd
 import os
 from omegaconf import DictConfig
 import torch
 import numpy as np
 
-from fab import FABModel, HamiltonianMonteCarlo, Metropolis
-from examples.make_flow import make_wrapped_normflowdist
 
+
+from fab.target_distributions.gmm import GMM
+from examples.load_model_for_eval import load_model
 
 PATH = os.getcwd()
-
-def load_model(cfg: DictConfig, target, model_name: str):
-    dim = cfg.target.dim
-    if model_name and model_name[0:3] == "snf":
-        snf = make_normflow_snf_model(dim,
-                                       n_flow_layers=cfg.flow.n_layers,
-                                       layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                       act_norm=cfg.flow.act_norm,
-                                       target=target
-                                       )
-        if model_name:
-            path_to_model = f"{PATH}/models/{model_name}.pt"
-            checkpoint = torch.load(path_to_model, map_location="cpu")
-            snf.load_state_dict(checkpoint['flow'])
-        # wrap appropriately
-        snf = SNFModel(snf, target, cfg.target.dim)
-        return snf
-    else:
-        flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
-                                         layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                         act_norm=cfg.flow.act_norm)
-        path_to_model = f"{PATH}/models/{model_name}.pt"
-        checkpoint = torch.load(path_to_model, map_location="cpu")
-        flow._nf_model.load_state_dict(checkpoint['flow'])
-
-        transition_operator = Metropolis(n_transitions=cfg.fab.n_intermediate_distributions,
-                                         n_updates=cfg.fab.transition_operator.n_inner_steps,
-                                         adjust_step_size=True)
-        model = FABModel(flow=flow,
-                 target_distribution=target,
-                 n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
-                 transition_operator=transition_operator,
-                 loss_type=cfg.fab.loss_type)
-    return model
-
 
 
 def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e3), n_repeats=100):
@@ -69,7 +33,12 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e3), n_repeats=1
             samples_unweighted = samples  # fake
             log_w_unweighted = log_w  # fake
         else:
-            model = load_model(cfg, target, model_name)
+            if model_name and model_name[0:3] == "snf":
+                use_snf = True
+            else:
+                use_snf = False
+            path_to_model = f"{PATH}/models/{model_name}.pt"
+            model = load_model(cfg, target, use_snf, path_to_model)
             if model_name and model_name[0:3] == "snf":
                 samples, log_w = model.snf.sample(num_samples)
                 valid_indices_unweighted = ~ (torch.softmax(log_w, axis=0) == 0)
@@ -96,7 +65,7 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e3), n_repeats=1
 
 @hydra.main(config_path="../config", config_name="gmm.yaml")
 def main(cfg: DictConfig):
-    model_names = ["target", "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "target_kld", "snf"]
+    model_names = ["target_kld", "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "target_kld", "snf"]
     seeds = [1, 2, 3]
     num_samples = int(1000)
 
