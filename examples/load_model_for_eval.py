@@ -35,6 +35,8 @@ def load_model(cfg: DictConfig, target, use_snf: bool, path_to_model: Optional[s
         if path_to_model:
             checkpoint = torch.load(path_to_model, map_location="cpu")
             flow._nf_model.load_state_dict(checkpoint['flow'])
+        else:
+            checkpoint = None
 
         if cfg.fab.transition_operator.type == "hmc":
             # very lightweight HMC.
@@ -51,6 +53,10 @@ def load_model(cfg: DictConfig, target, use_snf: bool, path_to_model: Optional[s
                                              adjust_step_size=True)
         else:
             raise NotImplementedError
+
+        if checkpoint:
+            transition_operator.load_state_dict(checkpoint['trans_op'])
+
         model = FABModel(flow=flow,
                  target_distribution=target,
                  n_intermediate_distributions=cfg.fab.n_intermediate_distributions,

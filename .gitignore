@@ -1,4 +1,3 @@
 *.idea/
 *__pycache__/
-/examples/paper_results/gmm/models/
-/examples/many_well/models/
+*.pt
