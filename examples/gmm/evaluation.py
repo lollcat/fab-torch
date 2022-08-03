@@ -93,11 +93,3 @@ FILENAME_EVAL_INFO = "/examples/paper_results/gmm/gmm_results.csv"
 
 if __name__ == '__main__':
     main()
-    # results = pd.read_csv(open("gmm_results.csv", "r"))
-    # print("mean")
-    # print(results.groupby("model_name").mean()[["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
-    # print("std")
-    # print(results.groupby("model_name").std()[["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
-    # results.to_csv(open("gmm_results.csv", "w"))
-    # print("overall results")
-    # print(results[["model_name", "seed", "eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])

@@ -2,7 +2,6 @@ import hydra
 from examples.setup_run_snf import make_normflow_snf_model, SNFModel
 
 from fab.target_distributions.many_well import ManyWellEnergy
-from examples.many_well.old_target_many_well import ManyWellEnergy as OldManyWellEnergy
 import pandas as pd
 import os
 from omegaconf import DictConfig
@@ -17,18 +16,11 @@ PATH = os.getcwd()
 def load_model(cfg: DictConfig, target, model_name: str):
     dim = cfg.target.dim
     if model_name and model_name[0:3] == "snf":
-        torch.set_default_dtype(torch.float32)
-        torch.manual_seed(cfg.training.seed)
-        # Have to overwrite target to load the SNF that was trained with this model.
-        target_old = OldManyWellEnergy(cfg.target.dim, a=-0.5, b=-6, use_gpu=False)
-        if cfg.training.use_64_bit:
-            torch.set_default_dtype(torch.float64)
-            target_old = target_old.double()
         snf = make_normflow_snf_model(dim,
                                        n_flow_layers=cfg.flow.n_layers,
                                        layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
                                        act_norm=cfg.flow.act_norm,
-                                       target=target_old
+                                       target=target
                                        )
         if model_name:
             path_to_model = f"{PATH}/models/{model_name}.pt"
@@ -61,17 +53,6 @@ def load_model(cfg: DictConfig, target, model_name: str):
                  n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
                  transition_operator=transition_operator,
                  loss_type=cfg.fab.loss_type)
-
-        # No need to do AIS, as we aren't interested in metrics after AIS for now.
-        # transition_operator = Metropolis(n_transitions=1,
-        #                                  n_updates=1,
-        #                                  adjust_step_size=False)
-
-        # model = FABModel(flow=flow,
-        #          target_distribution=target,
-        #          n_intermediate_distributions=1,
-        #          transition_operator=transition_operator,
-        #          loss_type=cfg.fab.loss_type)
     return model
 
 
@@ -89,7 +70,10 @@ def evaluate(cfg: DictConfig, model_name: str, target, num_samples=int(5e4)):
 
 @hydra.main(config_path="../config", config_name="many_well.yaml")
 def main(cfg: DictConfig):
-    model_names = ["target_kld"] # ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    """Evaluate each of the models, assume model checkpoints are saved as {model_name}_seed{i}.pt,
+    where the model names for each method are `model_names` and `seeds` below."""
+
+    model_names = ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
     seeds = [1, 2, 3]
     num_samples = int(5e4)
 
@@ -115,25 +99,14 @@ def main(cfg: DictConfig):
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[keys].to_latex())
     print("\n ******* std ********************** \n")
-    print((results.groupby("model_name").std()[keys]).to_latex())
+    print((results.groupby("model_name").sem(ddof=0)[keys]).to_latex())
     results.to_csv(open(FILENAME_EVAL_INFO, "w"))
 
     print("overall results")
     print(results[["model_name", "seed"] + keys])
 
-FILENAME_EVAL_INFO = "/examples/many_well/many_well_results_ml_only.csv"
+FILENAME_EVAL_INFO = "/examples/many_well/many_well_results.csv"
 
 
 if __name__ == '__main__':
-    load = False
-    if not load:
-        main()
-    else:
-        results = pd.read_csv(open("many_well_with_forward_kl.csv", "r"))
-        print("mean")
-        print(results.groupby("model_name").mean()[["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
-        print("std")
-        print(results.groupby("model_name").std()[["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
-        results.to_csv(open("gmm_results.csv", "w"))
-        print("overall results")
-        print(results[["model_name", "seed", "eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
+    main()
