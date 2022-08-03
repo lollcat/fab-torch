@@ -1,0 +1,66 @@
+# Config file specifying the setup of a Boltzmann Generator
+
+
+data:
+  transform: datasets/aldp/position_min_energy.pt
+  test: datasets/aldp/val.pt
+
+
+system:                             # Properties of molecular system
+
+  temperature: 300                  # Double, temperature of the system
+  energy_cut: 1.e+8                 # Double, energy level at which regularization shall be applied
+  energy_max: 1.e+20                # Double, maximum level at which energies will be clamped
+  n_threads: 20                     # Int, number of threads to be used, number of cores if null
+  transform: internal               # String, type of the transformation
+  shift_dih: False                  # Bool, flag whether to shift dihedral angles
+  env: implicit                     # String, environment of the molecule, can be implicit or vacuum
+
+
+flow:                               # Properties of the flow model
+
+  type: circular-coup-nsf           # String, type of the flow
+  base:                             # Base distribution
+    type: gauss-uni                 # Type of the base dist
+    params: null
+  blocks: 12                        # Int, number of Real NVP blocks, consisting of an ActNorm layer
+                                    # if specified, a permutation, and a affine coupling layer
+  actnorm: False                    # Bool, flag whether to include an ActNorm layers
+  mixing: null                      # String, how features are mixed
+  circ_shift: random                # String, whether to shift circular coordinates, can be none,
+                                    # constant, or random
+  blocks_per_layer: 1               # Int, number of blocks per layer
+  hidden_units: 256                 # Int, number of hidden units of the NN in neural spline layers
+  num_bins: 8                       # Int, number of bins of the neural splines
+  init_identity: True               # Bool, flag whether to initialize layers as identity map
+  dropout: 0.                       # Float, dropout probability for the NN layers
+
+
+fab:
+
+  transition_type: hmc              # String, type of transition operator used
+  n_int_dist: 8                     # Int, number of intermediate distributions
+  n_inner: 4                        # Int, number of steps between intermediate distributions
+  epsilon: 0.1                      # Double, step size of HMC
+  adjust_step_size: True            # Bool, flag whether to adjust step size
+  loss_type: flow_reverse_kl        # String, loss to be used
+
+
+
+training:                           # Properties of the training procedure
+
+  max_iter: 250000                  # Int, maximum number of iteration
+  warmup_iter: 1000                 # Int, number of iterations of linearly warm up learning rate
+  optimizer: adam                   # String, name of the optimizer
+  batch_size: 1024                  # Int, batch size used during training
+  learning_rate: 5.e-4              # Double, learning rate used during training
+  lr_scheduler:
+    type: cosine                    # String, kind of LR scheduler, can be exponential, cosine
+  max_grad_norm: 1.e3               # Double, limit for gradient clipping
+  weight_decay: 1.e-5               # Double, regularization parameter
+  log_iter: 20000                   # Int, number of iterations after which loss is saved
+  checkpoint_iter: 200000           # Int, number of iterations after which checkpoint is saved
+  eval_samples: 0                   # Int, number of samples to draw when evaluating the model
+  filter_chirality: train           # String, whether to filter chirality during training or evaluation
+  seed: 0                           # Int, seed to be used for the random number generator
+  save_root: experiments/aldp/kld/00  # String, root directory for saving the output
