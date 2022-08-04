@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import hydra
 from omegaconf import DictConfig
 from fab.utils.plotting import plot_contours, plot_marginal_pair
-from examples.setup_run import setup_trainer_and_run_flow, Plotter
-from examples.setup_run_snf import setup_trainer_and_run_snf
+from experiments.setup_run import setup_trainer_and_run_flow, Plotter
+from experiments.setup_run_snf import setup_trainer_and_run_snf
 import torch
 
 

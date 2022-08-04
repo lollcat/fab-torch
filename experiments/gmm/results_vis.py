@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 import matplotlib as mpl
 from omegaconf import DictConfig
-from examples.make_flow import make_wrapped_normflowdist
-from examples.setup_run_snf import make_normflow_snf_model, SNFModel
+from experiments.make_flow import make_wrapped_normflowdist
+from experiments.setup_run_snf import make_normflow_snf_model, SNFModel
 from fab.utils.plotting import plot_contours, plot_marginal_pair
 from fab.target_distributions.gmm import GMM
 import torch
@@ -93,10 +93,10 @@ def run(cfg: DictConfig):
 
     plt.tight_layout()
     if appendix:
-        plt.savefig("/home/laurence/work/code/FAB-TORCH/examples/paper_results/gmm/plots/MoG_appendix.png",
+        plt.savefig("/home/laurence/work/code/FAB-TORCH/experiments/paper_results/gmm/plots/MoG_appendix.png",
                 bbox_inches="tight")
     else:
-        plt.savefig("/home/laurence/work/code/FAB-TORCH/examples/paper_results/gmm/plots/MoG.png", bbox_inches="tight")
+        plt.savefig("/home/laurence/work/code/FAB-TORCH/experiments/paper_results/gmm/plots/MoG.png", bbox_inches="tight")
     plt.show()
 
 
