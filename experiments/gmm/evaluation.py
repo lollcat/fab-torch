@@ -6,7 +6,7 @@ import os
 from omegaconf import DictConfig
 import torch
 
-from examples.load_model_for_eval import load_model
+from experiments.load_model_for_eval import load_model
 
 
 PATH = os.getcwd()

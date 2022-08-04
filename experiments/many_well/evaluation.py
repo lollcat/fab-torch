@@ -1,5 +1,5 @@
 import hydra
-from examples.setup_run_snf import make_normflow_snf_model, SNFModel
+from experiments.setup_run_snf import make_normflow_snf_model, SNFModel
 
 from fab.target_distributions.many_well import ManyWellEnergy
 import pandas as pd
@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 import torch
 
 from fab import FABModel, HamiltonianMonteCarlo
-from examples.make_flow import make_wrapped_normflowdist
+from experiments.make_flow import make_wrapped_normflowdist
 
 
 PATH = os.getcwd()

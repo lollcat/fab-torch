@@ -1,11 +1,11 @@
 from typing import Optional
-from examples.setup_run_snf import make_normflow_snf_model, SNFModel
+from experiments.setup_run_snf import make_normflow_snf_model, SNFModel
 import os
 from omegaconf import DictConfig
 import torch
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
-from examples.make_flow import make_wrapped_normflowdist
+from experiments.make_flow import make_wrapped_normflowdist
 
 def load_model(cfg: DictConfig, target, use_snf: bool, path_to_model: Optional[str] = None):
     """Return the model with the loaded checkpoint provided in `path_to_model`.

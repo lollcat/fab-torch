@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 import matplotlib as mpl
 from omegaconf import DictConfig
-from examples.make_flow import make_wrapped_normflowdist
-from examples.setup_run_snf import make_normflow_snf_model, SNFModel
+from experiments.make_flow import make_wrapped_normflowdist
+from experiments.setup_run_snf import make_normflow_snf_model, SNFModel
 from fab.utils.plotting import plot_contours, plot_marginal_pair
 from fab.target_distributions.gmm import GMM
 import torch

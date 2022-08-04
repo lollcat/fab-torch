@@ -14,8 +14,8 @@ from fab.utils.plotting import plot_history
 from fab.types_ import Model
 from fab.utils.numerical import effective_sample_size
 
-from examples.make_flow import make_normflow_snf_model
-from examples.setup_run import SetupPlotterFn, setup_logger, get_n_iterations, get_load_checkpoint_dir
+from experiments.make_flow import make_normflow_snf_model
+from experiments.setup_run import SetupPlotterFn, setup_logger, get_n_iterations, get_load_checkpoint_dir
 
 
 

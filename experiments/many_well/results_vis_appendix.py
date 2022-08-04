@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 import matplotlib as mpl
 from omegaconf import DictConfig
-from examples.make_flow import make_wrapped_normflowdist
-from examples.many_well.many_well_visualise_all_marginal_pairs import get_target_log_prob_marginal_pair
+from experiments.make_flow import make_wrapped_normflowdist
+from experiments.many_well.many_well_visualise_all_marginal_pairs import get_target_log_prob_marginal_pair
 from fab.utils.plotting import plot_contours, plot_marginal_pair
 from fab.target_distributions.many_well import ManyWellEnergy
 import torch
-from examples.setup_run_snf import make_normflow_snf_model, SNFModel
+from experiments.setup_run_snf import make_normflow_snf_model, SNFModel
 
 PATH = os.getcwd()
 
