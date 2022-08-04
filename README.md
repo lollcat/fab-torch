@@ -25,9 +25,12 @@ pip install --upgrade .
 ## Experiments
 
 ### Gaussian Mixture Model
+
+<a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/dev-loll/experiments/gmm/fab_gmm.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
 For this problem we use a mixture of 40 two dimensional Gaussian distributions. 
 This allows for easy visualisation of the various methods for training the flow.
-We provide a [colab notebook](experiments/gmm/fab_gmm.ipynb) that provides an example of training a flow on the GMM problem, 
+We provide a [colab notebook](experiments/gmm/fab_gmm.ipynb) with an example of training a flow on the GMM problem, 
 comparing FAB to training a flow with KL divergence minimisation.
 
 To run the experiment for the FAB with a prioritised replay buffer (for the first seed), use the following command:
