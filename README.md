@@ -77,6 +77,11 @@ To reproduce our experiment, use the [`experiments/aldp/train.py`](experiments/a
 The respective configuration files are located in [`experiments/aldp/config`](experiments/aldp/config).
 We used the seeds 0, 1, and 2 in our runs.
 
+### About the code 
+The main FAB loss can be found in [core.py](fab/core.py), and we provide a simple training loop to 
+train a flow with this loss (or other flow - loss combinations that meet the spec) in [train.py](fab/train.py) 
+The FAB training algorithm **with** the prioritised buffer can be found in [train_with_prioritised_buffer.py](fab/train_with_prioritised_buffer.py). 
+
 ### Normalizing Flow Libraries
 We offer a simple wrapper that allows for various normalising flow libraries to be plugged into 
 this repository. The main library we rely on is 
