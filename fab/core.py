@@ -16,7 +16,7 @@ class FABModel(Model):
                  flow: TrainableDistribution,
                  target_distribution: TargetDistribution,
                  n_intermediate_distributions: int,
-                 transition_operator: Optional[TransitionOperator],
+                 transition_operator: Optional[TransitionOperator] = None,
                  ais_distribution_spacing: "str" = "linear",
                  loss_type: "str" = "alpha_2_div",
                  ):
