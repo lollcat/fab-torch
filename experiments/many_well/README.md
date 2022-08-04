@@ -1,5 +1,11 @@
 # Many Well Problem
-## Experiments
+The Many Well problem is created by repeating the double well problem from the 
+[original Boltzmann generators paper](https://www.science.org/doi/10.1126/science.aaw1147) multiple times.
+We provided a [colab notebook](fab_many_well.ipynb) for training a flow using FAB, as well as training a flow
+with KL divergence minimisation on the 6 dimensional Many Well problem. This notebook shows
+the strong performance improvement from FAB in a relatively short training time.
+
+## Experiments: Many Well 32
 The following commands can each be used to train the methods from the paper:
 ```
 # FAB with prioritised buffer.
@@ -20,11 +26,19 @@ python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=flow_re
 # SNF using reverse KLD
 python experiments/many_well/run.py -m training.seed=0,1,2 flow.use_snf=True
 ```
+The config file for this experiment is [here](../config/many_well.yaml), where you can change the hyper-parameters.
+These commands will (1) save plots of the model throughout training, (2) save metrics logged via 
+the logger, and (3) save the model parameters, which may be loaded and analysed with the 
+further scripts provided.
+The location where these are saved may be adjusted by editing the config file.
+By default the logger just writes all info to a pandas dataframe, however we 
+provide a simple logger definition that allows for other loggers to be plugged in, 
+such as a wandb logger.
 
 **Further notes**: This will use hydra-multirun to run the random seeds in parallel. 
 However, if you just want to run locally and get a general idea of the results, 
 you can run a single random seed for a much lower number of iterations. 
-The config file for this experiment is [here](../config/gmm.yaml), where you can change the hyper-parameters.
+
 
 ## Evaluation
 Trained models may be evaluated using the code in [`evaluation.py`](evaluation.py).

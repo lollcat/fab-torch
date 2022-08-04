@@ -1,5 +1,4 @@
 *.idea/
 *__pycache__/
+*.pt
 *.ipynb_checkpoints/
-/experiments/paper_results/gmm/models/
-/experiments/many_well/models/

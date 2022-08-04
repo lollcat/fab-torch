@@ -21,10 +21,18 @@ python experiments/gmm/run.py -m training.seed=0,1,2 fab.loss_type=flow_reverse_
 python experiments/gmm/run.py -m training.seed=0,1,2 flow.use_snf=True
 ```
 
+The config file for this experiment is [here](../config/gmm.yaml), where you can change the hyper-parameters.
+These commands will (1) save plots of the model throughout training, (2) save metrics logged via 
+the logger, and (3) save the model parameters, which may be loaded and analysed with the 
+further scripts provided.
+The location where these are saved may be adjusted by editing the config file.
+By default the logger just writes all info to a pandas dataframe, however we 
+provide a simple logger definition that allows for other loggers to be plugged in, 
+such as a wandb logger.
+
 **Further notes** This will use hydra-multirun to run the random seeds in parallel. 
 However, if you just want to run locally and get a general idea of the results, 
 you can run a single random seed for a much lower number of iterations. 
-The config file for this experiment is [here](../config/gmm.yaml), where you can change the hyper-parameters.
 
 ## Evaluation
 Trained models may be evaluated using the code in
@@ -32,6 +40,9 @@ Trained models may be evaluated using the code in
 Furthermore [`results_vis.py`](results_vis.py) may be used to obtain the plot from the paper
 visualising each of the modes. 
 
-## Further Notes
-By 10 August 2022 we will upload a Colab notebook that installs this repository, runs 
-these experiments and performs visualisation of results. 
+## Sample notebook
+
+<a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/dev-loll/experiments/gmm/fab_gmm.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
+We also provide a [colab notebook](experiments/gmm/fab_gmm.ipynb) with an example of training 
+a flow on the GMM problem, comparing FAB to training a flow with KL divergence minimisation.

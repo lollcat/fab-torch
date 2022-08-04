@@ -54,7 +54,7 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
 
 
 
-@hydra.main(config_path="/", config_name="config.yaml")
+@hydra.main(config_path="../config", config_name="many_well.yaml")
 def run(cfg: DictConfig):
     mpl.rcParams['figure.dpi'] = 300
     rc('font', **{'family': 'serif', 'serif': ['Times']})

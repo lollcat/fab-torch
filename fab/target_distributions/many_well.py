@@ -104,6 +104,8 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
 
             del samples
             n_runs = 50
+            n_vals_per_split = log_w.shape[0] // n_runs
+            log_w = log_w[:n_vals_per_split*n_runs]
             log_w = torch.stack(log_w.split(n_runs), dim=-1)
             # Check accuracy in estimating normalisation constant.
             Z_estimate = torch.exp(torch.logsumexp(log_w, axis=-1) - np.log(log_w.shape[-1]))
