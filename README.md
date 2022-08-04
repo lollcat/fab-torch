@@ -13,21 +13,28 @@ pip install --upgrade .
 ### Gaussian Mixture Model
 For this problem we use a mixture of 40 two dimensional Gaussian distributions. 
 This allows for easy visualisation of the various methods for training the flow.
+We provide a [colab notebook](experiments/gmm/fab_gmm.ipynb) that provides an example of training a flow on the GMM problem, 
+comparing FAB to training a flow with KL divergence minimisation.
 
 To run the experiment for the FAB with a prioritised replay buffer (for the first seed), use the following command:
 ```
 python experiments/gmm/run.py training.use_buffer=True training.prioritised_buffer=True
 ```
-To run the full set of experiments see the [README](../experiments/gmm/README.md) for the GMM experiments. 
+To run the full set of experiments see the [README](experiments/gmm/README.md) for the GMM experiments. 
 
 The below plot shows samples from various trained models, with the GMM problem target contours in the background.
 ![Gaussian Mixture Model samples vs contours](experiments/gmm/plots/MoG.png)
 
 ### Many Well distribution
-The 32 Many Well distribution is made up of 16 repeats of the Double Well distribution, 
+The Many Well distribution is made up of multiple repeats of the Double Well distribution, 
 from the [original Boltzmann generators paper](https://www.science.org/doi/10.1126/science.aaw1147).
 
-To run the experiment for the FAB with a prioritised replay buffer (for the first seed), use the following command:
+We provide a [colab notebook]() comparing FAB to training a flow via KL divergence minimisation, on the 
+6 dimensional Many Well problem, where the difference between the two methods is apparent after a 
+short (<15 min) training period.
+
+To run the experiment for the FAB with a prioritised replay buffer (for the first seed) on the 
+32 dimensional Many Well problem, use the following command:
 ```
 python experiments/many_well/run.py training.use_buffer=True training.prioritised_buffer=True
 ```
