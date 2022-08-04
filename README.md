@@ -29,7 +29,7 @@ The below plot shows samples from various trained models, with the GMM problem t
 The Many Well distribution is made up of multiple repeats of the Double Well distribution, 
 from the [original Boltzmann generators paper](https://www.science.org/doi/10.1126/science.aaw1147).
 
-We provide a [colab notebook]() comparing FAB to training a flow via KL divergence minimisation, on the 
+We provide a [colab notebook](experiments/many_well/fab_many_well.ipynb) comparing FAB to training a flow via KL divergence minimisation, on the 
 6 dimensional Many Well problem, where the difference between the two methods is apparent after a 
 short (<15 min) training period.
 

@@ -1,7 +1,7 @@
 # Many Well Problem
-The Many Well problem is created by repeating the double well problem from the original 
-Botlzmann distribution paper multiple times.
-We provided a [colab notebook]() for training a flow using FAB, as well as training a flow
+The Many Well problem is created by repeating the double well problem from the 
+[original Boltzmann generators paper](https://www.science.org/doi/10.1126/science.aaw1147) multiple times.
+We provided a [colab notebook](fab_many_well.ipynb) for training a flow using FAB, as well as training a flow
 with KL divergence minimisation on the 6 dimensional Many Well problem. This notebook shows
 the strong performance improvement from FAB in a relatively short training time.
 
