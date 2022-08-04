@@ -105,7 +105,7 @@ def main(cfg: DictConfig):
     print("overall results")
     print(results[["model_name", "seed"] + keys])
 
-FILENAME_EVAL_INFO = "/examples/many_well/many_well_results.csv"
+FILENAME_EVAL_INFO = "/experiments/many_well/many_well_results.csv"
 
 
 if __name__ == '__main__':

@@ -16,20 +16,20 @@ This allows for easy visualisation of the various methods for training the flow.
 
 To run the experiment for the FAB with a prioritised replay buffer (for the first seed), use the following command:
 ```
-python examples/gmm/run.py training.use_buffer=True training.prioritised_buffer=True
+python experiments/gmm/run.py training.use_buffer=True training.prioritised_buffer=True
 ```
-To run the full set of experiments see the [README](../examples/gmm/README.md) for the GMM experiments. 
+To run the full set of experiments see the [README](../experiments/gmm/README.md) for the GMM experiments. 
 
 The below plot shows samples from various trained models, with the GMM problem target contours in the background.
 ![Gaussian Mixture Model samples vs contours](experiments/gmm/plots/MoG.png)
 
 ### Many Well distribution
 The 32 Many Well distribution is made up of 16 repeats of the Double Well distribution, 
-from the original Boltzmann generators [paper](https://www.science.org/doi/10.1126/science.aaw1147).
+from the [original Boltzmann generators paper](https://www.science.org/doi/10.1126/science.aaw1147).
 
 To run the experiment for the FAB with a prioritised replay buffer (for the first seed), use the following command:
 ```
-python examples/many_well/run.py training.use_buffer=True training.prioritised_buffer=True
+python experiments/many_well/run.py training.use_buffer=True training.prioritised_buffer=True
 ```
 To run the full set of experiments see the [README](experiments/many_well/README.md) for the Many Well experiments. 
 
@@ -52,8 +52,8 @@ Furthermore, we compared the Ramachandran plots of the different methods in the 
 
 ![Ramachandran plot of alanine dipeptide](experiments/aldp/plots/ramachandran.png)
 
-To reproduce our experiment, use the [`examples/aldp/train.py`](experiments/aldp/train.py) script.
-The respective configuration files are located in [`examples/aldp/config`](experiments/aldp/config).
+To reproduce our experiment, use the [`experiments/aldp/train.py`](experiments/aldp/train.py) script.
+The respective configuration files are located in [`experiments/aldp/config`](experiments/aldp/config).
 We used the seeds 0, 1, and 2 in our runs.
 
 ## About the code 
