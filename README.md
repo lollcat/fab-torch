@@ -1,5 +1,19 @@
 # Flow Annealed Importance Sampling Bootstrap (FAB)
 
+## Overview
+
+Normalizing flows can approximate complicated Boltzmann distributions of physical systems. However, 
+current methods for training flows either suffer from mode-seeking behavior, use samples from the 
+target generated beforehand by expensive MCMC simulations, or use stochastic losses that have very 
+high variance. We tackle this challenge by augmenting flows with annealed importance sampling (AIS) 
+and minimize the mass covering $\alpha$-divergence with $\alpha = 2$, which minimizes importance 
+weight variance. Our method, Flow AIS Bootstrap (FAB), uses AIS to generate samples in regions 
+where the flow is a poor approximation of the target, facilitating the discovery of new modes. 
+
+In this repository, we implement FAB and provide the code to reproduce our experiments. For more
+details about our method and the results of our experiments, please read
+[our paper](https://arxiv.org/abs/2208.01893).
+
 ## Methods of Installation
 
 The  package can be installed via pip by navigating in the repository directory and running
@@ -66,4 +80,24 @@ The FAB training algorithm **with** the prioritised buffer can be found in [trai
 We offer a simple wrapper that allows for various normalising flow libraries to be plugged into 
 this repository. The main library we rely on is 
 [normflows](https://github.com/VincentStimper/normalizing-flows). 
+
+
+## Citation
+
+If you use this code in your research, please cite it as:
+
+> Laurence I. Midgley, Vincent Stimper, Gregor N. C. Simm, Bernhard Schölkopf, José Miguel 
+> Hernández-Lobato. Flow Annealed Importance Sampling Bootstrap. ArXiv, abs/2208.01893, 2022.
+
+**Bibtex**
+
+```
+@article{Midgley2022,
+  title={Flow {A}nnealed {I}mportance {S}ampling {B}ootstrap},
+  author={Laurence I. Midgley and Vincent Stimper and Gregor N. C. Simm and Bernhard Sch\"olkopf and Jos{\'e} Miguel Hern{\'a}ndez-Lobato},
+  journal={ArXiv},
+  year={2022},
+  volume={abs/2208.01893}
+}
+```
 
