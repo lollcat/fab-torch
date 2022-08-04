@@ -7,7 +7,7 @@ import numpy as np
 import boltzgen as bg
 
 from fab.utils.training import load_config
-from examples.make_flow import make_aldp_model
+from experiments.make_flow import make_aldp_model
 
 
 

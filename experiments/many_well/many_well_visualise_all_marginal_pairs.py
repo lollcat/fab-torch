@@ -4,7 +4,7 @@ from omegaconf import DictConfig
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
 from fab.utils.plotting import plot_marginal_pair, plot_contours
-from examples.make_flow import make_wrapped_normflowdist
+from experiments.make_flow import make_wrapped_normflowdist
 from matplotlib import pyplot as plt
 
 

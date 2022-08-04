@@ -1,6 +1,6 @@
 import pandas as pd
-from examples.gmm.evaluation import FILENAME_EVAL_INFO
-from examples.gmm.evaluation_expectation_quadratic_func import FILENAME_EXPECTATION_INFO
+from experiments.gmm.evaluation import FILENAME_EVAL_INFO
+from experiments.gmm.evaluation_expectation_quadratic_func import FILENAME_EXPECTATION_INFO
 
 
 

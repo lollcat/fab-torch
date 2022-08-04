@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import torch
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
-from examples.make_flow import make_wrapped_normflowdist
+from experiments.make_flow import make_wrapped_normflowdist
 
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
