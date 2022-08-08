@@ -7,7 +7,7 @@ from fab.types_ import LogProbFunc
 
 class Metropolis(TransitionOperator):
     def __init__(self, n_transitions, n_updates, max_step_size=1.0, min_step_size=0.1,
-                 adjust_step_size=True, target_p_accept=0.1):
+                 adjust_step_size=True, target_p_accept=0.65):
         """
         Args:
             n_transitions: number of AIS intermediate distributions.
