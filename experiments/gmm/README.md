@@ -40,6 +40,9 @@ Trained models may be evaluated using the code in
 Furthermore [`results_vis.py`](results_vis.py) may be used to obtain the plot from the paper
 visualising each of the modes. 
 
-## Further Notes
-By 10 August 2022 we will upload a Colab notebook that installs this repository, runs 
-these experiments and performs visualisation of results. 
+## Sample notebook
+
+<a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/dev-loll/experiments/gmm/fab_gmm.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
+We also provide a [colab notebook](experiments/gmm/fab_gmm.ipynb) with an example of training 
+a flow on the GMM problem, comparing FAB to training a flow with KL divergence minimisation.
