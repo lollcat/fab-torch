@@ -7,15 +7,18 @@ from fab.types_ import LogProbFunc
 
 class Metropolis(TransitionOperator):
     def __init__(self, n_transitions, n_updates, max_step_size=1.0, min_step_size=0.1,
-                 adjust_step_size=True, target_p_accept=0.65):
+                 adjust_step_size=True, target_p_accept=0.65,
+                eval_mode: bool = False):
         """
         Args:
-            n_transitions: number of AIS intermediate distributions.
-            n_updates: number of metropolis updates (per overall transition).
+            n_transitions: Number of AIS intermediate distributions.
+            n_updates: Number of metropolis updates (per overall transition).
             max_step_size: Step size for the first update.
             min_step_size: Step size for the last update.
-            adjust_step_size: whether to adjust the step size to get the target_p_accept
-            target_p_accept: desired average acceptance probability
+            adjust_step_size: Whether to adjust the step size to get the target_p_accept
+            target_p_accept: Desired average acceptance probability.
+            eval_mode: Whether or not to initialise the transition operator in eval mode. In eval
+                mode there is not tuning of the step size.
         """
         super(Metropolis, self).__init__()
         self.n_distributions = n_transitions
@@ -25,10 +28,11 @@ class Metropolis(TransitionOperator):
                                                                     n_updates).repeat(
             (n_transitions, 1)))
         self.target_prob_accept = target_p_accept
+        self.eval_mode = eval_mode
 
     def set_eval_mode(self, eval_setting: bool):
         """When eval_mode is turned on, no tuning of epsilon or the mass matrix occurs."""
-        self.adjust_step_size = not eval_setting
+        self.eval_mode = not eval_setting
 
     def get_logging_info(self) -> Dict:
         """Return the first and last noise scaling size for logging."""
@@ -54,7 +58,7 @@ class Metropolis(TransitionOperator):
             x_prev_log_prob = accept * x_proposed_log_prob + (1 - accept) * x_prev_log_prob
             accept = accept[:, None]
             x = accept * x_proposed + (1 - accept) * x
-            if self.adjust_step_size:
+            if self.adjust_step_size and not self.eval_mode:
                 p_accept = torch.mean(torch.clamp_max(acceptance_probability, 1))
                 if p_accept > self.target_prob_accept:  # too much accept
                     self.noise_scalings[i, n] = self.noise_scalings[i, n] * 1.05
