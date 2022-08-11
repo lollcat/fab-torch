@@ -2,6 +2,7 @@ import torch
 import numpy as np
 
 import normflows as nf
+import larsflow as lf
 
 from fab.target_distributions.aldp import AldpBoltzmann
 from fab.sampling_methods.transition_operators import HamiltonianMonteCarlo, Metropolis
@@ -66,6 +67,20 @@ def make_aldp_model(config, device):
         base_scale = torch.ones(ndim)
         base_scale[ind_circ] = bound_circ * 2
         base = nf.distributions.UniformGaussian(ndim, ind_circ, scale=base_scale)
+        base.shape = (ndim,)
+    elif config['flow']['base']['type'] == 'resampled-gauss-uni':
+        base_scale = torch.ones(ndim)
+        base_scale[ind_circ] = bound_circ * 2
+        base_ = nf.distributions.UniformGaussian(ndim, ind_circ, scale=base_scale)
+        pf = nf.utils.nn.PeriodicFeaturesCat(ndim, ind_circ, np.pi / bound_circ)
+        resnet = nf.nets.ResidualNet(ndim + len(ind_circ), 1,
+                                     config['flow']['base']['params']['a_hidden_units'],
+                                     num_blocks=config['flow']['base']['params']['a_n_blocks'],
+                                     preprocessing=pf)
+        a = torch.nn.Sequential(resnet, torch.nn.Sigmoid())
+        base = lf.distributions.ResampledDistribution(base_, a, 
+                                                      config['flow']['base']['params']['T'],
+                                                      config['flow']['base']['params']['eps'])
         base.shape = (ndim,)
     else:
         raise NotImplementedError('The base distribution ' + config['flow']['base']['type']
