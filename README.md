@@ -80,6 +80,12 @@ To reproduce our experiment, use the [`experiments/aldp/train.py`](experiments/a
 The respective configuration files are located in [`experiments/aldp/config`](experiments/aldp/config).
 We used the seeds 0, 1, and 2 in our runs.
 
+The data used to evaluate our models and to train the flow model with maximum likelihood is provided 
+on [Zenodo](https://zenodo.org/record/6993124#.YvpugVpBy5M).
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6993124.svg)](https://doi.org/10.5281/zenodo.6993124)
+
+
 ### About the code 
 The main FAB loss can be found in [core.py](fab/core.py), and we provide a simple training loop to 
 train a flow with this loss (or other flow - loss combinations that meet the spec) in [train.py](fab/train.py) 
