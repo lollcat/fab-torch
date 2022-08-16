@@ -62,8 +62,8 @@ training:                           # Properties of the training procedure
     type: cosine                    # String, kind of LR scheduler, can be exponential, cosine
   max_grad_norm: 1.e3               # Double, limit for gradient clipping
   weight_decay: 1.e-5               # Double, regularization parameter
-  log_iter: 20000                   # Int, number of iterations after which loss is saved
-  checkpoint_iter: 200000           # Int, number of iterations after which checkpoint is saved
+  log_iter: 10000                   # Int, number of iterations after which loss is saved
+  checkpoint_iter: 50000            # Int, number of iterations after which checkpoint is saved
   eval_samples: 0                   # Int, number of samples to draw when evaluating the model
   filter_chirality: train           # String, whether to filter chirality during training or evaluation
   seed: 0                           # Int, seed to be used for the random number generator
