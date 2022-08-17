@@ -1,5 +1,6 @@
 import numpy as np
 import normflows as nf
+import larsflow as lf
 from fab.wrappers.normflows import WrappedNormFlowModel
 from fab.trainable_distributions import TrainableDistribution
 
@@ -116,6 +117,31 @@ def make_normflow_snf_model(
                               it_snf_layer=it_snf_layer,
                               mh_prop_scale=mh_prop_scale,
                               mh_steps=mh_steps)
+    model = nf.NormalizingFlow(base, flows, p=target)
+    if act_norm:
+        model.sample(500)  # ensure we call sample to initialise the ActNorm layers
+    return model
+
+
+def make_normflow_resampled_model(
+        dim: int,
+        target: nf.distributions.Target,
+        n_flow_layers: int = 5,
+        layer_nodes_per_dim: int = 10,
+        act_norm: bool = True,
+        a_hidden_layer: int = 3,
+        a_hidden_units: int = 256,
+        T: int = 100,
+        eps: float = 0.05) \
+        -> nf.NormalizingFlow:
+    """Created normflows distribution with resampled base."""
+    hu = [dim] + [a_hidden_units] * a_hidden_layer + [1]
+    a = nf.nets.MLP(hu, output_fn="sigmoid")
+    base = lf.distributions.ResampledGaussian(dim, a, T, eps, trainable=False)
+    flows = make_normflow_flow(dim,
+                               n_flow_layers=n_flow_layers,
+                               layer_nodes_per_dim=layer_nodes_per_dim,
+                               act_norm=act_norm)
     model = nf.NormalizingFlow(base, flows, p=target)
     if act_norm:
         model.sample(500)  # ensure we call sample to initialise the ActNorm layers
