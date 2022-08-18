@@ -2,6 +2,7 @@ numpy
 torch
 normflows
 boltzgen @ git+https://github.com/VincentStimper/boltzmann-generators.git
+larsflow @ git+https://github.com/VincentStimper/resampled-base-flows.git
 mdtraj
 nflows
 pandas
