@@ -93,7 +93,7 @@ class PrioritisedReplayBuffer:
             indices = torch.distributions.Categorical(logits=self.buffer.log_w[:max_index]
                                                       ).sample_n(batch_size)
         else:
-            indices = sample_without_replacement(self.buffer.log_w, batch_size).to(self.device)
+            indices = sample_without_replacement(self.buffer.log_w[:max_index], batch_size).to(self.device)
         x, log_w, log_q_old, indices = self.buffer.x[indices], self.buffer.log_w[indices], \
                                        self.buffer.log_q_old[indices], indices
         return x, log_w, log_q_old, indices
