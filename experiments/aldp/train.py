@@ -15,7 +15,7 @@ from fab.utils.aldp import filter_chirality
 from fab.utils.numerical import effective_sample_size
 from fab.utils.replay_buffer import ReplayBuffer
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
-from experiments.make_flow import make_aldp_model
+from experiments.make_flow.make_aldp_model import make_aldp_model
 
 
 
