@@ -11,7 +11,7 @@ import torch
 def setup_gmm_plotter(cfg: DictConfig, target: GMM, buffer=None) -> Plotter:
     plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
 
-    def plot(fab_model, n_samples: int = cfg.training.batch_size):
+    def plot(fab_model, n_samples: int = 800):
         if cfg.training.prioritised_buffer is True and cfg.training.use_buffer is True:
             fig, axs = plt.subplots(1, 3, figsize=(12, 4))
         else:
