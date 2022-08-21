@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 import matplotlib as mpl
 from omegaconf import DictConfig
-from experiments.make_flow import make_wrapped_normflowdist
+from experiments.make_flow import make_wrapped_normflow_realnvp
 from experiments.setup_run_snf import make_normflow_snf_model, SNFModel
 from fab.utils.plotting import plot_contours, plot_marginal_pair
 from fab.target_distributions.gmm import GMM
@@ -34,9 +34,9 @@ def plot_result(cfg: DictConfig, ax: plt.axes, target, model_name: Optional[str]
         snf = SNFModel(snf, target, cfg.target.dim)
         flow = snf.flow
     else:
-        flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
-                                         layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                         act_norm=cfg.flow.act_norm)
+        flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
+                                             layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                             act_norm=cfg.flow.act_norm)
 
         if model_name:
             path_to_model = f"{PATH}/models/{model_name}_seed1.pt"

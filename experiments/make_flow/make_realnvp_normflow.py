@@ -1,5 +1,6 @@
 import numpy as np
 import normflows as nf
+import larsflow as lf
 from fab.wrappers.normflows import WrappedNormFlowModel
 from fab.trainable_distributions import TrainableDistribution
 
@@ -59,7 +60,7 @@ def make_normflow_snf(base: nf.distributions.BaseDistribution,
     return flows
 
 
-def make_wrapped_normflowdist(
+def make_wrapped_normflow_realnvp(
         dim: int,
         n_flow_layers: int = 5,
         layer_nodes_per_dim: int = 10,
@@ -74,25 +75,6 @@ def make_wrapped_normflowdist(
     if act_norm:
         wrapped_dist.sample((500,))  # ensure we call sample to initialise the ActNorm layers
     return wrapped_dist
-
-
-def make_normflow_model(
-        dim: int,
-        target: nf.distributions.Target,
-        n_flow_layers: int = 5,
-        layer_nodes_per_dim: int = 10,
-        act_norm: bool = True) \
-        -> nf.NormalizingFlow:
-    """Created normflows distribution using the example from the normflows page."""
-    base = nf.distributions.base.DiagGaussian(dim)
-    flows = make_normflow_flow(dim,
-                               n_flow_layers=n_flow_layers,
-                               layer_nodes_per_dim=layer_nodes_per_dim,
-                               act_norm=act_norm)
-    model = nf.NormalizingFlow(base, flows, p=target)
-    if act_norm:
-        model.sample(500)  # ensure we call sample to initialise the ActNorm layers
-    return model
 
 
 def make_normflow_snf_model(
@@ -120,3 +102,30 @@ def make_normflow_snf_model(
     if act_norm:
         model.sample(500)  # ensure we call sample to initialise the ActNorm layers
     return model
+
+
+def make_wrapped_normflow_resampled_flow(
+        dim: int,
+        n_flow_layers: int = 5,
+        layer_nodes_per_dim: int = 10,
+        act_norm: bool = True,
+        a_hidden_layer: int = 3,
+        a_hidden_units: int = 256,
+        T: int = 100,
+        eps: float = 0.05) \
+        -> TrainableDistribution:
+    """Created normflows distribution with resampled base."""
+    hu = [dim] + [a_hidden_units] * a_hidden_layer + [1]
+    a = nf.nets.MLP(hu, output_fn="sigmoid")
+    base = lf.distributions.ResampledGaussian(dim, a, T, eps, trainable=False)
+    flows = make_normflow_flow(dim,
+                               n_flow_layers=n_flow_layers,
+                               layer_nodes_per_dim=layer_nodes_per_dim,
+                               act_norm=act_norm)
+    model = nf.NormalizingFlow(base, flows)
+    if act_norm:
+        model.sample(500)  # ensure we call sample to initialise the ActNorm layers
+    wrapped_dist = WrappedNormFlowModel(model)
+    return wrapped_dist
+
+

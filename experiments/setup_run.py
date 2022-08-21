@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import torch
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
-from experiments.make_flow import make_wrapped_normflowdist
+from experiments.make_flow import make_wrapped_normflow_realnvp, make_wrapped_normflow_resampled_flow
 
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
@@ -190,10 +190,17 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     with open(os.path.join(save_path, "config.txt"), "w") as file:
         file.write(str(cfg))
 
+    if cfg.flow.resampled_base:
+        flow = make_wrapped_normflow_resampled_flow(
+            dim,
+            n_flow_layers=cfg.flow.n_layers,
+            layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+            act_norm=cfg.flow.act_norm)
+    else:
+        flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
+                                             layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                             act_norm=cfg.flow.act_norm)
 
-    flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
-                                     layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                     act_norm=cfg.flow.act_norm)
 
     if cfg.fab.transition_operator.type == "hmc":
         # very lightweight HMC.

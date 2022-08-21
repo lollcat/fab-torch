@@ -12,10 +12,11 @@ flow:
   n_layers: 15
   act_norm: false
   use_snf: false
+  resampled_base: true
 
 
 fab:
-  loss_type: forward_kl
+  loss_type: alpha_2_div # forward_kl
   transition_operator:
     type: metropolis
     n_inner_steps: 1
@@ -35,8 +36,8 @@ training:
   n_flow_forward_pass: 10_000_000
   use_gpu: true
   use_64_bit: true
-  use_buffer: false # below config fields are all for use_buffer = True
-  prioritised_buffer: false
+  use_buffer: true # below config fields are all for use_buffer = True
+  prioritised_buffer: true
   n_batches_buffer_sampling: 4
   buffer_temp: 1.0 # rate that we weight new experience over old
   maximum_buffer_length: 12800

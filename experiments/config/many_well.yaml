@@ -9,6 +9,7 @@ flow:
   n_layers: 10
   act_norm: false
   use_snf: false
+  resampled_base: true
 
 fab:
   loss_type: alpha_2_div
