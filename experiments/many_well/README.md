@@ -23,6 +23,9 @@ python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=flow_al
 # Flow using reverse KL divergence
 python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=flow_reverse_kld
 
+# Flow using reverse KL divergence with resampled base distribution
+python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=flow_reverse_kld flow.resampled_base=True
+
 # SNF using reverse KLD
 python experiments/many_well/run.py -m training.seed=0,1,2 flow.use_snf=True
 ```
