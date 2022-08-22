@@ -4,7 +4,7 @@ from omegaconf import DictConfig
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
 from fab.utils.plotting import plot_marginal_pair, plot_contours
-from experiments.make_flow import make_wrapped_normflowdist
+from experiments.make_flow import make_wrapped_normflow_realnvp
 from matplotlib import pyplot as plt
 
 
@@ -18,8 +18,8 @@ def setup_model(cfg: DictConfig, model_path):
     target = ManyWellEnergy(dim, a=-0.5, b=-6)
     plotting_bounds = (-3, 3)
 
-    flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
-                                     layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim)
+    flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
+                                         layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim)
 
 
     if cfg.fab.transition_operator.type == "hmc":

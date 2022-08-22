@@ -99,5 +99,23 @@ class GMM(nn.Module, TargetDistribution):
         return summary_dict
 
 
+def save_gmm_as_numpy(target: GMM):
+    """Save params of GMM problem."""
+    import pickle
+    params = {"mean": target.locs.numpy(),
+              "scale_tril": target.scale_trils.numpy()}
+    with open("gmm_problem.pkl", "wb") as f:
+        pickle.dump(params, f)
+
+
 if __name__ == '__main__':
-    target = GMM(dim=2, n_mixes=2, loc_scaling=1.0)
+    import matplotlib.pyplot as plt
+    from fab.utils.plotting import plot_contours
+    torch.manual_seed(0)
+    loc_scaling = 40
+    target = GMM(dim=2, n_mixes=40, loc_scaling=40.0)
+    save_gmm_as_numpy(target)
+    plotting_bounds = (-loc_scaling * 1.4, loc_scaling* 1.4)
+    plot_contours(target.log_prob, bounds=plotting_bounds, n_contour_levels=50, grid_width_n_points=200)
+    plt.show()
+

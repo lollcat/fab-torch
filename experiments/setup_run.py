@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import torch
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
-from experiments.make_flow import make_wrapped_normflowdist
+from experiments.make_flow import make_wrapped_normflow_realnvp, make_wrapped_normflow_resampled_flow
 
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
@@ -99,8 +99,8 @@ def setup_logger(cfg: DictConfig, save_path: str) -> Logger:
     return logger
 
 
-def setup_buffer(cfg: DictConfig, fab_model: FABModel, auto_fill_buffer: bool) -> Union[ReplayBuffer,
-                                                                PrioritisedReplayBuffer]:
+def setup_buffer(cfg: DictConfig, fab_model: FABModel, auto_fill_buffer: bool) -> \
+        Union[ReplayBuffer, PrioritisedReplayBuffer]:
     dim = cfg.target.dim  # applies to flow and target
     if cfg.training.prioritised_buffer is False:
         def initial_sampler():
@@ -128,6 +128,7 @@ def setup_buffer(cfg: DictConfig, fab_model: FABModel, auto_fill_buffer: bool) -
     return buffer
 
 def get_load_checkpoint_dir(outer_checkpoint_dir):
+    """Get directory of most recent checkpoint"""
     try:
         # load the most recent checkpoint, from the most recent run.
         chkpts = [it.path for it in os.scandir(outer_checkpoint_dir) if it.is_dir()]
@@ -148,7 +149,7 @@ def get_load_checkpoint_dir(outer_checkpoint_dir):
 
 def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                           target: TargetDistribution):
-    """Create and trainer and run."""
+    """Setup model and train."""
     if cfg.training.tlimit:
         start_time = time.time()
     else:
@@ -189,10 +190,17 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     with open(os.path.join(save_path, "config.txt"), "w") as file:
         file.write(str(cfg))
 
+    if cfg.flow.resampled_base:
+        flow = make_wrapped_normflow_resampled_flow(
+            dim,
+            n_flow_layers=cfg.flow.n_layers,
+            layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+            act_norm=cfg.flow.act_norm)
+    else:
+        flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
+                                             layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                             act_norm=cfg.flow.act_norm)
 
-    flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
-                                     layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                     act_norm=cfg.flow.act_norm)
 
     if cfg.fab.transition_operator.type == "hmc":
         # very lightweight HMC.
@@ -204,9 +212,14 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
             dim=dim,
             step_tuning_method="p_accept")
     elif cfg.fab.transition_operator.type == "metropolis":
-        transition_operator = Metropolis(n_transitions=cfg.fab.n_intermediate_distributions,
-                                         n_updates=cfg.fab.transition_operator.n_inner_steps,
-                                         adjust_step_size=True)
+        transition_operator = Metropolis(
+            n_transitions=cfg.fab.n_intermediate_distributions,
+            n_updates=cfg.fab.transition_operator.n_inner_steps,
+            adjust_step_size=cfg.fab.transition_operator.tune_step_size,
+            target_p_accept=cfg.fab.transition_operator.target_p_accept,
+            min_step_size=cfg.fab.transition_operator.init_step_size,
+            max_step_size=cfg.fab.transition_operator.init_step_size
+        )
     else:
         raise NotImplementedError
 

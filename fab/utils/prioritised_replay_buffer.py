@@ -7,6 +7,13 @@ class ReplayData(NamedTuple):
     log_w: torch.Tensor
     log_q_old: torch.Tensor
 
+def sample_without_replacement(logits: torch.Tensor, n: int) -> torch.Tensor:
+    # https://timvieira.github.io/blog/post/2014/07/31/gumbel-max-trick/
+    z = torch.distributions.Gumbel(torch.tensor(0.0), torch.tensor(1.0)).sample(
+        logits.shape)
+    topk = torch.topk(z + logits, n)
+    return topk.indices
+
 
 class PrioritisedReplayBuffer:
     def __init__(self, dim: int,
@@ -86,10 +93,7 @@ class PrioritisedReplayBuffer:
             indices = torch.distributions.Categorical(logits=self.buffer.log_w[:max_index]
                                                       ).sample_n(batch_size)
         else:
-            sample_probs = torch.exp(
-                self.buffer.log_w[:max_index] - torch.max(self.buffer.log_w[:max_index]))
-            indices = torch.multinomial(sample_probs, num_samples=batch_size,
-                                        replacement=False).to(self.device)
+            indices = sample_without_replacement(self.buffer.log_w[:max_index], batch_size).to(self.device)
         x, log_w, log_q_old, indices = self.buffer.x[indices], self.buffer.log_w[indices], \
                                        self.buffer.log_q_old[indices], indices
         return x, log_w, log_q_old, indices

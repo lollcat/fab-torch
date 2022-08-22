@@ -25,4 +25,7 @@ class WrappedNormFlowModel(TrainableDistribution):
 
     @property
     def event_shape(self) -> Tuple[int, ...]:
-        return self._nf_model.q0.shape
+        try:
+            return self._nf_model.q0.shape
+        except:
+            return self._nf_model.sample()[0].shape[1:]

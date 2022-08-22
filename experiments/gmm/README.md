@@ -17,6 +17,9 @@ python experiments/gmm/run.py -m training.seed=0,1,2 fab.loss_type=flow_alpha_2_
 # Flow using reverse KL divergence
 python experiments/gmm/run.py -m training.seed=0,1,2 fab.loss_type=flow_reverse_kld
 
+# Flow using reverse KL divergence with resampled base distribution
+python experiments/gmm/run.py -m training.seed=0,1,2 fab.loss_type=flow_reverse_kld flow.resampled_base=True
+
 # SNF using reverse KLD
 python experiments/gmm/run.py -m training.seed=0,1,2 flow.use_snf=True
 ```

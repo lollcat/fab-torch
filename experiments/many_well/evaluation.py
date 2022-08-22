@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 import torch
 
 from fab import FABModel, HamiltonianMonteCarlo
-from experiments.make_flow import make_wrapped_normflowdist
+from experiments.make_flow import make_wrapped_normflow_realnvp
 
 
 PATH = os.getcwd()
@@ -30,9 +30,9 @@ def load_model(cfg: DictConfig, target, model_name: str):
         snf = SNFModel(snf, target, cfg.target.dim)
         return snf
     else:
-        flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
-                                         layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                         act_norm=cfg.flow.act_norm)
+        flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
+                                             layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                             act_norm=cfg.flow.act_norm)
         path_to_model = f"{PATH}/models/{model_name}.pt"
         checkpoint = torch.load(path_to_model, map_location="cpu")
         flow._nf_model.load_state_dict(checkpoint['flow'])

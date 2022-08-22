@@ -10,6 +10,7 @@ flow:
   n_layers: 5
   act_norm: false
   use_snf: false
+  resampled_base: true
 
 fab:
   loss_type: target_forward_kl

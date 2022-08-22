@@ -5,7 +5,7 @@ from omegaconf import DictConfig
 import torch
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
-from experiments.make_flow import make_wrapped_normflowdist
+from experiments.make_flow import make_wrapped_normflow_realnvp
 
 def load_model(cfg: DictConfig, target, use_snf: bool, path_to_model: Optional[str] = None):
     """Return the model with the loaded checkpoint provided in `path_to_model`.
@@ -29,9 +29,9 @@ def load_model(cfg: DictConfig, target, use_snf: bool, path_to_model: Optional[s
         snf = SNFModel(snf, target, cfg.target.dim)
         return snf
     else:
-        flow = make_wrapped_normflowdist(dim, n_flow_layers=cfg.flow.n_layers,
-                                         layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                         act_norm=cfg.flow.act_norm)
+        flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
+                                             layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                             act_norm=cfg.flow.act_norm)
         if path_to_model:
             checkpoint = torch.load(path_to_model, map_location="cpu")
             flow._nf_model.load_state_dict(checkpoint['flow'])
