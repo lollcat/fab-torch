@@ -15,6 +15,7 @@ def setup_ais(dim: int = 2,
             n_ais_intermediate_distributions: int = 40,
             seed: int = 0,
             transition_operator_type: str = "hmc",
+            spacing: str = "geometric",
              ) -> Tuple[AnnealedImportanceSampler, TargetDistribution]:
     # set up key objects
     torch.manual_seed(seed)
@@ -37,6 +38,7 @@ def setup_ais(dim: int = 2,
                                     target_log_prob=target.log_prob,
                                     transition_operator=transition_operator,
                                     n_intermediate_distributions=n_ais_intermediate_distributions,
+                                    distribution_spacing_type=spacing,
                                     )
     return ais, target
 
@@ -123,5 +125,8 @@ def test_ais__overall(dim: int = 2,
     plot_history(logger.history)
     plt.show()
 
+
+if __name__ == '__main__':
+    test_ais__overall(n_ais_intermediate_distributions=4)
 
 
