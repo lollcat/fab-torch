@@ -114,6 +114,8 @@ class AnnealedImportanceSampler:
             raise Exception(f"distribution spacing incorrectly specified:"
                             f" '{distribution_spacing_type}',"
                             f"options are 'geometric' or 'linear'")
+
+        assert B_space.shape == (self.n_intermediate_distributions + 2,)
         return torch.tensor(B_space)
 
     def generate_eval_data(self, outer_batch_size: int, inner_batch_size: int) -> Tuple[
