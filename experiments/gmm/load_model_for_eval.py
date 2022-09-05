@@ -5,6 +5,10 @@ import torch
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
 from experiments.make_flow import make_wrapped_normflow_realnvp
 
+
+# TODO: needs to be updated to deal with various models. It would be good if we could instantiate a model
+# using a create model method from setup_run, and then just call .load with the file path!.
+
 def load_model(cfg: DictConfig, target, path_to_model: Optional[str] = None):
     """Return the model with the loaded checkpoint provided in `path_to_model`.
     For evaluation we focus on evaluating the flow model (rather than AIS).
