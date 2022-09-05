@@ -23,7 +23,7 @@ fab:
     tune_step_size: false
     target_p_accept: 0.65
     init_step_size: 5.0
-  n_intermediate_distributions: 2
+  n_intermediate_distributions: 1
 
 
 training:
@@ -33,7 +33,7 @@ training:
   lr: 1e-4
   batch_size: 128
   n_iterations: null
-  n_flow_forward_pass: 10_000_000
+  n_flow_forward_pass: 20_000_000
   use_gpu: true
   use_64_bit: true
   use_buffer: false # below config fields are all for use_buffer = True

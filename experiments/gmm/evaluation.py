@@ -29,8 +29,8 @@ def evaluate(cfg: DictConfig, use_snf: bool, path_to_model, num_samples=int(1e4)
 # use base config of GMM but overwrite for specific model.
 @hydra.main(config_path="../config", config_name="gmm.yaml")
 def main(cfg: DictConfig):
-    model_names = ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "target_kld", "snf"]
-    seeds = [1, 2, 3]
+    model_names = ["target_kld", "fab_buffer"]  # , "fab_no_buffer", "flow_kld", "flow_nis", , "snf"]
+    seeds = [0, 1, 2]
     num_samples = int(5e4)
 
     results = pd.DataFrame()
