@@ -11,8 +11,12 @@ flow:
   layer_nodes_per_dim: 40
   n_layers: 15
   act_norm: false
-  use_snf: false
+  use_snf: true
   resampled_base: false
+  snf: # config if snf is used.
+    step_size: 5.0
+    num_steps: 1
+    it_snf_layer: 3
 
 
 fab:
@@ -24,6 +28,8 @@ fab:
     target_p_accept: 0.65
     init_step_size: 5.0
   n_intermediate_distributions: 1
+
+
 
 
 training:

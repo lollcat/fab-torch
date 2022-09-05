@@ -10,6 +10,10 @@ flow:
   act_norm: false
   use_snf: false
   resampled_base: false
+  snf: # config if snf is used.
+    step_size: 0.1  # increase?
+    num_steps: 10
+    it_snf_layer: 2
 
 fab:
   loss_type: alpha_2_div

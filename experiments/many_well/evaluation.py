@@ -1,5 +1,4 @@
 import hydra
-from experiments.setup_run_snf import make_normflow_snf_model, SNFModel
 
 from fab.target_distributions.many_well import ManyWellEnergy
 import pandas as pd
@@ -15,44 +14,28 @@ PATH = os.getcwd()
 
 def load_model(cfg: DictConfig, target, model_name: str):
     dim = cfg.target.dim
-    if model_name and model_name[0:3] == "snf":
-        snf = make_normflow_snf_model(dim,
-                                       n_flow_layers=cfg.flow.n_layers,
-                                       layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                       act_norm=cfg.flow.act_norm,
-                                       target=target
-                                       )
-        if model_name:
-            path_to_model = f"{PATH}/models/{model_name}.pt"
-            checkpoint = torch.load(path_to_model, map_location="cpu")
-            snf.load_state_dict(checkpoint['flow'])
-        # wrap appropriately
-        snf = SNFModel(snf, target, cfg.target.dim)
-        return snf
-    else:
-        flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
-                                             layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                             act_norm=cfg.flow.act_norm)
-        path_to_model = f"{PATH}/models/{model_name}.pt"
-        checkpoint = torch.load(path_to_model, map_location="cpu")
-        flow._nf_model.load_state_dict(checkpoint['flow'])
+    flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
+                                         layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                         act_norm=cfg.flow.act_norm)
+    path_to_model = f"{PATH}/models/{model_name}.pt"
+    checkpoint = torch.load(path_to_model, map_location="cpu")
+    flow._nf_model.load_state_dict(checkpoint['flow'])
 
-        transition_operator = HamiltonianMonteCarlo(
-            n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
-            n_outer=1,
-            epsilon=1.0,
-            L=cfg.fab.transition_operator.n_inner_steps,
-            dim=dim,
-            step_tuning_method="p_accept")
+    transition_operator = HamiltonianMonteCarlo(
+        n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
+        n_outer=1,
+        epsilon=1.0,
+        L=cfg.fab.transition_operator.n_inner_steps,
+        dim=dim,
+        step_tuning_method="p_accept")
 
-        transition_operator.load_state_dict(checkpoint['trans_op'])
+    transition_operator.load_state_dict(checkpoint['trans_op'])
 
-
-        model = FABModel(flow=flow,
-                 target_distribution=target,
-                 n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
-                 transition_operator=transition_operator,
-                 loss_type=cfg.fab.loss_type)
+    model = FABModel(flow=flow,
+             target_distribution=target,
+             n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
+             transition_operator=transition_operator,
+             loss_type=cfg.fab.loss_type)
     return model
 
 

@@ -56,7 +56,6 @@ def make_normflow_snf(base: nf.distributions.BaseDistribution,
             lam = (i + 1) / n_flow_layers
             dist = nf.distributions.LinearInterpolation(target, base, lam)
             flows.append(nf.flows.MetropolisHastings(dist, proposal, mh_steps))
-
     return flows
 
 
@@ -77,7 +76,7 @@ def make_wrapped_normflow_realnvp(
     return wrapped_dist
 
 
-def make_normflow_snf_model(
+def make_wrapped_normflow_snf_model(
         dim: int,
         target: nf.distributions.Target,
         n_flow_layers: int = 5,
@@ -86,7 +85,7 @@ def make_normflow_snf_model(
         it_snf_layer: int = 2,
         mh_prop_scale: float = 0.1,
         mh_steps: int = 10) \
-        -> nf.NormalizingFlow:
+        -> TrainableDistribution:
     """Created normflows distribution with sampling layers."""
     base = nf.distributions.base.DiagGaussian(dim)
     flows = make_normflow_snf(base,
@@ -101,7 +100,8 @@ def make_normflow_snf_model(
     model = nf.NormalizingFlow(base, flows, p=target)
     if act_norm:
         model.sample(500)  # ensure we call sample to initialise the ActNorm layers
-    return model
+    wrapped_dist = WrappedNormFlowModel(model)
+    return wrapped_dist
 
 
 def make_wrapped_normflow_resampled_flow(

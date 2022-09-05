@@ -19,7 +19,8 @@ import matplotlib.pyplot as plt
 import torch
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
-from experiments.make_flow import make_wrapped_normflow_realnvp, make_wrapped_normflow_resampled_flow
+from experiments.make_flow import make_wrapped_normflow_realnvp, \
+    make_wrapped_normflow_resampled_flow, make_wrapped_normflow_snf_model
 
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
@@ -147,6 +148,7 @@ def get_load_checkpoint_dir(outer_checkpoint_dir):
         return None, 0
     return chkpt_dir, iter_number
 
+
 def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                           target: TargetDistribution):
     """Setup model and train."""
@@ -196,6 +198,17 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
             n_flow_layers=cfg.flow.n_layers,
             layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
             act_norm=cfg.flow.act_norm)
+
+    elif cfg.flow.snf:
+        flow = make_wrapped_normflow_snf_model(dim,
+                                      n_flow_layers=cfg.flow.n_layers,
+                                      layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                      act_norm=cfg.flow.act_norm,
+                                      target=target,
+                                      mh_prop_scale=cfg.flow.snf.step_size,
+                                      it_snf_layer=cfg.flow.snf.it_snf_layer,
+                                      mh_steps=cfg.flow.snf.num_steps,
+                                      )
     else:
         flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
                                              layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
@@ -211,6 +224,7 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
             L=cfg.fab.transition_operator.n_inner_steps,
             dim=dim,
             step_tuning_method="p_accept")
+
     elif cfg.fab.transition_operator.type == "metropolis":
         transition_operator = Metropolis(
             n_transitions=cfg.fab.n_intermediate_distributions,
