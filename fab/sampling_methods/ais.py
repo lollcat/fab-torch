@@ -99,23 +99,23 @@ class AnnealedImportanceSampler:
                                    n_intermediate_distributions: int) -> torch.Tensor:
         """Setup the spacing of the distributions, either with linear or geometric spacing."""
         assert n_intermediate_distributions > 0
-        if n_intermediate_distributions < 3:
-            print(f"using linear spacing as there are only {n_intermediate_distributions} "
-                  f"intermediate distribution")
-            distribution_spacing_type = "linear"
         if distribution_spacing_type == "geometric":
-            # rough heuristic, copying ratio used in example in AIS paper
-            n_linspace_points = max(int(n_intermediate_distributions / 4), 2)
-            n_geomspace_points = n_intermediate_distributions - n_linspace_points
-            B_space = np.concatenate([np.linspace(0, 0.01, n_linspace_points + 3)[:-1],
-                                   np.geomspace(0.01, 1, n_geomspace_points)])
-            B_space = np.flip(1 - B_space).copy()
+            # rough heuristic, copying ratio used in example in AIS paper.
+            # One quarter of Beta linearly spaced between 0 and 0.01
+            n_intermediate_linspace_points = int(n_intermediate_distributions / 4)
+            # The rest geometrically spaced between 0.01 and 1.0
+            n_intermediate_geomspace_points = n_intermediate_distributions - \
+                                              n_intermediate_linspace_points - 1
+            B_space = np.concatenate([np.linspace(0, 0.01, n_intermediate_linspace_points + 2)[:-1],
+                                   np.geomspace(0.01, 1, n_intermediate_geomspace_points + 2)])
         elif distribution_spacing_type == "linear":
             B_space = np.linspace(0.0, 1.0, n_intermediate_distributions+2)
         else:
             raise Exception(f"distribution spacing incorrectly specified:"
                             f" '{distribution_spacing_type}',"
                             f"options are 'geometric' or 'linear'")
+
+        assert B_space.shape == (self.n_intermediate_distributions + 2,)
         return torch.tensor(B_space)
 
     def generate_eval_data(self, outer_batch_size: int, inner_batch_size: int) -> Tuple[
