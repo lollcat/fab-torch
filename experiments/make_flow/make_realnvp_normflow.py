@@ -112,12 +112,12 @@ def make_wrapped_normflow_resampled_flow(
         act_norm: bool = True,
         a_hidden_layer: int = 2,
         a_hidden_units: int = 256,
-        T: int = 10,
+        T: int = 100,
         eps: float = 0.05) \
         -> TrainableDistribution:
     """Created normflows distribution with resampled base."""
     hu = [dim] + [a_hidden_units] * a_hidden_layer + [1]
-    #a = nf.nets.MLP(hu, output_fn="sigmoid")
+    a = nf.nets.MLP(hu, output_fn="sigmoid")
     resnet = nf.nets.ResidualNet(dim, 1, a_hidden_units, num_blocks=a_hidden_layer)
     a = torch.nn.Sequential(resnet, torch.nn.Sigmoid())
     base = lf.distributions.ResampledGaussian(dim, a, T, eps, trainable=False)
