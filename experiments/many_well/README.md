@@ -21,13 +21,13 @@ python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=target_
 python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=flow_alpha_2_div_nis
 
 # Flow using reverse KL divergence
-python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=flow_reverse_kld
+python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=flow_reverse_kl
 
 # Flow using reverse KL divergence with resampled base distribution
 python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=flow_reverse_kld flow.resampled_base=True
 
 # SNF using reverse KLD
-python experiments/many_well/run.py -m training.seed=0,1,2 flow.use_snf=True
+python experiments/many_well/run.py -m training.seed=0,1,2 flow.use_snf=True fab.loss_type=flow_reverse_kl
 ```
 The config file for this experiment is [here](../config/many_well.yaml), where you can change the hyper-parameters.
 These commands will (1) save plots of the model throughout training, (2) save metrics logged via 
