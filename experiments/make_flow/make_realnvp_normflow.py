@@ -111,7 +111,7 @@ def make_wrapped_normflow_resampled_flow(
         act_norm: bool = True,
         a_hidden_layer: int = 3,
         a_hidden_units: int = 256,
-        T: int = 100,
+        T: int = 20,
         eps: float = 0.05) \
         -> TrainableDistribution:
     """Created normflows distribution with resampled base."""
