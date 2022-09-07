@@ -11,7 +11,7 @@ flow:
   layer_nodes_per_dim: 40
   n_layers: 15
   act_norm: false
-  use_snf: true
+  use_snf: false
   resampled_base: false
   snf: # config if snf is used.
     step_size: 5.0

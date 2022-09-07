@@ -149,49 +149,8 @@ def get_load_checkpoint_dir(outer_checkpoint_dir):
     return chkpt_dir, iter_number
 
 
-def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
-                          target: TargetDistribution):
-    """Setup model and train."""
-    if cfg.training.tlimit:
-        start_time = time.time()
-    else:
-        start_time = None
-    if cfg.training.checkpoint_load_dir is not None:
-        if not os.path.exists(cfg.training.checkpoint_load_dir):
-            print("no checkpoint loaded, starting training from scratch")
-            chkpt_dir = None
-            iter_number = 0
-        else:
-            chkpt_dir, iter_number = get_load_checkpoint_dir(cfg.training.checkpoint_load_dir)
-    else:
-        chkpt_dir = None
-        iter_number = 0
-
+def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
     dim = cfg.target.dim  # applies to flow and target
-    save_path = os.path.join(cfg.evaluation.save_path, str(datetime.now().isoformat()))
-    logger = setup_logger(cfg, save_path)
-    if hasattr(cfg.logger, "wandb"):
-        # if using wandb then save to wandb path
-        save_path = os.path.join(wandb.run.dir, save_path)
-    pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
-
-    n_iterations = get_n_iterations(
-        n_training_iter=cfg.training.n_iterations,
-        n_flow_forward_pass=cfg.training.n_flow_forward_pass,
-        batch_size=cfg.training.batch_size,
-        loss_type=cfg.fab.loss_type,
-        n_transition_operator_inner_steps=cfg.fab.transition_operator.n_inner_steps,
-        n_intermediate_ais_dist=cfg.fab.n_intermediate_distributions,
-        transition_operator_type=cfg.fab.transition_operator.type,
-        use_buffer=cfg.training.use_buffer,
-        min_buffer_length=cfg.training.min_buffer_length,
-    )
-    cfg.training.n_iterations = n_iterations
-
-
-    with open(os.path.join(save_path, "config.txt"), "w") as file:
-        file.write(str(cfg))
-
     if cfg.flow.resampled_base:
         flow = make_wrapped_normflow_resampled_flow(
             dim,
@@ -199,7 +158,7 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
             layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
             act_norm=cfg.flow.act_norm)
 
-    elif cfg.flow.snf:
+    elif cfg.flow.use_snf:
         flow = make_wrapped_normflow_snf_model(dim,
                                       n_flow_layers=cfg.flow.n_layers,
                                       layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
@@ -240,9 +199,9 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
 
     # use GPU if available
     if torch.cuda.is_available() and cfg.training.use_gpu:
-      flow.cuda()
-      transition_operator.cuda()
-      print("\n*************  Utilising GPU  ****************** \n")
+        flow.cuda()
+        transition_operator.cuda()
+        print("\n*************  Utilising GPU  ****************** \n")
     else:
         print("\n*************  Utilising CPU  ****************** \n")
 
@@ -252,7 +211,54 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                          n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
                          transition_operator=transition_operator,
                          loss_type=cfg.fab.loss_type)
-    optimizer = torch.optim.Adam(flow.parameters(), lr=cfg.training.lr)
+    return fab_model
+
+
+
+def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
+                          target: TargetDistribution):
+    """Setup model and train."""
+    if cfg.training.tlimit:
+        start_time = time.time()
+    else:
+        start_time = None
+    if cfg.training.checkpoint_load_dir is not None:
+        if not os.path.exists(cfg.training.checkpoint_load_dir):
+            print("no checkpoint loaded, starting training from scratch")
+            chkpt_dir = None
+            iter_number = 0
+        else:
+            chkpt_dir, iter_number = get_load_checkpoint_dir(cfg.training.checkpoint_load_dir)
+    else:
+        chkpt_dir = None
+        iter_number = 0
+
+    save_path = os.path.join(cfg.evaluation.save_path, str(datetime.now().isoformat()))
+    logger = setup_logger(cfg, save_path)
+    if hasattr(cfg.logger, "wandb"):
+        # if using wandb then save to wandb path
+        save_path = os.path.join(wandb.run.dir, save_path)
+    pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
+
+    n_iterations = get_n_iterations(
+        n_training_iter=cfg.training.n_iterations,
+        n_flow_forward_pass=cfg.training.n_flow_forward_pass,
+        batch_size=cfg.training.batch_size,
+        loss_type=cfg.fab.loss_type,
+        n_transition_operator_inner_steps=cfg.fab.transition_operator.n_inner_steps,
+        n_intermediate_ais_dist=cfg.fab.n_intermediate_distributions,
+        transition_operator_type=cfg.fab.transition_operator.type,
+        use_buffer=cfg.training.use_buffer,
+        min_buffer_length=cfg.training.min_buffer_length,
+    )
+    cfg.training.n_iterations = n_iterations
+
+
+    with open(os.path.join(save_path, "config.txt"), "w") as file:
+        file.write(str(cfg))
+
+    fab_model = setup_model(cfg, target)
+    optimizer = torch.optim.Adam(fab_model.flow.parameters(), lr=cfg.training.lr)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
     scheduler = None
 
