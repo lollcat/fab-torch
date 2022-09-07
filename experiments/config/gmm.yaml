@@ -20,7 +20,10 @@ flow:
 
 
 fab:
-  loss_type: alpha_2_div # forward_kl
+  # loss type options: p2_over_q_alpha_2_div for FAB
+  # forward_kl: forward kl estimated with samples from the target
+  # flow_reverse_kl, flow_alpha_2_div_nis for revers KL/alpha_2_div estimated with flow samples
+  loss_type: flow_reverse_kl
   transition_operator:
     type: metropolis
     n_inner_steps: 1
@@ -28,8 +31,6 @@ fab:
     target_p_accept: 0.65
     init_step_size: 5.0
   n_intermediate_distributions: 1
-
-
 
 
 training:
@@ -43,7 +44,7 @@ training:
   use_gpu: true
   use_64_bit: true
   use_buffer: false # below config fields are all for use_buffer = True
-  prioritised_buffer: false
+  prioritised_buffer: false # If True then FAB loss WILL be used no matter what fab.loss_type is.
   n_batches_buffer_sampling: 4
   buffer_temp: 1.0 # rate that we weight new experience over old
   maximum_buffer_length: 12800

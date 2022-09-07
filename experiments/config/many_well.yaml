@@ -16,7 +16,10 @@ flow:
     it_snf_layer: 2
 
 fab:
-  loss_type: alpha_2_div
+  # loss type options: p2_over_q_alpha_2_div for FAB
+  # forward_kl: forward kl estimated with samples from the target
+  # flow_reverse_kl, flow_alpha_2_div_nis for revers KL/alpha_2_div estimated with flow samples
+  loss_type: flow_reverse_kl
   transition_operator:
     type: hmc
     n_inner_steps: 5
