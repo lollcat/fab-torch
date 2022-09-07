@@ -14,8 +14,9 @@ flow:
   use_snf: false
   resampled_base: false
   snf: # config if snf is used.
+    transition_operator_type: metropolis # metropolis or hmc
     step_size: 5.0
-    num_steps: 1
+    num_steps: 1 # leapfrog steps if hmc, else metropolis accept/reject steps
     it_snf_layer: 3
 
 

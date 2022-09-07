@@ -159,14 +159,17 @@ def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
             act_norm=cfg.flow.act_norm)
 
     elif cfg.flow.use_snf:
-        flow = make_wrapped_normflow_snf_model(dim,
-                                      n_flow_layers=cfg.flow.n_layers,
-                                      layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                      act_norm=cfg.flow.act_norm,
-                                      target=target,
-                                      mh_prop_scale=cfg.flow.snf.step_size,
-                                      it_snf_layer=cfg.flow.snf.it_snf_layer,
-                                      mh_steps=cfg.flow.snf.num_steps,
+        flow = make_wrapped_normflow_snf_model(
+            dim,
+            n_flow_layers=cfg.flow.n_layers,
+            layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+            act_norm=cfg.flow.act_norm,
+            target=target,
+            mh_prop_scale=cfg.flow.snf.step_size,
+            it_snf_layer=cfg.flow.snf.it_snf_layer,
+            mh_steps=cfg.flow.snf.num_steps,
+            transition_operator_type=cfg.flow.snf.transition_operator_type,
+            hmc_n_leapfrog_steps=cfg.flow.snf.num_steps
                                       )
     else:
         flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,

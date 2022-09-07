@@ -116,21 +116,20 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
             sum_log_prob_exact = 0.0
             sum_kl_exact = 0.0
             test_set_iterator_modes = self.get_modes_test_set_iterator(batch_size=batch_size)
-            with torch.no_grad():
-                for x in test_set_iterator_modes:
-                    # Mode test set.
-                    log_q_x_modes = torch.sum(log_q_fn(x)).cpu()
-                    sum_log_prob += log_q_x_modes
 
+            for x in test_set_iterator_modes:
+                # Mode test set.
+                log_q_x_modes = torch.sum(log_q_fn(x)).detach().cpu()
+                sum_log_prob += log_q_x_modes
 
-                for _ in range(n_batches):
-                    # Samples from p test set.
-                    x_exact = self.sample((batch_size,))
-                    log_q_x_exact = log_q_fn(x_exact)
-                    sum_log_prob_exact += torch.sum(log_q_x_exact)
-                    sum_kl_exact += torch.sum(self.log_prob(x_exact) - self.log_Z - log_q_x_exact)
+            for _ in range(n_batches):
+                # Samples from p test set.
+                x_exact = self.sample((batch_size,))
+                log_q_x_exact = log_q_fn(x_exact)
+                sum_log_prob_exact += torch.sum(log_q_x_exact).detach().cpu()
+                sum_kl_exact += torch.sum(self.log_prob(x_exact) - self.log_Z - log_q_x_exact).detach().cpu()
 
-                eval_batch_size = batch_size * n_batches
+            eval_batch_size = batch_size * n_batches
 
             info = {
                 "test_set_modes_mean_log_prob":
