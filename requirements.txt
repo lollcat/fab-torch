@@ -1,6 +1,6 @@
 numpy
 torch
-normflows
+normflows @ git+https://github.com/VincentStimper/normalizing-flows.git
 boltzgen @ git+https://github.com/VincentStimper/boltzmann-generators.git
 larsflow @ git+https://github.com/VincentStimper/resampled-base-flows.git
 mdtraj

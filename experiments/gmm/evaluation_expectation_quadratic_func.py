@@ -9,7 +9,7 @@ import numpy as np
 
 
 from fab.target_distributions.gmm import GMM
-from experiments.gmm.load_model_for_eval import load_model
+from experiments.load_model_for_eval import load_model
 
 PATH = os.getcwd()
 

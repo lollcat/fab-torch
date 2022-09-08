@@ -19,7 +19,8 @@ import matplotlib.pyplot as plt
 import torch
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
-from experiments.make_flow import make_wrapped_normflow_realnvp, make_wrapped_normflow_resampled_flow
+from experiments.make_flow import make_wrapped_normflow_realnvp, \
+    make_wrapped_normflow_resampled_flow, make_wrapped_normflow_snf_model
 
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
@@ -147,6 +148,76 @@ def get_load_checkpoint_dir(outer_checkpoint_dir):
         return None, 0
     return chkpt_dir, iter_number
 
+
+def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
+    dim = cfg.target.dim  # applies to flow and target
+    if cfg.flow.resampled_base:
+        flow = make_wrapped_normflow_resampled_flow(
+            dim,
+            n_flow_layers=cfg.flow.n_layers,
+            layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+            act_norm=cfg.flow.act_norm)
+
+    elif cfg.flow.use_snf:
+        flow = make_wrapped_normflow_snf_model(
+            dim,
+            n_flow_layers=cfg.flow.n_layers,
+            layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+            act_norm=cfg.flow.act_norm,
+            target=target,
+            mh_prop_scale=cfg.flow.snf.step_size,
+            it_snf_layer=cfg.flow.snf.it_snf_layer,
+            mh_steps=cfg.flow.snf.num_steps,
+            transition_operator_type=cfg.flow.snf.transition_operator_type,
+            hmc_n_leapfrog_steps=cfg.flow.snf.num_steps
+                                      )
+    else:
+        flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
+                                             layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
+                                             act_norm=cfg.flow.act_norm)
+
+
+    if cfg.fab.transition_operator.type == "hmc":
+        # very lightweight HMC.
+        transition_operator = HamiltonianMonteCarlo(
+            n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
+            n_outer=1,
+            epsilon=1.0,
+            L=cfg.fab.transition_operator.n_inner_steps,
+            dim=dim,
+            step_tuning_method="p_accept")
+
+    elif cfg.fab.transition_operator.type == "metropolis":
+        transition_operator = Metropolis(
+            n_transitions=cfg.fab.n_intermediate_distributions,
+            n_updates=cfg.fab.transition_operator.n_inner_steps,
+            adjust_step_size=cfg.fab.transition_operator.tune_step_size,
+            target_p_accept=cfg.fab.transition_operator.target_p_accept,
+            min_step_size=cfg.fab.transition_operator.init_step_size,
+            max_step_size=cfg.fab.transition_operator.init_step_size
+        )
+    else:
+        raise NotImplementedError
+
+
+    # use GPU if available
+    if torch.cuda.is_available() and cfg.training.use_gpu:
+        flow.cuda()
+        transition_operator.cuda()
+        print("\n*************  Utilising GPU  ****************** \n")
+    else:
+        print("\n*************  Utilising CPU  ****************** \n")
+
+
+    fab_model = FABModel(flow=flow,
+                         target_distribution=target,
+                         n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
+                         transition_operator=transition_operator,
+                         loss_type=cfg.fab.loss_type)
+    return fab_model
+
+
+
 def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                           target: TargetDistribution):
     """Setup model and train."""
@@ -165,7 +236,6 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         chkpt_dir = None
         iter_number = 0
 
-    dim = cfg.target.dim  # applies to flow and target
     save_path = os.path.join(cfg.evaluation.save_path, str(datetime.now().isoformat()))
     logger = setup_logger(cfg, save_path)
     if hasattr(cfg.logger, "wandb"):
@@ -190,55 +260,8 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
     with open(os.path.join(save_path, "config.txt"), "w") as file:
         file.write(str(cfg))
 
-    if cfg.flow.resampled_base:
-        flow = make_wrapped_normflow_resampled_flow(
-            dim,
-            n_flow_layers=cfg.flow.n_layers,
-            layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-            act_norm=cfg.flow.act_norm)
-    else:
-        flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
-                                             layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                             act_norm=cfg.flow.act_norm)
-
-
-    if cfg.fab.transition_operator.type == "hmc":
-        # very lightweight HMC.
-        transition_operator = HamiltonianMonteCarlo(
-            n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
-            n_outer=1,
-            epsilon=1.0,
-            L=cfg.fab.transition_operator.n_inner_steps,
-            dim=dim,
-            step_tuning_method="p_accept")
-    elif cfg.fab.transition_operator.type == "metropolis":
-        transition_operator = Metropolis(
-            n_transitions=cfg.fab.n_intermediate_distributions,
-            n_updates=cfg.fab.transition_operator.n_inner_steps,
-            adjust_step_size=cfg.fab.transition_operator.tune_step_size,
-            target_p_accept=cfg.fab.transition_operator.target_p_accept,
-            min_step_size=cfg.fab.transition_operator.init_step_size,
-            max_step_size=cfg.fab.transition_operator.init_step_size
-        )
-    else:
-        raise NotImplementedError
-
-
-    # use GPU if available
-    if torch.cuda.is_available() and cfg.training.use_gpu:
-      flow.cuda()
-      transition_operator.cuda()
-      print("\n*************  Utilising GPU  ****************** \n")
-    else:
-        print("\n*************  Utilising CPU  ****************** \n")
-
-
-    fab_model = FABModel(flow=flow,
-                         target_distribution=target,
-                         n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
-                         transition_operator=transition_operator,
-                         loss_type=cfg.fab.loss_type)
-    optimizer = torch.optim.Adam(flow.parameters(), lr=cfg.training.lr)
+    fab_model = setup_model(cfg, target)
+    optimizer = torch.optim.Adam(fab_model.flow.parameters(), lr=cfg.training.lr)
     # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.995)
     scheduler = None
 

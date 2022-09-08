@@ -9,11 +9,16 @@ flow:
   layer_nodes_per_dim: 5
   n_layers: 5
   act_norm: false
-  use_snf: false
-  resampled_base: true
+  use_snf: true
+  resampled_base: false
+  snf: # config if snf is used.
+    transition_operator_type: hmc # metropolis or hmc
+    step_size: 0.001
+    num_steps: 5 # leapfrog steps if hmc, else metropolis accept/reject steps
+    it_snf_layer: 2
 
 fab:
-  loss_type: target_forward_kl
+  loss_type: flow_reverse_kl # target_forward_kl
   transition_operator:
     type: hmc
     n_inner_steps: 5
