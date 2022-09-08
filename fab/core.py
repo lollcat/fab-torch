@@ -1,5 +1,6 @@
 from typing import Optional, Dict, Any
 import torch
+import warnings
 
 from fab.types_ import Model
 from fab.target_distributions.base import TargetDistribution
@@ -223,12 +224,15 @@ class FABModel(Model):
         try:
             self.flow._nf_model.load_state_dict(checkpoint['flow'])
         except RuntimeError:
-            print('Flow could not be loaded. '
+            # If flow is incorretly loaded then this will mess up evaluation, so raise Error.
+            raise RuntimeError('Flow could not be loaded. '
                   'Perhaps there is a mismatch in the architectures.')
         try:
             self.transition_operator.load_state_dict(checkpoint['trans_op'])
         except RuntimeError:
-            print('Transition operator could not be loaded. '
+            # Sometimes we only evaluate the flow, in which case having a transition operator
+            # mismatch is okay, so we raise a warning.
+            warnings.warn('Transition operator could not be loaded. '
                   'Perhaps there is a mismatch in the architectures.')
         self.annealed_importance_sampler = AnnealedImportanceSampler(
             base_distribution=self.flow,
@@ -236,4 +240,3 @@ class FABModel(Model):
             transition_operator=self.transition_operator,
             n_intermediate_distributions=self.n_intermediate_distributions,
             distribution_spacing_type=self.ais_distribution_spacing)
-

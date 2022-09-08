@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import normflows as nf
 import larsflow as lf
+import torch
+
 from fab.wrappers.normflows import WrappedNormFlowModel
 from fab.trainable_distributions import TrainableDistribution
 
@@ -35,7 +37,11 @@ def make_normflow_snf(base: nf.distributions.BaseDistribution,
                       act_norm: bool,
                       it_snf_layer: int = 2,
                       mh_prop_scale: float = 0.1,
-                      mh_steps: int = 10):
+                      mh_steps: int = 10,
+                      hmc_n_leapfrog_steps: int = 5,
+                      transition_operator_type="metropolis"):
+    """Setup stochastic normalising flow model."""
+    assert transition_operator_type in ["metropolis", "hmc"]
     # Define list of flows
     flows = []
     layer_width = dim * layer_nodes_per_dim
@@ -52,12 +58,22 @@ def make_normflow_snf(base: nf.distributions.BaseDistribution,
             flows.append(nf.flows.ActNorm(dim))
         # Sampling layer of SNF
         if (i + 1) % it_snf_layer == 0:
-            prop_scale = mh_prop_scale * np.ones(dim)
-            proposal = nf.distributions.DiagGaussianProposal((dim,), prop_scale)
             lam = (i + 1) / n_flow_layers
             dist = nf.distributions.LinearInterpolation(target, base, lam)
-            flows.append(nf.flows.MetropolisHastings(dist, proposal, mh_steps))
-
+            if transition_operator_type == "metropolis":
+                prop_scale = mh_prop_scale * np.ones(dim)
+                proposal = nf.distributions.DiagGaussianProposal((dim,), prop_scale)
+                flows.append(nf.flows.MetropolisHastings(dist, proposal, mh_steps))
+            elif transition_operator_type == "hmc":
+                flows.append(nf.flows.HamiltonianMonteCarlo(
+                    dist,
+                    steps=hmc_n_leapfrog_steps,
+                    log_step_size=torch.ones(dim)*torch.log(torch.tensor(mh_steps)),
+                    log_mass=torch.zeros(dim),
+                    max_abs_grad=1e4
+                ))
+            else:
+                raise NotImplementedError
     return flows
 
 
@@ -78,7 +94,7 @@ def make_wrapped_normflow_realnvp(
     return wrapped_dist
 
 
-def make_normflow_snf_model(
+def make_wrapped_normflow_snf_model(
         dim: int,
         target: nf.distributions.Target,
         n_flow_layers: int = 5,
@@ -86,8 +102,10 @@ def make_normflow_snf_model(
         act_norm: bool = True,
         it_snf_layer: int = 2,
         mh_prop_scale: float = 0.1,
-        mh_steps: int = 10) \
-        -> nf.NormalizingFlow:
+        mh_steps: int = 10,
+        hmc_n_leapfrog_steps: int = 5,
+        transition_operator_type="metropolis"
+) -> TrainableDistribution:
     """Created normflows distribution with sampling layers."""
     base = nf.distributions.base.DiagGaussian(dim)
     flows = make_normflow_snf(base,
@@ -98,11 +116,14 @@ def make_normflow_snf_model(
                               act_norm=act_norm,
                               it_snf_layer=it_snf_layer,
                               mh_prop_scale=mh_prop_scale,
-                              mh_steps=mh_steps)
+                              mh_steps=mh_steps,
+                              hmc_n_leapfrog_steps=hmc_n_leapfrog_steps,
+                              transition_operator_type=transition_operator_type)
     model = nf.NormalizingFlow(base, flows, p=target)
     if act_norm:
         model.sample(500)  # ensure we call sample to initialise the ActNorm layers
-    return model
+    wrapped_dist = WrappedNormFlowModel(model)
+    return wrapped_dist
 
 
 def make_wrapped_normflow_resampled_flow(

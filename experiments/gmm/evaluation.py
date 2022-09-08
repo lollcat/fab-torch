@@ -6,13 +6,13 @@ import os
 from omegaconf import DictConfig
 import torch
 
-from experiments.gmm.load_model_for_eval import load_model
+from experiments.load_model_for_eval import load_model
 
 
 PATH = os.getcwd()
 
 
-def evaluate(cfg: DictConfig, use_snf: bool, path_to_model, num_samples=int(1e4)):
+def evaluate(cfg: DictConfig, path_to_model, num_samples=int(1e4)):
     torch.set_default_dtype(torch.float32)
     torch.manual_seed(cfg.training.seed)
     target = GMM(dim=cfg.target.dim, n_mixes=cfg.target.n_mixes,
@@ -21,7 +21,7 @@ def evaluate(cfg: DictConfig, use_snf: bool, path_to_model, num_samples=int(1e4)
     if cfg.training.use_64_bit:
         torch.set_default_dtype(torch.float64)
         target = target.double()
-    model = load_model(cfg, target, use_snf, path_to_model)
+    model = load_model(cfg, target, path_to_model)
     eval = model.get_eval_info(num_samples, 500)
     return eval
 
@@ -29,21 +29,26 @@ def evaluate(cfg: DictConfig, use_snf: bool, path_to_model, num_samples=int(1e4)
 # use base config of GMM but overwrite for specific model.
 @hydra.main(config_path="../config", config_name="gmm.yaml")
 def main(cfg: DictConfig):
-    model_names = ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "target_kld", "snf"]
-    seeds = [1, 2, 3]
+    model_names = ["target_kld", "flow_nis", "flow_kld", "fab_no_buffer", "fab_buffer"]  # "snf"]
+    seeds = [0, 1, 2]
     num_samples = int(5e4)
 
     results = pd.DataFrame()
     for model_name in model_names:
         print(model_name)
         if model_name and model_name[0:3] == "snf":
-            use_snf = True
+            # Update flow architecture for SNF if used.
+            cfg.flow.use_snf = True
         else:
-            use_snf = False
+            cfg.flow.use_snf = False
+        if model_name and model_name[0:3] == "rsb":
+            cfg.flow.resampled_base = True
+        else:
+            cfg.flow.resampled_base = False
         for seed in seeds:
             name = model_name + f"_seed{seed}"
             path_to_model = f"{PATH}/models/{name}.pt"
-            eval_info = evaluate(cfg, use_snf, path_to_model, num_samples)
+            eval_info = evaluate(cfg, path_to_model, num_samples)
             eval_info.update(seed=seed,
                              model_name=model_name)
             results = results.append(eval_info, ignore_index=True)
