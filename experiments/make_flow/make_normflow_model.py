@@ -68,7 +68,9 @@ def make_normflow_snf(base: nf.distributions.BaseDistribution,
                     dist,
                     steps=hmc_n_leapfrog_steps,
                     log_step_size=torch.ones(dim)*torch.log(torch.tensor(mh_steps)),
-                    log_mass=torch.zeros(dim)))
+                    log_mass=torch.zeros(dim),
+                    max_abs_grad=1e4
+                ))
             else:
                 raise NotImplementedError
     return flows
