@@ -58,7 +58,7 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e3), n_repeats=1
         biases_unweighted.append(normed_bias_unweighted)
     info = {"bias": np.mean(np.abs(biases)),
             "std": np.std(biases),
-            "bias_unweighted": np.abs(np.mean(biases_unweighted))}
+            "bias_unweighted": np.mean(np.abs(biases_unweighted))}
     return info
 
 

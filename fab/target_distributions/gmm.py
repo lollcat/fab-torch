@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as f
 from fab.target_distributions.base import TargetDistribution
 from fab.utils.numerical import MC_estimate_true_expectation, quadratic_function, \
-    importance_weighted_expectation, effective_sample_size_over_p
+    importance_weighted_expectation, effective_sample_size_over_p, setup_quadratic_function
 
 
 class GMM(nn.Module, TargetDistribution):
@@ -102,8 +102,14 @@ class GMM(nn.Module, TargetDistribution):
 def save_gmm_as_numpy(target: GMM):
     """Save params of GMM problem."""
     import pickle
+    x_shift, A, b = setup_quadratic_function(torch.ones(target.dim), seed=0)
     params = {"mean": target.locs.numpy(),
-              "scale_tril": target.scale_trils.numpy()}
+              "scale_tril": target.scale_trils.numpy(),
+              "true_expectation": target.true_expectation.numpy(),
+              "expectation_x_shift": x_shift.numpy(),
+              "expectation_A": A.numpy(),
+              "expectation_b": b.numpy()
+              }
     with open("gmm_problem.pkl", "wb") as f:
         pickle.dump(params, f)
 
@@ -114,8 +120,8 @@ if __name__ == '__main__':
     torch.manual_seed(0)
     loc_scaling = 40
     target = GMM(dim=2, n_mixes=40, loc_scaling=40.0)
-    save_gmm_as_numpy(target)
+    save_gmm_as_numpy(target) # Used for evaluating CRAFT
     plotting_bounds = (-loc_scaling * 1.4, loc_scaling* 1.4)
-    plot_contours(target.log_prob, bounds=plotting_bounds, n_contour_levels=50, grid_width_n_points=200)
+    plot_contours(target.log_prob, bounds=plotting_bounds, n_contour_levels=50,
+                  grid_width_n_points=200)
     plt.show()
-
