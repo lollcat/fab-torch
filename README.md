@@ -26,7 +26,7 @@ pip install --upgrade .
 
 ### Gaussian Mixture Model
 
-<a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/dev-loll/experiments/gmm/fab_gmm.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+<a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/experiments/gmm/fab_gmm.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
 For this problem we use a mixture of 40 two dimensional Gaussian distributions. 
 This allows for easy visualisation of the various methods for training the flow.
