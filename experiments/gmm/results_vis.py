@@ -45,7 +45,7 @@ def plot_result(cfg: DictConfig, ax: plt.axes, path_to_model: Optional[str] = No
 @hydra.main(config_path="../config", config_name="gmm.yaml")
 def run(cfg: DictConfig):
     seed = 0
-    no_init = False
+    no_init = True
     if no_init:
         model_names = ["target_kld", "flow_nis",
                        "flow_kld", "rsb", "snf", "craft", "fab_no_buffer", "fab_buffer"]
@@ -59,7 +59,7 @@ def run(cfg: DictConfig):
                        "flow_kld", "rsb", "snf", "craft",
                        "fab_no_buffer", "fab_buffer"]
         titles = ["Initialisation", "Flow w/ ML",
-                  "Flow w/ KLD", "RSB w/ KLD",
+                  "Flow w/ KLD", "RBD w/ KLD",
                   "SNF w/ KLD",
                   "CRAFT",
                   "FAB w/o buffer (ours)",
@@ -120,9 +120,10 @@ def run(cfg: DictConfig):
 
     plt.tight_layout()
     if no_init:
-        plt.savefig(f"{PATH}/plots/MoG_appendix.png", bbox_inches="tight")
+        fig.savefig(f"{PATH}/plots/MoG_appendix.png", bbox_inches="tight")
     else:
-        plt.savefig(f"{PATH}/plots/MoG.png", bbox_inches="tight")
+        fig.savefig(f"{PATH}/plots/MoG.png", bbox_inches="tight")
+    # fig.savefig(f"{PATH}/plots/MoG.png", bbox_inches="tight")
     plt.show()
 
 

@@ -14,7 +14,6 @@ PATH = os.getcwd()
 
 
 
-
 @hydra.main(config_path="../config", config_name="many_well.yaml")
 def run(cfg: DictConfig):
     mpl.rcParams['figure.dpi'] = 300

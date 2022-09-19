@@ -27,8 +27,9 @@ def evaluate_many_well(cfg: DictConfig, path_to_model: str, target, num_samples=
 def main(cfg: DictConfig):
     """Evaluate each of the models, assume model checkpoints are saved as {model_name}_seed{i}.pt,
     where the model names for each method are `model_names` and `seeds` below."""
-
-    model_names = ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    # model_names = ["target_kld", "flow_nis", "flow_kld", "rbd", "snf_hmc", "fab_no_buffer",
+    #                "fab_buffer"]
+    model_names = ["rbd", "snf_hmc"]
     seeds = [1, 2, 3]
     num_samples = int(5e4)
 
@@ -42,7 +43,7 @@ def main(cfg: DictConfig):
             cfg.flow.use_snf = True
         else:
             cfg.flow.use_snf = False
-        if model_name and model_name[0:3] == "rsb":
+        if model_name and model_name[0:3] == "rbd":
             cfg.flow.resampled_base = True
         else:
             cfg.flow.resampled_base = False
@@ -70,7 +71,7 @@ def main(cfg: DictConfig):
     print("overall results")
     print(results[["model_name", "seed"] + keys])
 
-FILENAME_EVAL_INFO = "/experiments/many_well/many_well_results.csv"
+FILENAME_EVAL_INFO = "/experiments/many_well/many_well_results_iclr.csv"
 
 
 if __name__ == '__main__':
