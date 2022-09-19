@@ -1,19 +1,28 @@
+from typing import Optional
 import os
+
 import hydra
 import matplotlib.pyplot as plt
 from matplotlib import rc
 import matplotlib as mpl
 from omegaconf import DictConfig
-from experiments.make_flow import make_wrapped_normflow_realnvp
-from experiments.many_well.many_well_visualise_all_marginal_pairs import get_target_log_prob_marginal_pair
+import torch
+
 from fab.utils.plotting import plot_contours, plot_marginal_pair
 from fab.target_distributions.many_well import ManyWellEnergy
-import torch
+from experiments.load_model_for_eval import load_model
+from experiments.setup_run import setup_model
+from experiments.many_well.many_well_visualise_all_marginal_pairs import get_target_log_prob_marginal_pair
 
 PATH = os.getcwd()
 
 
-def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
+def plot_manywell_results(cfg: DictConfig,
+                          supfig,
+                          path_to_model: Optional[str] = None,
+                          plot_y_label: bool = True):
+    """Visualise samples from marginal pair distributions for the first 4 dimensions of the
+    Many Well problem."""
     n_samples: int = 200
     alpha = 0.3
     torch.manual_seed(cfg.training.seed)
@@ -22,16 +31,13 @@ def plot_marginals(cfg: DictConfig, supfig, model_name, plot_y_label):
     plotting_bounds = (-3, 3)
 
     dim = cfg.target.dim
-    flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
-                                         layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
-                                         act_norm=cfg.flow.act_norm)
 
-    if model_name:
-        path_to_model = f"{PATH}/models/{model_name}_seed1.pt"
-        checkpoint = torch.load(path_to_model, map_location="cpu")
-        flow._nf_model.load_state_dict(checkpoint['flow'])
+    if path_to_model:
+        model = load_model(cfg, target, path_to_model)
+    else:
+        model = setup_model(cfg, target)
 
-    samples_flow = flow.sample((n_samples,)).detach()
+    samples_flow = model.flow.sample((n_samples,)).detach()
 
     axs = supfig.subplots(2, 2, sharex="row", sharey="row")
 
@@ -67,15 +73,18 @@ def run(cfg: DictConfig):
 
     model_names = ["fab_buffer", "flow_kld"]
     titles = ["FAB w/ buffer (ours)", "Flow w/ KLD"]
+    seed = 1
 
     width, height = 10, 6
     fig = plt.figure(constrained_layout=True, figsize=(width, height))
     subfigs = fig.subfigures(1, 2, wspace=0.01)
 
-    plot_marginals(cfg, subfigs[0], model_names[0], plot_y_label=True)
+    path_to_model_0 = f"{PATH}/models/{model_names[0]}_seed{seed}.pt"
+    plot_manywell_results(cfg, subfigs[0], path_to_model=path_to_model_0, plot_y_label=True)
     subfigs[0].suptitle(titles[0])
 
-    plot_marginals(cfg, subfigs[1], model_names[1], plot_y_label=False)
+    path_to_model_1 = f"{PATH}/models/{model_names[1]}_seed{seed}.pt"
+    plot_manywell_results(cfg, subfigs[1], path_to_model=path_to_model_1, plot_y_label=False)
     subfigs[1].suptitle(titles[1])
 
     #fig.suptitle(' ', fontsize='xx-large')

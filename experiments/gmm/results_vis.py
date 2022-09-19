@@ -1,16 +1,19 @@
 import os
 from typing import Optional
+
 import hydra
 import matplotlib.pyplot as plt
 from matplotlib import rc
 import matplotlib as mpl
 from omegaconf import DictConfig
-from experiments.load_model_for_eval import load_model
-from experiments.setup_run import setup_model
-from fab.utils.plotting import plot_contours, plot_marginal_pair
-from fab.target_distributions.gmm import GMM
 import torch
 import numpy as np
+
+from fab.utils.plotting import plot_contours, plot_marginal_pair
+from fab.target_distributions.gmm import GMM
+from experiments.load_model_for_eval import load_model
+from experiments.setup_run import setup_model
+
 
 PATH = os.getcwd()
 N_SAMPLES_PLOTTING = 800
@@ -20,7 +23,6 @@ def plot_result(cfg: DictConfig, ax: plt.axes, path_to_model: Optional[str] = No
     alpha = 0.3
     plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
 
-    dim = cfg.target.dim
     torch.set_default_dtype(torch.float32)
     torch.manual_seed(cfg.training.seed)
     target = GMM(dim=cfg.target.dim, n_mixes=cfg.target.n_mixes,

@@ -12,7 +12,7 @@ from experiments.load_model_for_eval import load_model
 PATH = os.getcwd()
 
 
-def evaluate(cfg: DictConfig, path_to_model: str, target, num_samples=int(5e4)):
+def evaluate_many_well(cfg: DictConfig, path_to_model: str, target, num_samples=int(5e4)):
     test_set_exact = target.sample((num_samples, ))
     test_set_log_prob_over_p = torch.mean(target.log_prob(test_set_exact) - target.log_Z).cpu().item()
     test_set_modes_log_prob_over_p = torch.mean(target.log_prob(target._test_set_modes) - target.log_Z)
@@ -53,7 +53,7 @@ def main(cfg: DictConfig):
             name = model_name + f"_seed{seed}"
             path_to_model = f"{PATH}/models/{name}.pt"
             print(f"get results for {name}")
-            eval_info = evaluate(cfg, path_to_model, target, num_samples)
+            eval_info = evaluate_many_well(cfg, path_to_model, target, num_samples)
             eval_info.update(seed=seed,
                              model_name=model_name)
             results = results.append(eval_info, ignore_index=True)
