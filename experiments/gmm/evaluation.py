@@ -29,7 +29,7 @@ def evaluate(cfg: DictConfig, path_to_model, num_samples=int(1e4)):
 # use base config of GMM but overwrite for specific model.
 @hydra.main(config_path="../config", config_name="gmm.yaml")
 def main(cfg: DictConfig):
-    model_names = ["target_kld", "flow_nis", "flow_kld", "fab_no_buffer", "fab_buffer"]  # "snf"]
+    model_names = ["target_kld", "flow_nis", "flow_kld", "rsb", "snf", "fab_no_buffer", "fab_buffer"]
     seeds = [0, 1, 2]
     num_samples = int(5e4)
 
@@ -63,7 +63,7 @@ def main(cfg: DictConfig):
     results.to_csv(open(FILENAME_EVAL_INFO, "w"))
 
 
-FILENAME_EVAL_INFO = "/examples/gmm/gmm_results.csv"
+FILENAME_EVAL_INFO = PATH + "/gmm_results.csv"
 
 if __name__ == '__main__':
     main()

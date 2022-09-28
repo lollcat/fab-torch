@@ -34,24 +34,23 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e3), n_repeats=1
             log_w_unweighted = log_w  # fake
         else:
             if model_name and model_name[0:3] == "snf":
-                use_snf = True
+                # Update flow architecture for SNF if used.
+                cfg.flow.use_snf = True
             else:
-                use_snf = False
+                cfg.flow.use_snf = False
+            if model_name and model_name[0:3] == "rsb":
+                cfg.flow.resampled_base = True
+            else:
+                cfg.flow.resampled_base = False
             path_to_model = f"{PATH}/models/{model_name}.pt"
-            model = load_model(cfg, target, use_snf, path_to_model)
-            if model_name and model_name[0:3] == "snf":
-                samples, log_w = model.snf.sample(num_samples)
-                valid_indices_unweighted = ~ (torch.softmax(log_w, axis=0) == 0)
-                samples_unweighted = samples[valid_indices_unweighted]
-                log_w_unweighted = torch.ones_like(log_w[valid_indices_unweighted])
-            else:
-                samples, log_q = model.flow.sample_and_log_prob((num_samples, ))
-                log_w = target.log_prob(samples) - log_q
-                valid_indices = ~torch.isinf(log_w) & ~torch.isnan(log_w)
-                samples, log_w = samples[valid_indices], log_w[valid_indices]
-                valid_indices_unweighted = ~ (torch.softmax(log_w, axis=0) == 0)
-                samples_unweighted = samples[valid_indices_unweighted]
-                log_w_unweighted = torch.ones_like(log_w[valid_indices_unweighted])
+            model = load_model(cfg, target, path_to_model)
+            samples, log_q = model.flow.sample_and_log_prob((num_samples, ))
+            log_w = target.log_prob(samples) - log_q
+            valid_indices = ~torch.isinf(log_w) & ~torch.isnan(log_w)
+            samples, log_w = samples[valid_indices], log_w[valid_indices]
+            valid_indices_unweighted = ~ (torch.softmax(log_w, axis=0) == 0)
+            samples_unweighted = samples[valid_indices_unweighted]
+            log_w_unweighted = torch.ones_like(log_w[valid_indices_unweighted])
         normed_bias = target.evaluate_expectation(samples, log_w).detach().cpu()
         normed_bias_unweighted = target.evaluate_expectation(samples_unweighted,
                                                              log_w_unweighted).detach().cpu()
@@ -59,14 +58,16 @@ def evaluate(cfg: DictConfig, model_name: str, num_samples=int(1e3), n_repeats=1
         biases_unweighted.append(normed_bias_unweighted)
     info = {"bias": np.mean(np.abs(biases)),
             "std": np.std(biases),
-            "bias_unweighted": np.abs(np.mean(biases_unweighted))}
+            "bias_unweighted": np.mean(np.abs(biases_unweighted))}
     return info
 
 
 @hydra.main(config_path="../config", config_name="gmm.yaml")
 def main(cfg: DictConfig):
-    model_names = ["target", "fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "target_kld", "snf"]
-    seeds = [1, 2, 3]
+    # model_names = ["target_kld", "fab_no_buffer", "fab_buffer"]
+    model_names = ["target_kld", "flow_nis", "flow_kld", "rsb", "snf",
+                   "fab_no_buffer", "fab_buffer"]
+    seeds = [0, 1, 2]
     num_samples = int(1000)
 
     results = pd.DataFrame()
@@ -87,7 +88,7 @@ def main(cfg: DictConfig):
     print(results.groupby("model_name").sem(ddof=0)[fields])
     results.to_csv(open(FILENAME_EXPECTATION_INFO, "w"))
 
-FILENAME_EXPECTATION_INFO = "/examples/paper_results/gmm/gmm_results_expectation.csv"
+FILENAME_EXPECTATION_INFO = PATH + "/gmm_results_expectation.csv"
 
 if __name__ == '__main__':
     main()

@@ -1,56 +1,10 @@
 import torch
 from omegaconf import DictConfig
-
-
-from fab import FABModel, HamiltonianMonteCarlo, Metropolis
-from fab.utils.plotting import plot_marginal_pair, plot_contours
-from experiments.make_flow import make_wrapped_normflow_realnvp
 from matplotlib import pyplot as plt
 
+from fab.utils.plotting import plot_marginal_pair, plot_contours
+from experiments.load_model_for_eval import load_model
 
-def setup_model(cfg: DictConfig, model_path):
-    dim = cfg.target.dim  # applies to flow and target
-    if cfg.training.use_64_bit:
-        torch.set_default_dtype(torch.float64)
-    torch.manual_seed(cfg.training.seed)
-    from fab.target_distributions.many_well import ManyWellEnergy
-    assert dim % 2 == 0
-    target = ManyWellEnergy(dim, a=-0.5, b=-6)
-    plotting_bounds = (-3, 3)
-
-    flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
-                                         layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim)
-
-
-    if cfg.fab.transition_operator.type == "hmc":
-        # very lightweight HMC.
-        transition_operator = HamiltonianMonteCarlo(
-            n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
-            n_outer=1,
-            epsilon=1.0, L=cfg.fab.transition_operator.n_inner_steps, dim=dim,
-            step_tuning_method="p_accept")
-    elif cfg.fab.transition_operator.type == "metropolis":
-        transition_operator = Metropolis(n_transitions=cfg.fab.n_intermediate_distributions,
-                                         n_updates=cfg.transition_operator.n_inner_steps,
-                                         adjust_step_size=True)
-    else:
-        raise NotImplementedError
-
-
-    # use GPU if available
-    if torch.cuda.is_available() and cfg.training.use_gpu:
-      flow.cuda()
-      transition_operator.cuda()
-      print("utilising GPU")
-
-
-    fab_model = FABModel(flow=flow,
-                         target_distribution=target,
-                         n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
-                         transition_operator=transition_operator,
-                         loss_type=cfg.fab.loss_type)
-    fab_model.load(model_path, "cpu")
-    return fab_model
 
 def get_target_log_prob_marginal_pair_alt(log_prob_2d, i: int, j: int):
     def log_prob(x):
@@ -78,7 +32,8 @@ def get_target_log_prob_marginal_pair(log_prob, i: int, j: int, total_dim: int):
     return log_prob_marginal_pair
 
 
-def plot_marginal_pairs(fab_model, dim, n_samples=500, plotting_bounds=(-3,3)):
+def plot_all_marginal_pairs(fab_model, dim, n_samples=500, plotting_bounds=(-3, 3)):
+    """Plot all marginal pairs for a model."""
     n_rows = dim // 2
     fig, axs = plt.subplots(dim // 2, dim // 2, sharex=True, sharey=True, figsize=(n_rows * 3, n_rows * 3))
 
@@ -109,7 +64,7 @@ if __name__ == '__main__':
          'maximum_buffer_length': 512000, 'min_buffer_length': 12560, 'log_w_clip_frac': None,
          'max_grad_norm': 10}, 'evaluation': {'n_plots': 100, 'n_eval': 200, 'eval_batch_size': 2560,
          'n_checkpoints': 10, 'save_path': 'results/many_well32/'}})
-    model = setup_model(cfg, "./models/model.pt")
-    plot_marginal_pairs(model, cfg.target.dim)
+    model = load_model(cfg, "./models/model.pt")
+    plot_all_marginal_pairs(model, cfg.target.dim)
 
 
