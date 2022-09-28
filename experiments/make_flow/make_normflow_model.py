@@ -130,14 +130,19 @@ def make_wrapped_normflow_resampled_flow(
         n_flow_layers: int = 5,
         layer_nodes_per_dim: int = 10,
         act_norm: bool = True,
-        a_hidden_layer: int = 3,
+        a_hidden_layer: int = 2,
         a_hidden_units: int = 256,
         T: int = 100,
-        eps: float = 0.05) \
+        eps: float = 0.05,
+        resenet: bool = True) \
         -> TrainableDistribution:
     """Created normflows distribution with resampled base."""
-    hu = [dim] + [a_hidden_units] * a_hidden_layer + [1]
-    a = nf.nets.MLP(hu, output_fn="sigmoid")
+    if resenet:
+        resnet = nf.nets.ResidualNet(dim, 1, a_hidden_units, num_blocks=a_hidden_layer)
+        a = torch.nn.Sequential(resnet, torch.nn.Sigmoid())
+    else:
+        hu = [dim] + [a_hidden_units] * a_hidden_layer + [1]
+        a = nf.nets.MLP(hu, output_fn="sigmoid")
     base = lf.distributions.ResampledGaussian(dim, a, T, eps, trainable=False)
     flows = make_normflow_flow(dim,
                                n_flow_layers=n_flow_layers,
@@ -148,5 +153,3 @@ def make_wrapped_normflow_resampled_flow(
         model.sample(500)  # ensure we call sample to initialise the ActNorm layers
     wrapped_dist = WrappedNormFlowModel(model)
     return wrapped_dist
-
-

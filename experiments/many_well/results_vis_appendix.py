@@ -26,8 +26,16 @@ def run(cfg: DictConfig):
     rc('ytick', labelsize=11)
 
     torch.set_default_dtype(torch.float64)
-    model_names = ["target_kld", "flow_nis", "flow_kld", "snf_hmc", "fab_no_buffer", "fab_buffer"]
-    titles = ["Flow w/ ML", r"Flow w/ $D_{\alpha=2}$", "Flow w/ KLD", "SNF w/ KLD",
+    model_names = ["target_kld",
+                   "flow_nis",
+                   "flow_kld",
+                   "snf_hmc",
+                   "fab_no_buffer",
+                   "fab_buffer"]
+    titles = ["Flow w/ ML",
+              r"Flow w/ $D_{\alpha=2}$",
+              "Flow w/ KLD",
+              "SNF w/ KLD",
               "FAB w/o buffer (ours)",
               "FAB w/ buffer (ours)"]
 
@@ -49,7 +57,21 @@ def run(cfg: DictConfig):
         path_to_model = f"{PATH}/models/{model_name}_seed{seed}.pt" if model_name else None
         plot_manywell_results(cfg, subfigs[i], path_to_model=path_to_model, plot_y_label=True)
         ax.suptitle(title)
+    fig.savefig(f"{PATH}/plots/many_well_appendix.png", bbox_inches="tight")
     plt.show()
+
+    fig = plt.figure(constrained_layout=True, figsize=(5, 5))
+    subfig = fig.subfigures(1, wspace=0.01)
+    model_name = "rbd"
+    title = "RBD w/ KLD"
+    cfg.flow.resampled_base = True
+    path_to_model = f"{PATH}/models/{model_name}_seed{seed}.pt" if model_name else None
+    plot_manywell_results(cfg, subfig, path_to_model=path_to_model, plot_y_label=True)
+    subfig.suptitle(title)
+    plt.savefig(f"{PATH}/plots/many_well_appendix_rbd.png", bbox_inches="tight")
+    plt.show()
+
+
 
 
 if __name__ == '__main__':

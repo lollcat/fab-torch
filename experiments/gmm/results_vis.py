@@ -16,7 +16,7 @@ from experiments.setup_run import setup_model
 
 
 PATH = os.getcwd()
-N_SAMPLES_PLOTTING = 800
+N_SAMPLES_PLOTTING = 1000
 
 def plot_result(cfg: DictConfig, ax: plt.axes, path_to_model: Optional[str] = None):
     n_samples: int = N_SAMPLES_PLOTTING
@@ -117,6 +117,7 @@ def run(cfg: DictConfig):
             plot_marginal_pair(samples_craft, ax=ax, bounds=plotting_bounds, alpha=0.3)
 
         ax.set_title(title)
+        ax.axis('off')
 
     plt.tight_layout()
     if no_init:
