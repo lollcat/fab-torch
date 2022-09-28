@@ -12,7 +12,7 @@ from experiments.load_model_for_eval import load_model
 PATH = os.getcwd()
 
 
-def evaluate(cfg: DictConfig, path_to_model: str, target, num_samples=int(5e4)):
+def evaluate_many_well(cfg: DictConfig, path_to_model: str, target, num_samples=int(5e4)):
     test_set_exact = target.sample((num_samples, ))
     test_set_log_prob_over_p = torch.mean(target.log_prob(test_set_exact) - target.log_Z).cpu().item()
     test_set_modes_log_prob_over_p = torch.mean(target.log_prob(target._test_set_modes) - target.log_Z)
@@ -27,8 +27,9 @@ def evaluate(cfg: DictConfig, path_to_model: str, target, num_samples=int(5e4)):
 def main(cfg: DictConfig):
     """Evaluate each of the models, assume model checkpoints are saved as {model_name}_seed{i}.pt,
     where the model names for each method are `model_names` and `seeds` below."""
-
-    model_names = ["fab_buffer", "fab_no_buffer", "flow_kld", "flow_nis", "snf"]
+    # model_names = ["target_kld", "flow_nis", "flow_kld", "rbd", "snf_hmc", "fab_no_buffer",
+    #                "fab_buffer"]
+    model_names = ["rbd", "snf_hmc"]
     seeds = [1, 2, 3]
     num_samples = int(5e4)
 
@@ -42,7 +43,7 @@ def main(cfg: DictConfig):
             cfg.flow.use_snf = True
         else:
             cfg.flow.use_snf = False
-        if model_name and model_name[0:3] == "rsb":
+        if model_name and model_name[0:3] == "rbd":
             cfg.flow.resampled_base = True
         else:
             cfg.flow.resampled_base = False
@@ -53,7 +54,7 @@ def main(cfg: DictConfig):
             name = model_name + f"_seed{seed}"
             path_to_model = f"{PATH}/models/{name}.pt"
             print(f"get results for {name}")
-            eval_info = evaluate(cfg, path_to_model, target, num_samples)
+            eval_info = evaluate_many_well(cfg, path_to_model, target, num_samples)
             eval_info.update(seed=seed,
                              model_name=model_name)
             results = results.append(eval_info, ignore_index=True)
@@ -70,7 +71,7 @@ def main(cfg: DictConfig):
     print("overall results")
     print(results[["model_name", "seed"] + keys])
 
-FILENAME_EVAL_INFO = "/experiments/many_well/many_well_results.csv"
+FILENAME_EVAL_INFO = "/experiments/many_well/many_well_results_iclr.csv"
 
 
 if __name__ == '__main__':

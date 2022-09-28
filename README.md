@@ -26,7 +26,7 @@ pip install --upgrade .
 
 ### Gaussian Mixture Model
 
-<a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/dev-loll/experiments/gmm/fab_gmm.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+<a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/experiments/gmm/fab_gmm.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
 For this problem we use a mixture of 40 two dimensional Gaussian distributions. 
 This allows for easy visualisation of the various methods for training the flow.
@@ -90,6 +90,11 @@ on [Zenodo](https://zenodo.org/record/6993124#.YvpugVpBy5M).
 The main FAB loss can be found in [core.py](fab/core.py), and we provide a simple training loop to 
 train a flow with this loss (or other flow - loss combinations that meet the spec) in [train.py](fab/train.py) 
 The FAB training algorithm **with** the prioritised buffer can be found in [train_with_prioritised_buffer.py](fab/train_with_prioritised_buffer.py). 
+Additionally, we provide the code for running the SNR/dimensionality analysis with p and q set to independent Gaussians.
+in the [fab-jax](https://github.com/lollcat/fab-jax) repository.
+For training the CRAFT model on the GMM problem we forked the 
+[Annealed Flow Transport repository](https://github.com/deepmind/annealed_flow_transport). 
+This fork may be found [here](https://github.com/lollcat/annealed_flow_transport), and may be used for training the CRAFT model. 
 
 ### Normalizing Flow Libraries
 We offer a simple wrapper that allows for various normalising flow libraries to be plugged into 

@@ -1,15 +1,6 @@
-from typing import Optional, Dict
-
 import numpy as np
-
-from fab.types_ import LogProbFunc
-
 import torch
 import torch.nn as nn
-from fab.target_distributions.base import TargetDistribution
-from fab.utils.training import DatasetIterator
-from fab.sampling_methods import AnnealedImportanceSampler, HamiltonianMonteCarlo
-from fab.wrappers.torch import WrappedTorchDist
 from fab.sampling_methods.rejection_sampling import rejection_sampling
 
 
