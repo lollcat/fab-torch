@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 import normflows as nf
 import larsflow as lf
 import torch
