@@ -32,6 +32,8 @@ For this problem we use a mixture of 40 two dimensional Gaussian distributions.
 This allows for easy visualisation of the various methods for training the flow.
 We provide a [colab notebook](experiments/gmm/fab_gmm.ipynb) with an example of training a flow on the GMM problem, 
 comparing FAB to training a flow with KL divergence minimisation.
+This can be run in a short period of time (10 min) and provides a clear visualisation of how FAB is 
+able to discover new modes and fit them. 
 
 To run the experiment for the FAB with a prioritised replay buffer (for the first seed), use the following command:
 ```
