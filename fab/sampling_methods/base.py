@@ -5,6 +5,8 @@ from fab.types_ import LogProbFunc
 
 
 class Point(NamedTuple):
+    """Keeps important info on points in the AIS chain. Saves us having to re-evaluate the target
+    and base log prob/ score functions."""
     x: torch.Tensor
     log_q: torch.Tensor
     log_p: torch.Tensor
@@ -30,13 +32,13 @@ class Point(NamedTuple):
         grad_log_p = self.grad_log_p[indices] if self.grad_log_p else None
         return Point(x, log_q, log_p, grad_log_q, grad_log_p)
 
-    def __setitem__(self, key, value):
-        self.x[key] = value.x
-        self.log_q[key] = value.log_q
-        self.log_p[key] = value.log_p
+    def __setitem__(self, indices, values):
+        self.x[indices] = values.x
+        self.log_q[indices] = values.log_q
+        self.log_p[indices] = values.log_p
         if self.grad_log_q:
-            self.grad_log_q[key] = value.grad_log_q
-            self.grad_log_p[key] = value.grad_log_p
+            self.grad_log_q[indices] = values.grad_log_q
+            self.grad_log_p[indices] = values.grad_log_p
 
 
 def grad_and_value(x, forward_fn):

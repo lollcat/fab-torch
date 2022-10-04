@@ -2,11 +2,9 @@ from typing import Tuple, Dict, Any, NamedTuple
 
 import torch
 import numpy as np
-from functools import partial
 
 from fab.types_ import LogProbFunc
-from fab.sampling_methods.transition_operators.base import TransitionOperator, \
-    TransitionTargetLogProbFn
+from fab.sampling_methods.transition_operators.base import TransitionOperator
 from fab.types_ import Distribution
 from fab.utils.numerical import effective_sample_size
 from fab.sampling_methods.base import get_intermediate_log_prob, create_point, Point

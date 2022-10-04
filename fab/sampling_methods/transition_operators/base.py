@@ -26,10 +26,12 @@ class TransitionOperator(torch.nn.Module):
         self.p_sq_over_q_target = p_sq_over_q_target
         super(TransitionOperator, self).__init__()
 
+
     def create_new_point(self, x: torch.Tensor) -> Point:
         """Create a new point."""
         return create_point(x, self.base_log_prob, self.target_log_prob,
                             with_grad=self.uses_grad_info)
+
 
     def intermediate_target_log_prob(self, point: Point, i: int) -> torch.Tensor:
         return get_intermediate_log_prob(point, self.beta_space[i],
