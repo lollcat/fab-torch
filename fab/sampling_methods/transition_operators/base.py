@@ -1,10 +1,47 @@
-from typing import Mapping, Any
+from typing import Mapping, Any, Callable
 import torch
 
 from fab.types_ import LogProbFunc
-from fab.sampling_methods.base import Point
+from fab.sampling_methods.base import Point, get_intermediate_log_prob, \
+    get_grad_intermediate_log_prob, create_point
+
+
+TransitionTargetLogProbFn = Callable[[Point], torch.Tensor]
+
 
 class TransitionOperator(torch.nn.Module):
+    def __init__(self,
+                 n_ais_intermediate_distributions: int,
+                 dim: int,
+                 base_log_prob: LogProbFunc,
+                 target_log_prob: LogProbFunc,
+                 beta_space: torch.Tensor,
+                 p_sq_over_q_target: bool,
+                 ):
+        self.dim = dim
+        self.target_log_prob = target_log_prob
+        self.base_log_prob = base_log_prob
+        self.n_ais_intermediate_distributions = n_ais_intermediate_distributions
+        self.beta_space = beta_space
+        self.p_sq_over_q_target = p_sq_over_q_target
+        super(TransitionOperator, self).__init__()
+
+    def create_new_point(self, x: torch.Tensor) -> Point:
+        """Create a new point."""
+        return create_point(x, self.base_log_prob, self.target_log_prob,
+                            with_grad=self.uses_grad_info)
+
+    def intermediate_target_log_prob(self, point: Point, i: int) -> torch.Tensor:
+        return get_intermediate_log_prob(point, self.beta_space[i],
+                                         p_sq_over_q_target=self.p_sq_over_q_target)
+
+
+    def grad_intermediate_target_log_prob(self, point: Point, i: int) -> torch.Tensor:
+        return get_grad_intermediate_log_prob(
+            point,
+            self.beta_space[i],
+            p_sq_over_q_target=self.p_sq_over_q_target
+        )
 
     @property
     def uses_grad_info(self) -> bool:
@@ -17,16 +54,14 @@ class TransitionOperator(torch.nn.Module):
         raise NotImplementedError
 
 
-    def transition(self, x: Point, log_p_x: LogProbFunc, i: int) -> torch.Tensor:
+    def transition(self, x: Point, i: int) -> Point:
         """
         Returns x generated from transition with log_q_x, as the invariant
         distribution.
 
         Args:
-            x: Input samples from the base distribution if i = 0, else from the previous AIS step.
-            log_p_x: Target probability density function, an interpolation between the base and
-            target distributions.
-            i: Step number in the sequence
+            x: Input samples from the base distribution
+            i: Intermediate AIS distribution number.
 
         Returns:
             x: Samples from MCMC with log_p_x as the target distribution.

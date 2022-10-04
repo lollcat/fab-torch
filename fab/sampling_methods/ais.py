@@ -5,9 +5,11 @@ import numpy as np
 from functools import partial
 
 from fab.types_ import LogProbFunc
-from fab.sampling_methods.transition_operators.base import TransitionOperator
+from fab.sampling_methods.transition_operators.base import TransitionOperator, \
+    TransitionTargetLogProbFn
 from fab.types_ import Distribution
 from fab.utils.numerical import effective_sample_size
+from fab.sampling_methods.base import get_intermediate_log_prob, create_point, Point
 
 
 class LoggingInfo(NamedTuple):
@@ -22,12 +24,14 @@ class AnnealedImportanceSampler:
                  base_distribution: Distribution,
                  target_log_prob: LogProbFunc,
                  transition_operator: TransitionOperator,
+                 p_sq_over_q_target: bool,
                  n_intermediate_distributions: int = 1,
                  distribution_spacing_type: str = "linear"
                  ):
         self.base_distribution = base_distribution
         self.target_log_prob = target_log_prob
         self.transition_operator = transition_operator
+        self.p_sq_over_q_target = p_sq_over_q_target
         self.n_intermediate_distributions = n_intermediate_distributions
         self.distribution_spacing_type = distribution_spacing_type
         self.B_space = self.setup_distribution_spacing(distribution_spacing_type,
@@ -45,24 +49,30 @@ class AnnealedImportanceSampler:
 
     def sample_and_log_weights(self, batch_size: int, logging: bool = True,
                                ) -> Tuple[torch.Tensor, torch.Tensor]:
-
         # Initialise AIS with samples from the base distribution.
         x, log_prob_p0 = self.base_distribution.sample_and_log_prob((batch_size,))
         x, log_prob_p0 = self._remove_nan_and_infs(x, log_prob_p0, descriptor="chain init")
-        log_w = self.intermediate_unnormalised_log_prob(x, 1) - log_prob_p0
+        point = create_point(x,
+                             self.base_distribution.log_prob,
+                             self.target_log_prob,
+                             with_grad=self.transition_operator.uses_grad_info,
+                             log_q_x=log_prob_p0
+                             )
+
+        log_w = get_intermediate_log_prob(
+            point, self.B_space[1], self.p_sq_over_q_target) - log_prob_p0
 
         # Save effective sample size over samples from base distribution if logging.
         if logging:
             with torch.no_grad():
-                log_target_p_x_base_samples = self.target_log_prob(x)
-                log_w_base = log_target_p_x_base_samples - log_prob_p0
+                log_w_base = point.log_p - point.log_q
                 ess_base = effective_sample_size(log_w_base).detach().cpu().item()
 
         # Move through sequence of intermediate distributions via MCMC.
         for j in range(1, self.n_intermediate_distributions+1):
-            x, log_w = self.perform_transition(x, log_w, j)
+            point, log_w = self.perform_transition(x, log_w, j)
 
-        x, log_w = self._remove_nan_and_infs(x, log_w, descriptor="chain end")
+        x, log_w = self._remove_nan_and_infs(point.x, log_w, descriptor="chain end")
 
         # Save effective sample size if logging.
         if logging:
@@ -75,24 +85,14 @@ class AnnealedImportanceSampler:
         return x.detach(), log_w.detach()
 
 
-    def perform_transition(self, x_new: torch.Tensor, log_w: torch.Tensor, j: int):
-        """"Transition via MCMC with the j'th intermediate distribution as the target."""
-
-        target_p_x = partial(self.intermediate_unnormalised_log_prob, j=j)
-        x_new = self.transition_operator.transition(x_new, target_p_x, j-1)
-        log_w = log_w + self.intermediate_unnormalised_log_prob(x_new, j + 1) - \
-                self.intermediate_unnormalised_log_prob(x_new, j)
+    def perform_transition(self, x_new: Point, log_w: torch.Tensor, j: int):
+        """" Transition via MCMC with the j'th intermediate distribution as the target."""
+        x_new = self.transition_operator.transition(x_new, j)
+        log_w = log_w \
+                + get_intermediate_log_prob(x_new, self.B_space[j + 1], self.p_sq_over_q_target) \
+                - get_intermediate_log_prob(x_new, self.B_space[j], self.p_sq_over_q_target)
+        # TODO: can make log_w calculation cheaper also.
         return x_new, log_w
-
-
-    def intermediate_unnormalised_log_prob(self, x: torch.Tensor, j: int) -> torch.Tensor:
-        """Calculate the intermediate log probability density function, by interpolating between
-        the base and target distributions log probability density functions."""
-        # j is the step of the algorithm, and corresponds which
-        # intermediate distribution that we are sampling from
-        # j = 0 is the sampling distribution, j=N is the target distribution
-        beta = self.B_space[j]
-        return (1-beta) * self.base_distribution.log_prob(x) + beta * self.target_log_prob(x)
 
 
     def setup_distribution_spacing(self, distribution_spacing_type: str,
