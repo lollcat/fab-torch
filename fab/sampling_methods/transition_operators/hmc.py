@@ -11,7 +11,6 @@ class HamiltonianMonteCarlo(TransitionOperator):
                  dim: int,
                  base_log_prob: LogProbFunc,
                  target_log_prob: LogProbFunc,
-                 beta_space: torch.Tensor,
                  p_sq_over_q_target: bool,
                  epsilon: float = 1.0,
                  n_outer: int = 1,
@@ -27,7 +26,7 @@ class HamiltonianMonteCarlo(TransitionOperator):
         """
         super(HamiltonianMonteCarlo, self).__init__(
             n_ais_intermediate_distributions, dim, base_log_prob, target_log_prob,
-            beta_space, p_sq_over_q_target)
+            p_sq_over_q_target)
         if isinstance(mass_init, torch.Tensor):
             assert mass_init.shape == (dim, )  # check mass_init dim is correct if a vector
         self.tune_period = tune_period
@@ -178,15 +177,16 @@ class HamiltonianMonteCarlo(TransitionOperator):
             self.average_distance_last_dist = torch.mean(distance).detach().cpu()
 
 
-    def transition(self, point: Point, i: int) -> Point:
+    def transition(self, point: Point, i: int, beta: float) -> Point:
         """
         Perform HMC transition.
         """
+
         def U(point: Point):
-            return - self.intermediate_target_log_prob(point, i)
+            return - self.intermediate_target_log_prob(point, beta)
 
         def grad_U(point: Point):
-            grad = - self.grad_intermediate_target_log_prob(point, i)
+            grad = - self.grad_intermediate_target_log_prob(point, beta)
             return torch.nan_to_num(
                 torch.clamp(grad,
                 max=self.max_grad, min=-self.max_grad),

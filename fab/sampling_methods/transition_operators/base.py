@@ -15,14 +15,12 @@ class TransitionOperator(torch.nn.Module):
                  dim: int,
                  base_log_prob: LogProbFunc,
                  target_log_prob: LogProbFunc,
-                 beta_space: torch.Tensor,
                  p_sq_over_q_target: bool,
                  ):
         self.dim = dim
         self.target_log_prob = target_log_prob
         self.base_log_prob = base_log_prob
         self.n_ais_intermediate_distributions = n_ais_intermediate_distributions
-        self.beta_space = beta_space
         self.p_sq_over_q_target = p_sq_over_q_target
         super(TransitionOperator, self).__init__()
 
@@ -33,15 +31,15 @@ class TransitionOperator(torch.nn.Module):
                             with_grad=self.uses_grad_info)
 
 
-    def intermediate_target_log_prob(self, point: Point, i: int) -> torch.Tensor:
-        return get_intermediate_log_prob(point, self.beta_space[i],
+    def intermediate_target_log_prob(self, point: Point, beta: float) -> torch.Tensor:
+        return get_intermediate_log_prob(point, beta,
                                          p_sq_over_q_target=self.p_sq_over_q_target)
 
 
-    def grad_intermediate_target_log_prob(self, point: Point, i: int) -> torch.Tensor:
+    def grad_intermediate_target_log_prob(self, point: Point, beta: float) -> torch.Tensor:
         return get_grad_intermediate_log_prob(
             point,
-            self.beta_space[i],
+            beta,
             p_sq_over_q_target=self.p_sq_over_q_target
         )
 
@@ -56,7 +54,7 @@ class TransitionOperator(torch.nn.Module):
         raise NotImplementedError
 
 
-    def transition(self, x: Point, i: int) -> Point:
+    def transition(self, x: Point, i: int, beta: float) -> Point:
         """
         Returns x generated from transition with log_q_x, as the invariant
         distribution.
@@ -64,9 +62,10 @@ class TransitionOperator(torch.nn.Module):
         Args:
             x: Input samples from the base distribution
             i: Intermediate AIS distribution number.
+            beta: Beta controlling interpolation between base and target log prob.
 
         Returns:
-            x: Samples from MCMC with log_p_x as the target distribution.
+            x: Samples from MCMC with g as the target distribution.
         """
         raise NotImplementedError
 

@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import Tuple, Optional, Union
 import torch
 
 from fab.types_ import LogProbFunc
@@ -47,28 +47,36 @@ class Point:
             self.grad_log_p[indices] = values.grad_log_p
 
 
-def grad_and_value(x, forward_fn):
+def grad_and_value(x, forward_fn, detach=True):
     """Calculate the forward pass of a function y = f(x) as well as its gradient w.r.t x."""
     x = x.detach()
     x.requires_grad = True
     y = forward_fn(x)
     grad = torch.autograd.grad(y, x,  grad_outputs=torch.ones_like(y))[0]
-    return grad.detach(), y.detach()
+    if detach:
+        return grad.detach(), y.detach()
+    else:
+        return grad, y
 
 
 def create_point(x: torch.Tensor, log_q_fn: LogProbFunc, log_p_fn: LogProbFunc,
-                 with_grad: bool, log_q_x: Optional[torch.Tensor] = None) -> Point:
+                 with_grad: bool, log_q_x: Optional[torch.Tensor] = None,
+                 detach=True) -> Point:
     """Create an instance of a `Point` which contains the necessary info on a point for MCMC.
     If this is at the start of an AIS chain, we may already have access to log_q_x, which may then
      be used rather than recalculating log_q_x using the log_q_fn. """
     if with_grad:
-        grad_log_q, log_q = grad_and_value(x, log_q_fn)
-        grad_log_p, log_p = grad_and_value(x, log_p_fn)
+        grad_log_q, log_q = grad_and_value(x, log_q_fn, detach=detach)
+        grad_log_p, log_p = grad_and_value(x, log_p_fn, detach=detach)
         return Point(x=x, log_p=log_p, log_q=log_q, grad_log_p=grad_log_p, grad_log_q=grad_log_q)
     else:
         # Use log_q_x if we already have it, otherwise calculate it.
         log_q_x = log_q_x if log_q_x else log_q_fn(x)
-        return Point(x=x, log_q=log_q_x, log_p=log_p_fn(x))
+        if detach:
+            return Point(x=x.detach(), log_q=log_q_x.detach(), log_p=log_p_fn(x).detach())
+        else:
+            return Point(x=x, log_q=log_q_x, log_p=log_p_fn(x))
+
 
 
 def get_intermediate_log_prob(x: Point,
@@ -96,4 +104,11 @@ def get_grad_intermediate_log_prob(
         return (1 - 2*beta) * x.grad_log_q + 2*beta*x.grad_log_p
     else:
         return (1-beta) * x.grad_log_q + beta * x.grad_log_p
+
+
+def resample(x_or_point: Union[Point, torch.Tensor], log_w: torch.Tensor) -> Point:
+    """Resample points according to the log weights."""
+    indices = torch.distributions.Categorical(logits=log_w).sample_n(log_w.shape[0])
+    return x_or_point[indices]
+
 

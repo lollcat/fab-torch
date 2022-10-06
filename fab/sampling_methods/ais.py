@@ -46,19 +46,18 @@ class AnnealedImportanceSampler:
 
 
     def sample_and_log_weights(self, batch_size: int, logging: bool = True,
-                               ) -> Tuple[torch.Tensor, torch.Tensor]:
+                               ) -> Tuple[Point, torch.Tensor]:
         # Initialise AIS with samples from the base distribution.
         x, log_prob_p0 = self.base_distribution.sample_and_log_prob((batch_size,))
-        x, log_prob_p0 = self._remove_nan_and_infs(x, log_prob_p0, descriptor="chain init")
         point = create_point(x,
                              self.base_distribution.log_prob,
                              self.target_log_prob,
                              with_grad=self.transition_operator.uses_grad_info,
                              log_q_x=log_prob_p0
                              )
-
         log_w = get_intermediate_log_prob(
             point, self.B_space[1], self.p_sq_over_q_target) - log_prob_p0
+        point, log_w = self._remove_nan_and_infs(point, log_w, descriptor="chain init")
 
         # Save effective sample size over samples from base distribution if logging.
         if logging:
@@ -68,9 +67,9 @@ class AnnealedImportanceSampler:
 
         # Move through sequence of intermediate distributions via MCMC.
         for j in range(1, self.n_intermediate_distributions+1):
-            point, log_w = self.perform_transition(x, log_w, j)
+            point, log_w = self.perform_transition(point, log_w, j)
 
-        x, log_w = self._remove_nan_and_infs(point.x, log_w, descriptor="chain end")
+        point, log_w = self._remove_nan_and_infs(point, log_w, descriptor="chain end")
 
         # Save effective sample size if logging.
         if logging:
@@ -80,16 +79,16 @@ class AnnealedImportanceSampler:
                 log_Z = log_Z_N - torch.log(torch.ones_like(log_Z_N) * batch_size)
                 self._logging_info = LoggingInfo(ess_base=ess_base, ess_ais=ess_ais,
                                                  log_Z=log_Z.cpu().item())
-        return x.detach(), log_w.detach()
+        return point, log_w.detach()
 
 
     def perform_transition(self, x_new: Point, log_w: torch.Tensor, j: int):
         """" Transition via MCMC with the j'th intermediate distribution as the target."""
-        x_new = self.transition_operator.transition(x_new, j)
+        x_new = self.transition_operator.transition(x_new, j, self.B_space[j])
         log_w = log_w \
                 + get_intermediate_log_prob(x_new, self.B_space[j + 1], self.p_sq_over_q_target) \
                 - get_intermediate_log_prob(x_new, self.B_space[j], self.p_sq_over_q_target)
-        # TODO: can make log_w calculation cheaper also.
+        # TODO: can make log_w calculation even cheaper also.
         return x_new, log_w
 
 
@@ -115,6 +114,7 @@ class AnnealedImportanceSampler:
 
         assert B_space.shape == (self.n_intermediate_distributions + 2,)
         return torch.tensor(B_space)
+
 
     def generate_eval_data(self, outer_batch_size: int, inner_batch_size: int) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -165,27 +165,27 @@ class AnnealedImportanceSampler:
 
         return base_samples, base_log_w_s, ais_samples, ais_log_w
 
-    def _remove_nan_and_infs(self, x: torch.Tensor, log_p_or_log_w: torch.Tensor,
+    def _remove_nan_and_infs(self,
+                             point: Point,
+                             log_w: torch.Tensor,
                              descriptor: str = "chain init",
-                             raise_exception: bool = True) -> Tuple[
-        torch.Tensor, torch.Tensor]:
+                             raise_exception: bool = True) -> Tuple[Point, torch.Tensor]:
         """Remove any NaN points or log probs / log weights. During the chain initialisation the
         flow can generate Nan/Infs making this function necessary in the first step of AIS. Sometimes
         extreme points may be generated which have NaN probability under the target, which makes
         this function necessary in the final step of AIS."""
         # first remove samples that have inf/nan log w
-        valid_indices = ~torch.isinf(log_p_or_log_w) & ~torch.isnan(log_p_or_log_w)
+        valid_indices = ~torch.isinf(point.log_p) & ~torch.isnan(point.log_p) & \
+                        ~torch.isinf(point.log_q) & ~torch.isnan(point.log_q)
         if torch.sum(valid_indices) == 0:  # no valid indices
             if raise_exception:
                 raise Exception(f"No valid points generated in sampling the {descriptor}")
             else:
                 print(f"No valid points generated in sampling the {descriptor}")
-                return x, log_p_or_log_w
+                return point, log_w
         if valid_indices.all():
             pass
         else:
             print(f"{torch.sum(~valid_indices)} nan/inf samples/log-probs/log-weights encountered "
                   f"at {descriptor}.")
-            log_p_or_log_w = log_p_or_log_w[valid_indices]
-            x = x[valid_indices, :]
-        return x, log_p_or_log_w
+        return point[valid_indices], log_w[valid_indices]

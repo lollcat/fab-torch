@@ -54,7 +54,7 @@ def test_transition_operator(
         for j in range(config.n_ais_intermediate_distributions):
             # here we just aim for the target distribution rather than interpolating between,
             # as we are just testing the transition operator, and not AIS.
-            point = transition_operator.transition(point, j + 1)
+            point = transition_operator.transition(point, j + 1, config.beta_space[j+1])
         transition_operator_info = transition_operator.get_logging_info()
         logger.write(transition_operator_info)
         if i in plot_iter:
