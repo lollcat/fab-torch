@@ -4,14 +4,24 @@ import torch
 
 from fab.sampling_methods.transition_operators.base import TransitionOperator
 from fab.types_ import LogProbFunc
+from fab.sampling_methods.base import Point, create_point
 
 class Metropolis(TransitionOperator):
-    def __init__(self, n_transitions, n_updates, max_step_size=1.0, min_step_size=0.1,
-                 adjust_step_size=True, target_p_accept=0.65,
-                eval_mode: bool = False):
+    def __init__(self,
+                 n_ais_intermediate_distributions: int,
+                 dim: int,
+                 base_log_prob: LogProbFunc,
+                 target_log_prob: LogProbFunc,
+                 p_sq_over_q_target: bool,
+                 n_updates,
+                 max_step_size=1.0,
+                 min_step_size=0.1,
+                 adjust_step_size=True,
+                 target_p_accept=0.65,
+                 eval_mode: bool = False):
         """
         Args:
-            n_transitions: Number of AIS intermediate distributions.
+            n_ais_intermediate_distributions: Number of AIS intermediate distributions.
             n_updates: Number of metropolis updates (per overall transition).
             max_step_size: Step size for the first update.
             min_step_size: Step size for the last update.
@@ -20,15 +30,21 @@ class Metropolis(TransitionOperator):
             eval_mode: Whether or not to initialise the transition operator in eval mode. In eval
                 mode there is not tuning of the step size.
         """
-        super(Metropolis, self).__init__()
-        self.n_distributions = n_transitions
+        super(Metropolis, self).__init__(n_ais_intermediate_distributions, dim, base_log_prob, target_log_prob,
+            p_sq_over_q_target)
+        self.n_distributions = n_ais_intermediate_distributions
         self.n_updates = n_updates
         self.adjust_step_size = adjust_step_size
         self.register_buffer("noise_scalings", torch.linspace(max_step_size, min_step_size,
                                                                     n_updates).repeat(
-            (n_transitions, 1)))
+            (n_ais_intermediate_distributions, 1)))
         self.target_prob_accept = target_p_accept
         self.eval_mode = eval_mode
+
+    @property
+    def uses_grad_info(self) -> bool:
+        """Metropolis transition does not use info on grad of target."""
+        return False
 
     def set_eval_mode(self, eval_setting: bool):
         """When eval_mode is turned on, no tuning of epsilon or the mass matrix occurs."""
@@ -42,12 +58,17 @@ class Metropolis(TransitionOperator):
         return interesting_dict
 
 
-    def transition(self, x: torch.Tensor, log_p_x: LogProbFunc, i: int) -> torch.Tensor:
+    def transition(self, point: Point, i: int, beta: float) -> Point:
+        # TODO documentation
         """Returns x generated from transition with log_p_x using the Metropolis algorithm."""
-        x_prev_log_prob = log_p_x(x)
+        x_prev_log_prob = self.intermediate_target_log_prob(point, beta)
+
         for n in range(self.n_updates):
-            x_proposed = x + torch.randn(x.shape).to(x.device) * self.noise_scalings[i, n]
-            x_proposed_log_prob = log_p_x(x_proposed)
+            x = point.x
+            x_proposed = x + torch.randn(x.shape).to(x.device) * self.noise_scalings[i - 1, n]
+            point_proposed = create_point(x_proposed, self.base_log_prob, self.target_log_prob,
+                                          self.p_sq_over_q_target)
+            x_proposed_log_prob = self.intermediate_target_log_prob(point_proposed, beta)
             acceptance_probability = torch.exp(x_proposed_log_prob - x_prev_log_prob)
             # not that sometimes this will be greater than one, corresonding to 100% probability of
             # acceptance
@@ -55,13 +76,11 @@ class Metropolis(TransitionOperator):
                                                       neginf=0.0)
             accept = (acceptance_probability > torch.rand(acceptance_probability.shape
                                                           ).to(x.device)).int()
-            x_prev_log_prob = accept * x_proposed_log_prob + (1 - accept) * x_prev_log_prob
-            accept = accept[:, None]
-            x = accept * x_proposed + (1 - accept) * x
+            point[accept.bool()] = point_proposed[accept.bool()]
             if self.adjust_step_size and not self.eval_mode:
                 p_accept = torch.mean(torch.clamp_max(acceptance_probability, 1))
                 if p_accept > self.target_prob_accept:  # too much accept
-                    self.noise_scalings[i, n] = self.noise_scalings[i, n] * 1.05
+                    self.noise_scalings[i - 1, n] = self.noise_scalings[i - 1, n] * 1.05
                 else:
-                    self.noise_scalings[i, n] = self.noise_scalings[i, n] / 1.05
-        return x
+                    self.noise_scalings[i -1, n] = self.noise_scalings[i -1, n] / 1.05
+        return point

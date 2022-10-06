@@ -68,7 +68,7 @@ def create_point(x: torch.Tensor, log_q_fn: LogProbFunc, log_p_fn: LogProbFunc,
         return Point(x=x, log_p=log_p, log_q=log_q, grad_log_p=grad_log_p, grad_log_q=grad_log_q)
     else:
         # Use log_q_x if we already have it, otherwise calculate it.
-        log_q_x = log_q_x if log_q_x else log_q_fn(x)
+        log_q_x = log_q_x if log_q_x is not None else log_q_fn(x)
         return Point(x=x, log_q=log_q_x, log_p=log_p_fn(x))
 
 

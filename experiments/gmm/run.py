@@ -32,7 +32,7 @@ def setup_gmm_plotter(cfg: DictConfig, target: GMM, buffer=None) -> Plotter:
 
         # plot ais samples
         samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(n_samples,
-                                                                                   logging=False)[0]
+                                                                                   logging=False)[0].x
         samples_ais = samples_ais.detach()
         plot_marginal_pair(samples_ais, ax=axs[1], bounds=plotting_bounds)
 
@@ -44,7 +44,7 @@ def setup_gmm_plotter(cfg: DictConfig, target: GMM, buffer=None) -> Plotter:
             samples_buffer = buffer.sample(n_samples)[0].detach()
             plot_marginal_pair(samples_buffer, ax=axs[2], bounds=plotting_bounds)
             axs[2].set_title("buffer samples")
-        # plt.show()
+        plt.show()
         return [fig]
     return plot
 

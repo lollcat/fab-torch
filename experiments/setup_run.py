@@ -193,7 +193,11 @@ def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
 
     elif cfg.fab.transition_operator.type == "metropolis":
         transition_operator = Metropolis(
-            n_transitions=cfg.fab.n_intermediate_distributions,
+            n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
+            dim=dim,
+            base_log_prob=flow.log_prob,
+            target_log_prob=target.log_prob,
+            p_sq_over_q_target=p_sq_over_q_target,
             n_updates=cfg.fab.transition_operator.n_inner_steps,
             adjust_step_size=cfg.fab.transition_operator.tune_step_size,
             target_p_accept=cfg.fab.transition_operator.target_p_accept,
