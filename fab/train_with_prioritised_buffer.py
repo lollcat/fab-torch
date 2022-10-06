@@ -32,6 +32,11 @@ class PrioritisedBufferTrainer:
                  w_adjust_in_buffer_after_update: bool = False,
                  save_path: str = ""):
         self.model = model
+
+        # Ensure we have p^2/q as the AIS target distribution.
+        self.model.p_sq_over_q_target = True
+        self.model.annealed_importance_sampler.p_sq_over_q_target = True
+
         self.optimizer = optimizer
         self.optim_schedular = optim_schedular
         self.logger = logger
@@ -47,12 +52,6 @@ class PrioritisedBufferTrainer:
         self.max_adjust_w_clip = w_adjust_max_clip
         self.w_adjust_in_buffer_after_update = w_adjust_in_buffer_after_update
 
-        # instead of the standard target prob, we target p^2/q
-        def ais_target_log_prob(x):
-            return 2*self.model.target_distribution.log_prob(x) - self.model.flow.log_prob(x)
-
-        self.ais_target_log_prob = ais_target_log_prob  # save
-        self.model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 
     def save_checkpoint(self, i):
         checkpoint_path = os.path.join(self.checkpoints_dir, f"iter_{i}/")
@@ -77,11 +76,11 @@ class PrioritisedBufferTrainer:
     def perform_eval(self, i, eval_batch_size, batch_size):
         # set ais distribution to target for evaluation of ess
         self.model.annealed_importance_sampler.transition_operator.set_eval_mode(True)
-        self.model.annealed_importance_sampler.target_log_prob = self.model.target_distribution.log_prob
+        self.model.annealed_importance_sampler.p_sq_over_q_target = False
         eval_info_true_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                          inner_batch_size=batch_size)
         # set ais distribution back to p^2/q.
-        self.model.annealed_importance_sampler.target_log_prob = self.ais_target_log_prob
+        self.model.annealed_importance_sampler.p_sq_over_q_target = True
         eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                               inner_batch_size=batch_size)
         self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
@@ -131,11 +130,11 @@ class PrioritisedBufferTrainer:
             it_start_time = time()
             self.optimizer.zero_grad()
             # collect samples and log weights with AIS and add to the buffer
-            x_ais, log_w_ais = self.model.\
+            point_ais, log_w_ais = self.model.\
                 annealed_importance_sampler.sample_and_log_weights(batch_size)
-            x_ais = x_ais.detach()
+            x_ais = point_ais.x.detach()
             log_w_ais = log_w_ais.detach()
-            log_q_x_ais = self.model.flow.log_prob(x_ais)
+            log_q_x_ais = point_ais.log_q.detach()
             self.buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x_ais.detach())
 
             # we log info from the step of the recently generated ais points.

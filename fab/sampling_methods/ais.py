@@ -85,9 +85,15 @@ class AnnealedImportanceSampler:
     def perform_transition(self, x_new: Point, log_w: torch.Tensor, j: int):
         """" Transition via MCMC with the j'th intermediate distribution as the target."""
         x_new = self.transition_operator.transition(x_new, j, self.B_space[j])
-        log_w = log_w \
-                + get_intermediate_log_prob(x_new, self.B_space[j + 1], self.p_sq_over_q_target) \
-                - get_intermediate_log_prob(x_new, self.B_space[j], self.p_sq_over_q_target)
+        if self.B_space[j + 1] != self.B_space[j]:
+            log_w = log_w \
+                    + get_intermediate_log_prob(x_new,
+                                                self.B_space[j + 1], self.p_sq_over_q_target) \
+                    - get_intermediate_log_prob(x_new, self.B_space[j], self.p_sq_over_q_target)
+        else:
+            # Commonly we may have a few transitions with beta=1 at the end of AIS, which does not
+            # change the AIS weights.
+            pass
         # TODO: can make log_w calculation even cheaper also.
         return x_new, log_w
 
@@ -140,21 +146,29 @@ class AnnealedImportanceSampler:
         for i in range(n_batches):
             # Initialise AIS with samples from the base distribution.
             x, log_prob_p0 = self.base_distribution.sample_and_log_prob((inner_batch_size,))
-            x, log_prob_p0 = self._remove_nan_and_infs(x, log_prob_p0, descriptor="chain init")
+            point = create_point(x,
+                                 self.base_distribution.log_prob,
+                                 self.target_log_prob,
+                                 with_grad=self.transition_operator.uses_grad_info,
+                                 log_q_x=log_prob_p0
+                                 )
             base_log_w = self.target_log_prob(x) - log_prob_p0
+            point, log_w = self._remove_nan_and_infs(point, log_prob_p0, descriptor="chain init")
+
             # append base samples and log probs
             base_samples.append(x.detach().cpu())
             base_log_w_s.append(base_log_w.detach().cpu())
 
-            log_w = self.intermediate_unnormalised_log_prob(x, 1) - log_prob_p0
+            log_w = get_intermediate_log_prob(point, self.B_space[1], self.p_sq_over_q_target) \
+                    - point.log_q
             # Move through sequence of intermediate distributions via MCMC.
             for j in range(1, self.n_intermediate_distributions+1):
-                x, log_w = self.perform_transition(x, log_w, j)
+                point, log_w = self.perform_transition(point, log_w, j)
 
-            x, log_w = self._remove_nan_and_infs(x, log_w, descriptor="chain end",
-                                                 raise_exception=False)
+            point, log_w = self._remove_nan_and_infs(point, log_w, descriptor="chain end",
+                                                     raise_exception=False)
             # append ais samples and log probs
-            ais_samples.append(x.detach().cpu())
+            ais_samples.append(point.x.detach().cpu())
             ais_log_w.append(log_w.detach().cpu())
 
 

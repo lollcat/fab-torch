@@ -47,35 +47,29 @@ class Point:
             self.grad_log_p[indices] = values.grad_log_p
 
 
-def grad_and_value(x, forward_fn, detach=True):
+def grad_and_value(x, forward_fn):
     """Calculate the forward pass of a function y = f(x) as well as its gradient w.r.t x."""
     x = x.detach()
     x.requires_grad = True
     y = forward_fn(x)
     grad = torch.autograd.grad(y, x,  grad_outputs=torch.ones_like(y))[0]
-    if detach:
-        return grad.detach(), y.detach()
-    else:
-        return grad, y
+    return grad, y
 
 
 def create_point(x: torch.Tensor, log_q_fn: LogProbFunc, log_p_fn: LogProbFunc,
-                 with_grad: bool, log_q_x: Optional[torch.Tensor] = None,
-                 detach=True) -> Point:
+                 with_grad: bool, log_q_x: Optional[torch.Tensor] = None) -> Point:
     """Create an instance of a `Point` which contains the necessary info on a point for MCMC.
     If this is at the start of an AIS chain, we may already have access to log_q_x, which may then
      be used rather than recalculating log_q_x using the log_q_fn. """
+    x = x.detach()  # not backproping through x points in the chains.
     if with_grad:
-        grad_log_q, log_q = grad_and_value(x, log_q_fn, detach=detach)
-        grad_log_p, log_p = grad_and_value(x, log_p_fn, detach=detach)
+        grad_log_q, log_q = grad_and_value(x, log_q_fn)
+        grad_log_p, log_p = grad_and_value(x, log_p_fn)
         return Point(x=x, log_p=log_p, log_q=log_q, grad_log_p=grad_log_p, grad_log_q=grad_log_q)
     else:
         # Use log_q_x if we already have it, otherwise calculate it.
         log_q_x = log_q_x if log_q_x else log_q_fn(x)
-        if detach:
-            return Point(x=x.detach(), log_q=log_q_x.detach(), log_p=log_p_fn(x).detach())
-        else:
-            return Point(x=x, log_q=log_q_x, log_p=log_p_fn(x))
+        return Point(x=x, log_q=log_q_x, log_p=log_p_fn(x))
 
 
 

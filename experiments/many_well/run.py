@@ -18,7 +18,7 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
 
         samples_flow = fab_model.flow.sample((n_samples,)).detach()
         samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(
-            n_samples, logging=False)[0].detach()
+            n_samples, logging=False)[0].x.detach()
         if cfg.training.prioritised_buffer is True and cfg.training.use_buffer is True:
             samples_buffer = buffer.sample(n_samples)[0].detach()
 
@@ -50,7 +50,7 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
         axs[0, 0].set_title("flow samples")
         if cfg.training.use_buffer is True:
             axs[0, 2].set_title("buffer samples")
-        # plt.show()
+        plt.show()
         return [fig]
     return plot
 
@@ -65,7 +65,7 @@ def _run(cfg: DictConfig):
     setup_trainer_and_run_flow(cfg, setup_many_well_plotter, target)
 
 
-@hydra.main(config_path="../config", config_name="many_well.yaml")
+@hydra.main(config_path="../config", config_name="many_well_fast.yaml")
 def run(cfg: DictConfig):
     _run(cfg)
 

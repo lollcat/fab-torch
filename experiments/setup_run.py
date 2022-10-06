@@ -21,7 +21,7 @@ import torch
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
 from experiments.make_flow import make_wrapped_normflow_realnvp, \
     make_wrapped_normflow_resampled_flow, make_wrapped_normflow_snf_model
-
+from fab.core import P_SQ_OVER_Q_TARGET_LOSSES
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 
 
@@ -117,10 +117,9 @@ def setup_buffer(cfg: DictConfig, fab_model: FABModel, auto_fill_buffer: bool) -
     else:
         # buffer
         def initial_sampler():
-            x, log_w = fab_model.annealed_importance_sampler.sample_and_log_weights(
+            point, log_w = fab_model.annealed_importance_sampler.sample_and_log_weights(
                 cfg.training.batch_size, logging=False)
-            log_q_x = fab_model.flow.log_prob(x).detach()
-            return x, log_w, log_q_x
+            return point.x.detach(), log_w, point.log_q.detach()
 
         buffer = PrioritisedReplayBuffer(dim=dim, max_length=cfg.training.maximum_buffer_length,
                                          min_sample_length=cfg.training.min_buffer_length,
@@ -151,6 +150,8 @@ def get_load_checkpoint_dir(outer_checkpoint_dir):
 
 def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
     dim = cfg.target.dim  # applies to flow and target
+    p_sq_over_q_target = cfg.fab.loss_type in P_SQ_OVER_Q_TARGET_LOSSES or \
+                         cfg.training.prioritised_buffer
     if cfg.flow.resampled_base:
         flow = make_wrapped_normflow_resampled_flow(
             dim,
@@ -181,11 +182,14 @@ def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
         # very lightweight HMC.
         transition_operator = HamiltonianMonteCarlo(
             n_ais_intermediate_distributions=cfg.fab.n_intermediate_distributions,
+            dim=dim,
+            base_log_prob=flow.log_prob,
+            target_log_prob=target.log_prob,
+            p_sq_over_q_target=p_sq_over_q_target,
             n_outer=1,
             epsilon=1.0,
             L=cfg.fab.transition_operator.n_inner_steps,
-            dim=dim,
-            step_tuning_method="p_accept")
+            )
 
     elif cfg.fab.transition_operator.type == "metropolis":
         transition_operator = Metropolis(

@@ -10,6 +10,8 @@ from fab.trainable_distributions import TrainableDistribution
 from fab.utils.numerical import effective_sample_size
 
 
+P_SQ_OVER_Q_TARGET_LOSSES = ["p2_over_q_alpha_2_div"]
+LOSSES_USING_AIS = ["p2_over_q_alpha_2_div", "alpha_2_div", "sample_log_prob"]
 
 class FABModel(Model):
     """Definition of the Flow Annealed Importance Sampling Bootstrap (FAB) model. """
@@ -26,23 +28,23 @@ class FABModel(Model):
                              "flow_reverse_kl", "p2_over_q_alpha_2_div",
                              "flow_alpha_2_div_unbiased", "flow_alpha_2_div_nis",
                              "target_forward_kl"]
+        self.p_sq_over_q_target = loss_type in P_SQ_OVER_Q_TARGET_LOSSES
         self.loss_type = loss_type
         self.flow = flow
         self.target_distribution = target_distribution
         self.n_intermediate_distributions = n_intermediate_distributions
         self.ais_distribution_spacing = ais_distribution_spacing
         assert len(flow.event_shape) == 1, "Currently only 1D distributions are supported"
-        if transition_operator is None:
-            self.transition_operator = HamiltonianMonteCarlo(self.n_intermediate_distributions,
-                                                             self.flow.event_shape[0])
-        else:
+        if loss_type in LOSSES_USING_AIS:
             self.transition_operator = transition_operator
-        self.annealed_importance_sampler = AnnealedImportanceSampler(
-            base_distribution=self.flow,
-            target_log_prob=self.target_distribution.log_prob,
-            transition_operator=self.transition_operator,
-            n_intermediate_distributions=self.n_intermediate_distributions,
-            distribution_spacing_type=self.ais_distribution_spacing)
+            self.annealed_importance_sampler = AnnealedImportanceSampler(
+                base_distribution=self.flow,
+                target_log_prob=self.target_distribution.log_prob,
+                transition_operator=self.transition_operator,
+                n_intermediate_distributions=self.n_intermediate_distributions,
+                distribution_spacing_type=self.ais_distribution_spacing,
+                p_sq_over_q_target=self.p_sq_over_q_target
+            )
 
     def parameters(self):
         return self.flow.parameters()
@@ -73,12 +75,11 @@ class FABModel(Model):
 
     def set_ais_target(self, target: str = "p"):
         if target == "p":
-            self.annealed_importance_sampler.target_log_prob = self.target_distribution.log_prob
+            self.annealed_importance_sampler.p_sq_over_q_target = False
+            self.annealed_importance_sampler.transition_operator.p_sq_over_q_target = False
         else:
-            assert target == "p^2/q"
-            def ais_target_log_prob(x):
-                return 2*self.target_distribution.log_prob(x) - self.flow.log_prob(x)
-            self.annealed_importance_sampler.target_log_prob = ais_target_log_prob
+            self.annealed_importance_sampler.p_sq_over_q_target = True
+            self.annealed_importance_sampler.transition_operator.p_sq_over_q_target = True
 
     def flow_reverse_kl(self, batch_size: int) -> torch.Tensor:
         x, log_q = self.flow.sample_and_log_prob((batch_size,))
@@ -186,25 +187,29 @@ class FABModel(Model):
         return - torch.mean(log_q_x)
 
     def get_iter_info(self) -> Dict[str, Any]:
-        if self.loss_type[0:4] == "flow" or self.loss_type[:6] == "target":
-            return {}
-        else:
+        if hasattr(self, "annealed_importance_sampler"):
             return self.annealed_importance_sampler.get_logging_info()
+        else:
+            return {}
 
     def get_eval_info(self,
                       outer_batch_size: int,
                       inner_batch_size: int,
                       ) -> Dict[str, Any]:
-        base_samples, base_log_w, ais_samples, ais_log_w = \
-            self.annealed_importance_sampler.generate_eval_data(outer_batch_size, inner_batch_size)
-        info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w, normalised=False).item(),
-                "eval_ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False).item()}
-        flow_info = self.target_distribution.performance_metrics(base_samples, base_log_w,
-                                                                 self.flow.log_prob,
-                                                                 batch_size=inner_batch_size)
-        ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)
-        info.update(flow_info)
-        info.update(ais_info)
+        if hasattr(self, "annealed_importance_sampler"):
+            base_samples, base_log_w, ais_samples, ais_log_w = \
+                self.annealed_importance_sampler.generate_eval_data(outer_batch_size, inner_batch_size)
+            info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w, normalised=False).item(),
+                    "eval_ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False).item()}
+            flow_info = self.target_distribution.performance_metrics(base_samples, base_log_w,
+                                                                     self.flow.log_prob,
+                                                                     batch_size=inner_batch_size)
+            ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)
+            info.update(flow_info)
+            info.update(ais_info)
+        else:
+            raise NotImplementedError
+            # TODO
         return info
 
     def save(self,
