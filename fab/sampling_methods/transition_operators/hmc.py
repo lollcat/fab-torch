@@ -18,9 +18,9 @@ class HamiltonianMonteCarlo(TransitionOperator):
                  L: int = 5,
                  mass_init: Union[float, torch.Tensor] = 1.0,
                  target_p_accept: float = 0.65,
+                 max_grad: float = 1e3,
                  tune_period: bool = False,
                  common_epsilon_init_weight: float = 0.1,
-                 max_grad: float = 1e3,
                  eval_mode: bool = False):
         """
         Step tuning with p_accept if used.
@@ -31,7 +31,6 @@ class HamiltonianMonteCarlo(TransitionOperator):
         if isinstance(mass_init, torch.Tensor):
             assert mass_init.shape == (dim, )  # check mass_init dim is correct if a vector
         self.tune_period = tune_period
-        self.max_grad = max_grad
         # we weakly tie the step size parameters by utilising a shared component.
         self.register_buffer("common_epsilon", torch.tensor([epsilon * common_epsilon_init_weight]))
         self.register_buffer("epsilons", torch.ones([n_ais_intermediate_distributions, n_outer]) * epsilon *
@@ -40,11 +39,17 @@ class HamiltonianMonteCarlo(TransitionOperator):
         self.n_outer = n_outer
         self.L = L
         self.target_p_accept = target_p_accept
+        self.max_grad = max_grad  # max grad used when taking steps
         self.first_dist_p_accepts = [torch.tensor([0.0]) for _ in range(n_outer)]
         self.last_dist_p_accepts = [torch.tensor([0.0]) for _ in range(n_outer)]
         self.average_distance_first_dist: torch.Tensor
         self.average_distance_last_dist: torch.Tensor
         self.eval_mode = eval_mode  # turn off step size tuning
+
+
+    @property
+    def uses_grad_info(self) -> bool:
+        return True
 
     def set_eval_mode(self, eval_setting: bool):
         """When eval_mode is turned on, no tuning of epsilon or the mass matrix occurs."""
@@ -55,36 +60,29 @@ class HamiltonianMonteCarlo(TransitionOperator):
         interesting_dict = {}
         for i, val in enumerate(self.first_dist_p_accepts):
             interesting_dict[f"dist0_p_accept_{i}"] = val.item()
-        if self.n_intermediate_ais_distributions > 1:
+        if self.n_ais_intermediate_distributions > 1:
             for i, val in enumerate(self.last_dist_p_accepts):
-                interesting_dict[f"dist{self.n_intermediate_ais_distributions - 1}_p_accept_{i}"]\
+                interesting_dict[f"dist{self.n_ais_intermediate_distributions - 1}_p_accept_{i}"]\
                     = val.item()
         epsilon_first_dist_first_loop = self.get_epsilon(0, 0)
-        mass_first_dist_first_loop = self.get_mass(0, 0)
         if epsilon_first_dist_first_loop.numel() == 1:
             interesting_dict[f"epsilons_dist0_loop0"] = epsilon_first_dist_first_loop.cpu().item()
         else:
             interesting_dict[f"epsilons_dist0_0_dim0"] = epsilon_first_dist_first_loop[0].cpu().item()
             interesting_dict[f"epsilons_dist0_0_dim-1"] = epsilon_first_dist_first_loop[-1].cpu().item()
-        interesting_dict[f"mass_dist0_0_dim0"] = mass_first_dist_first_loop[0].cpu().item()
-        interesting_dict[f"mass_dist0_0_dim-1"] = mass_first_dist_first_loop[-1].cpu().item()
 
-        if self.n_intermediate_ais_distributions > 1:
-            last_dist_n = self.n_intermediate_ais_distributions - 1
+        if self.n_ais_intermediate_distributions > 1:
+            last_dist_n = self.n_ais_intermediate_distributions - 1
             epsilon_last_dist_first_loop = self.get_epsilon(last_dist_n, 0)
-            mass_last_dist_first_loop = self.get_mass(last_dist_n, 0)
             if epsilon_last_dist_first_loop.numel() == 1:
                 interesting_dict[f"epsilons_dist{last_dist_n}_loop0"] = epsilon_last_dist_first_loop.cpu().item()
             else:
                 interesting_dict[f"epsilons_dist{last_dist_n}_0_dim0"] = epsilon_last_dist_first_loop[0].cpu().item()
                 interesting_dict[f"epsilons_dist{last_dist_n}_0_dim-1"] = epsilon_last_dist_first_loop[-1].cpu().item()
 
-            interesting_dict[f"mass_dist{last_dist_n}_0_dim0"] = mass_last_dist_first_loop[0].cpu().item()
-            interesting_dict[f"mass_dist{last_dist_n}_0_dim-1"] = mass_last_dist_first_loop[-1].cpu().item()
-
         interesting_dict["average_distance_dist0"] = self.average_distance_first_dist.cpu().item()
         if hasattr(self, f"average_distance_last_dist"):
-            interesting_dict[f"average_distance_dist_{self.n_intermediate_ais_distributions - 1}"] \
+            interesting_dict[f"average_distance_dist_{self.n_ais_intermediate_distributions - 1}"] \
                 = self.average_distance_last_dist.cpu().item()
         return interesting_dict
 
@@ -97,7 +95,8 @@ class HamiltonianMonteCarlo(TransitionOperator):
         Returns: A scalar for the HMC step size hyper-parameter.
 
         """
-        return self.epsilons[i, n] + self.common_epsilon
+        index = i - 1
+        return self.epsilons[index, n] + self.common_epsilon
 
     def joint_log_prob(self, point: Point, p, mass_matrix, U):
         return - U(point) - self.kinetic_energy(p, mass_matrix)
@@ -123,17 +122,16 @@ class HamiltonianMonteCarlo(TransitionOperator):
         current_point = point
         for n in range(self.n_outer):
             original_point = current_point
-            mass_matrix = self.mass_vector
-            p = torch.randn_like(point.x) * mass_matrix
+            epsilon = self.get_epsilon(i, n)
+            p = torch.randn_like(point.x) * self.mass_vector
             current_p = p
             grad_u = grad_U(point)
             # Now loop through position and momentum leapfrogs
             for l in range(self.L):
-                epsilon, mass_matrix = self.setup_inner_step_mass_and_epsilon(l=l, i=i, n=n)
                 # make momentum half step
                 p = p - epsilon * grad_u / 2
                 # Make full step for position
-                x = point.x + epsilon / mass_matrix * p
+                x = point.x + epsilon / self.mass_vector * p
                 point = self.create_new_point(x)
                 # update grad_u
                 grad_u = grad_U(point)
@@ -143,37 +141,38 @@ class HamiltonianMonteCarlo(TransitionOperator):
             acceptance_probability = self.metropolis_acceptance_prob(
                 point_proposed=point, point_current=current_point,
                 p_proposed=p, p_current=current_p,
-                U=U, mass_matrix=mass_matrix
+                U=U, mass_matrix=self.mass_vector
             )
             accept = acceptance_probability > torch.rand(
                 acceptance_probability.shape).to(point.device)
             current_point[accept] = point[accept]
             p_accept_mean = torch.mean(acceptance_probability)
             self.store_info(i=i, n=n, p_accept_mean=p_accept_mean, current_x=point.x,
-                            original_x=original_point)
+                            original_x=original_point.x)
             if not self.eval_mode:
-                self.adjust_step_sizcurrent_theta.detach()
-
+                self.adjust_step_size_p_accept(p_accept_mean=p_accept_mean,
+                                               i=i, n=n)
         return current_point
 
     def adjust_step_size_p_accept(self, p_accept_mean, i, n):
         """Adjust step size to reach the target p-accept."""
+        index = i - 1
         if p_accept_mean > self.target_p_accept:  # too much accept
-            self.epsilons[i, n] = self.epsilons[i, n] * 1.05
+            self.epsilons[index, n] = self.epsilons[index, n] * 1.05
             self.common_epsilon = self.common_epsilon * 1.02
         else:
-            self.epsilons[i, n] = self.epsilons[i, n] / 1.05
+            self.epsilons[index, n] = self.epsilons[index, n] / 1.05
             self.common_epsilon = self.common_epsilon / 1.02
 
 
     def store_info(self, i, n, p_accept_mean, current_x, original_x):
         """Store info that will be retrieved for logging."""
-        if i == 0:  # save info from the first AIS distribution.
+        if i == 1:  # save info from the first AIS distribution.
             # save as interesting info for plotting
             self.first_dist_p_accepts[n] = p_accept_mean.cpu().detach()
             distance = torch.linalg.norm((original_x - current_x), ord=2, dim=-1)
             self.average_distance_first_dist = torch.mean(distance).detach().cpu()
-        elif i == self.n_intermediate_ais_distributions - 1:
+        elif i == self.n_ais_intermediate_distributions:
             self.last_dist_p_accepts[n] = p_accept_mean.cpu().detach()
             distance = torch.linalg.norm((original_x - current_x), ord=2, dim=-1)
             self.average_distance_last_dist = torch.mean(distance).detach().cpu()

@@ -4,39 +4,45 @@ import torch
 from fab.types_ import LogProbFunc
 
 
-class Point(NamedTuple):
+class Point:
     """Keeps important info on points in the AIS chain. Saves us having to re-evaluate the target
     and base log prob/ score functions."""
-    x: torch.Tensor
-    log_q: torch.Tensor
-    log_p: torch.Tensor
-    grad_log_q: Optional[torch.Tensor] = None
-    grad_log_p: Optional[torch.Tensor] = None
+    def __init__(self,
+        x: torch.Tensor,
+        log_q: torch.Tensor,
+        log_p: torch.Tensor,
+        grad_log_q: Optional[torch.Tensor] = None,
+        grad_log_p: Optional[torch.Tensor] = None):
+        self.x = x
+        self.log_q = log_q
+        self.log_p = log_p
+        self.grad_log_q = grad_log_q
+        self.grad_log_p = grad_log_p
 
     @property
     def device(self):
-        return self.x.device()
+        return self.x.device
 
     def to(self, device):
         self.x = self.x.to(device)
         self.log_q = self.log_q.to(device)
         self.log_p = self.log_p.to(device)
-        self.grad_log_q = self.grad_log_q.to(device) if self.grad_log_q else None
-        self.grad_log_p = self.grad_log_p.to(device) if self.grad_log_p else None
+        self.grad_log_q = self.grad_log_q.to(device) if self.grad_log_q is not None else None
+        self.grad_log_p = self.grad_log_p.to(device) if self.grad_log_p is not None else None
 
     def __getitem__(self, indices):
-        x = self.x[indices]
-        log_q = self.log_q[indices]
         log_p = self.log_p[indices]
-        grad_log_q = self.grad_log_q[indices] if self.grad_log_q else None
-        grad_log_p = self.grad_log_p[indices] if self.grad_log_p else None
-        return Point(x, log_q, log_p, grad_log_q, grad_log_p)
+        grad_log_q = self.grad_log_q[indices] if self.grad_log_q is not None else None
+        grad_log_p = self.grad_log_p[indices] if self.grad_log_p is not None else None
+        return Point(self.x[indices],
+                     self.log_q[indices],
+                     log_p, grad_log_q, grad_log_p)
 
     def __setitem__(self, indices, values):
         self.x[indices] = values.x
         self.log_q[indices] = values.log_q
         self.log_p[indices] = values.log_p
-        if self.grad_log_q:
+        if self.grad_log_q is not None:
             self.grad_log_q[indices] = values.grad_log_q
             self.grad_log_p[indices] = values.grad_log_p
 
