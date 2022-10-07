@@ -20,7 +20,8 @@ class HamiltonianMonteCarlo(TransitionOperator):
                  max_grad: float = 1e3,
                  tune_period: bool = False,
                  common_epsilon_init_weight: float = 0.1,
-                 eval_mode: bool = False):
+                 eval_mode: bool = False
+                 ):
         """
         Step tuning with p_accept if used.
         """

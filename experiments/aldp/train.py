@@ -241,7 +241,7 @@ else:
                 if torch.mean(1. * ind_L) > 0.1:
                     x_ais = x_ais[ind_L, :]
                     log_w_ais = log_w_ais[ind_L]
-                loss = model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+                loss = model.fab_lb_alpha_div_loss_inner(x_ais, log_w_ais)
                 return loss
             model.loss = modified_loss
         elif loss_type == 'flow_reverse_kl':
@@ -307,7 +307,7 @@ for it in range(start_iter, max_iter):
                     max_log_w = torch.min(torch.topk(log_w_ais, k, dim=0).values)
                     log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
                 # Compute loss
-                loss = model.fab_alpha_div_loss_inner(x_ais, log_w_ais)
+                loss = model.fab_lb_alpha_div_loss_inner(x_ais, log_w_ais)
                 # Sample from buffer
                 buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
                                                         n_batches=rb_config['n_updates'] - 1)
@@ -316,7 +316,7 @@ for it in range(start_iter, max_iter):
                 buffer.add(x_ais, log_w_ais)
             else:
                 x, log_w = next(buffer_iter)
-                loss = model.fab_alpha_div_loss_inner(x, log_w)
+                loss = model.fab_lb_alpha_div_loss_inner(x, log_w)
         elif rb_config['type'] == 'prioritised':
             if it % rb_config['n_updates'] == 0:
                 # Sample
