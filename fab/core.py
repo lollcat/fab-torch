@@ -11,19 +11,33 @@ from fab.utils.numerical import effective_sample_size
 
 
 P_SQ_OVER_Q_TARGET_LOSSES = ["p2_over_q_alpha_2_div"]
-LOSSES_USING_AIS = ["p2_over_q_alpha_2_div", "lb_alpha_2_div", "sample_log_prob"]
+LOSSES_USING_AIS = ["p2_over_q_alpha_2_div", "lb_alpha_2_div", "sample_log_prob", None]
 
 class FABModel(Model):
-    """Definition of the Flow Annealed Importance Sampling Bootstrap (FAB) model. """
+    """Definition of various models, including the Flow Annealed Importance Sampling Bootstrap
+    (FAB) model. """
     def __init__(self,
                  flow: TrainableDistribution,
                  target_distribution: TargetDistribution,
                  n_intermediate_distributions: int,
                  transition_operator: Optional[TransitionOperator] = None,
                  ais_distribution_spacing: "str" = "linear",
-                 loss_type: "str" = "lb_alpha_2_div",
+                 loss_type: Optional["str"] = None,
+                 use_ais: bool = True,
                  ):
-        assert loss_type in ["lb_alpha_2_div", "forward_kl", "sample_log_prob",
+        """
+        Args:
+            flow: Trainable flow model.
+            target_distribution: Target distribution to fit.
+            n_intermediate_distributions: Number of intermediate AIS distributions.
+            transition_operator: Transition operator for AIS.
+            ais_distribution_spacing: AIS spacing type "geometric" or "linear"
+            loss_type: Loss type for training. May be set to None if `self.loss` is not used.
+                E.g. for training with the prioritised buffer.
+            use_ais: Whether or not to use AIS. For losses that do not rely on AIS, this may still
+                be set to True if we wish to use AIS in evaluation.
+        """
+        assert loss_type in [None, "lb_alpha_2_div", "forward_kl", "sample_log_prob",
                              "flow_forward_kl", "flow_alpha_2_div",
                              "flow_reverse_kl", "p2_over_q_alpha_2_div",
                              "flow_alpha_2_div_unbiased", "flow_alpha_2_div_nis",
@@ -35,7 +49,9 @@ class FABModel(Model):
         self.n_intermediate_distributions = n_intermediate_distributions
         self.ais_distribution_spacing = ais_distribution_spacing
         assert len(flow.event_shape) == 1, "Currently only 1D distributions are supported"
-        if loss_type in LOSSES_USING_AIS:
+        if use_ais or loss_type in LOSSES_USING_AIS:
+            if transition_operator is None:
+                raise Exception("If using AIS, transition operator must be provided.")
             self.transition_operator = transition_operator
             self.annealed_importance_sampler = AnnealedImportanceSampler(
                 base_distribution=self.flow,
@@ -50,6 +66,9 @@ class FABModel(Model):
         return self.flow.parameters()
 
     def loss(self, args) -> torch.Tensor:
+        if self.loss_type is None:
+            raise NotImplementedError("If loss_type is None, then the loss must be "
+                                      "manually calculated.")
         if self.loss_type == "lb_alpha_2_div":
             return self.fab_alpha_div_loss(args)
         elif self.loss_type == "forward_kl":
@@ -73,8 +92,8 @@ class FABModel(Model):
         else:
             raise NotImplementedError
 
-    def set_ais_target(self, target: str = "p"):
-        if target == "p":
+    def set_ais_target(self, p_sq_over_q: bool = True):
+        if not p_sq_over_q:
             self.annealed_importance_sampler.p_sq_over_q_target = False
             self.annealed_importance_sampler.transition_operator.p_sq_over_q_target = False
         else:
@@ -108,7 +127,7 @@ class FABModel(Model):
     def p2_over_q_alpha_2_div(self, batch_size: int) -> torch.Tensor:
         """Compute the FAB loss with p^2/q as the AIS target."""
         # set ais target distribution to p^2/q
-        self.set_ais_target("p^2/q")
+        self.set_ais_target(p_sq_over_q=True)
         if isinstance(self.annealed_importance_sampler.transition_operator, HamiltonianMonteCarlo):
             point_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
         else:
@@ -118,8 +137,9 @@ class FABModel(Model):
         log_w_ais = log_w_ais.detach()
         log_q_x = point_ais.log_q
         loss = - torch.mean(torch.softmax(log_w_ais, dim=-1) * log_q_x)
-        # reset ais target distribution back to p
-        self.set_ais_target("p")
+        # Reset ais target distribution back to p, which ensures evaluation is performed
+        # with the target distribution.
+        self.set_ais_target(p_sq_over_q=False)
         return loss
 
     def inner_loss(self, point: Point, log_w_ais) -> torch.Tensor:
@@ -179,7 +199,8 @@ class FABModel(Model):
                       ) -> Dict[str, Any]:
         if hasattr(self, "annealed_importance_sampler"):
             base_samples, base_log_w, ais_samples, ais_log_w = \
-                self.annealed_importance_sampler.generate_eval_data(outer_batch_size, inner_batch_size)
+                self.annealed_importance_sampler.generate_eval_data(outer_batch_size,
+                                                                    inner_batch_size)
             info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w, normalised=False).item(),
                     "eval_ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False).item()}
             flow_info = self.target_distribution.performance_metrics(base_samples, base_log_w,
@@ -220,10 +241,11 @@ class FABModel(Model):
             # mismatch is okay, so we raise a warning.
             warnings.warn('Transition operator could not be loaded. '
                   'Perhaps there is a mismatch in the architectures.')
-        self.annealed_importance_sampler = AnnealedImportanceSampler(
-            base_distribution=self.flow,
-            target_log_prob=self.target_distribution.log_prob,
-            transition_operator=self.transition_operator,
-            p_sq_over_q_target=self.p_sq_over_q_target,
-            n_intermediate_distributions=self.n_intermediate_distributions,
-            distribution_spacing_type=self.ais_distribution_spacing)
+        if self.annealed_importance_sampler:
+            self.annealed_importance_sampler = AnnealedImportanceSampler(
+                base_distribution=self.flow,
+                target_log_prob=self.target_distribution.log_prob,
+                transition_operator=self.transition_operator,
+                p_sq_over_q_target=self.p_sq_over_q_target,
+                n_intermediate_distributions=self.n_intermediate_distributions,
+                distribution_spacing_type=self.ais_distribution_spacing)

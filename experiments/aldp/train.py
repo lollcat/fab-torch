@@ -199,9 +199,9 @@ if 'replay_buffer' in config['training']:
     rb_config = config['training']['replay_buffer']
     if rb_config['type'] == 'uniform':
         def initial_sampler():
-            x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
+            point, log_w = model.annealed_importance_sampler.sample_and_log_weights(
                 batch_size, logging=False)
-            return x, log_w
+            return point.x, log_w
         buffer = ReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
                               min_sample_length=rb_config['min_length'] * batch_size,
                               initial_sampler=initial_sampler, device=str(device))
@@ -212,19 +212,15 @@ if 'replay_buffer' in config['training']:
                                        torch.zeros(batch_size), torch.ones(batch_size))
         else:
             def initial_sampler():
-                x, log_w = model.annealed_importance_sampler.sample_and_log_weights(
+                point, log_w = model.annealed_importance_sampler.sample_and_log_weights(
                     batch_size, logging=False)
-                log_q_x = model.flow.log_prob(x)
-                return x, log_w, log_q_x
+                return point.x, log_w, point.log_q
+
         buffer = PrioritisedReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
                                          min_sample_length=rb_config['min_length'] * batch_size,
                                          initial_sampler=initial_sampler, device=str(device))
         if os.path.exists(buffer_path):
             buffer.load(buffer_path)
-        # Set target distribution
-        def ais_target_log_prob(x):
-            return 2 * model.target_distribution.log_prob(x) - model.flow.log_prob(x)
-        model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
 else:
     use_rb = False
     if filter_chirality_train:
@@ -286,20 +282,13 @@ for it in range(start_iter, max_iter):
         if rb_config['type'] == 'uniform':
             if it % rb_config['n_updates'] == 0:
                 # Sample
-                if transition_type == 'hmc':
-                    x_ais, log_w_ais = model.annealed_importance_sampler.\
-                        sample_and_log_weights(batch_size, logging=False)
-                    x_ais = x_ais.detach()
-                    log_w_ais = log_w_ais.detach()
-                else:
-                    with torch.no_grad():
-                        x_ais, log_w_ais = model.annealed_importance_sampler.\
-                            sample_and_log_weights(batch_size, logging=False)
+                point_ais, log_w_ais = model.annealed_importance_sampler.\
+                    sample_and_log_weights(batch_size, logging=False)
                 # Filter chirality
                 if filter_chirality_train:
-                    ind_L = filter_chirality(x_ais)
+                    ind_L = filter_chirality(point_ais.x)
                     if torch.mean(1. * ind_L) > 0.1:
-                        x_ais = x_ais[ind_L, :]
+                        point_ais = point_ais[ind_L, :]
                         log_w_ais = log_w_ais[ind_L]
                 # Optionally do clipping
                 if rb_config['clip_w_frac'] is not None:
@@ -307,37 +296,33 @@ for it in range(start_iter, max_iter):
                     max_log_w = torch.min(torch.topk(log_w_ais, k, dim=0).values)
                     log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
                 # Compute loss
-                loss = model.fab_lb_alpha_div_loss_inner(x_ais, log_w_ais)
+                loss = model.fab_lb_alpha_div_loss_inner(point_ais.log_q,
+                                                         point_ais.log_p,
+                                                         log_w_ais)
                 # Sample from buffer
                 buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
                                                         n_batches=rb_config['n_updates'] - 1)
                 buffer_iter = iter(buffer_sample)
                 # Add sample to buffer
-                buffer.add(x_ais, log_w_ais)
+                buffer.add(point_ais.x, log_w_ais)
             else:
                 x, log_w = next(buffer_iter)
-                loss = model.fab_lb_alpha_div_loss_inner(x, log_w)
+                log_q = model.flow.log_prob(x)
+                log_p = model.target_distribution.log_prob(x)
+                loss = model.fab_lb_alpha_div_loss_inner(log_q, log_p, log_w)
         elif rb_config['type'] == 'prioritised':
             if it % rb_config['n_updates'] == 0:
                 # Sample
-                if transition_type == 'hmc':
-                    x_ais, log_w_ais = model.annealed_importance_sampler.\
-                        sample_and_log_weights(batch_size, logging=False)
-                    x_ais = x_ais.detach()
-                    log_w_ais = log_w_ais.detach()
-                else:
-                    with torch.no_grad():
-                        x_ais, log_w_ais = model.annealed_importance_sampler.\
-                            sample_and_log_weights(batch_size, logging=False)
+                point_ais, log_w_ais = model.annealed_importance_sampler.\
+                    sample_and_log_weights(batch_size, logging=False)
                 # Filter chirality
                 if filter_chirality_train:
-                    ind_L = filter_chirality(x_ais)
+                    ind_L = filter_chirality(point_ais.x)
                     if torch.mean(1. * ind_L) > 0.1:
-                        x_ais = x_ais[ind_L, :]
+                        point_ais = point_ais[ind_L]
                         log_w_ais = log_w_ais[ind_L]
-                log_q_x = model.flow.log_prob(x_ais)
                 # Add sample to buffer
-                buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x.detach())
+                buffer.add(point_ais.x, log_w_ais.detach(), point_ais.log_q)
                 # Sample from buffer
                 buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
                                                         n_batches=rb_config['n_updates'])
@@ -403,23 +388,17 @@ for it in range(start_iter, max_iter):
         # Disable step size tuning while evaluating model
         model.transition_operator.set_eval_mode(True)
         if use_rb and rb_config['type'] == 'prioritised':
-            model.annealed_importance_sampler.target_log_prob = model.target_distribution.log_prob
+            model.set_ais_target(p_sq_over_q=False)
 
-        # Effective sample size
-        if config['fab']['transition_type'] == 'hmc':
-            base_samples, base_log_w, ais_samples, ais_log_w = \
-                model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
-                                                                     batch_size)
-        else:
-            with torch.no_grad():
-                base_samples, base_log_w, ais_samples, ais_log_w = \
-                    model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
-                                                                         batch_size)
+        # Effective sample size.
+        base_samples, base_log_w, ais_samples, ais_log_w = \
+            model.annealed_importance_sampler.generate_eval_data(8 * batch_size,
+                                                                 batch_size)
         # Re-enable step size tuning
         if config['fab']['adjust_step_size']:
             model.transition_operator.set_eval_mode(False)
         if use_rb and rb_config['type'] == 'prioritised':
-            model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
+            model.set_ais_target(p_sq_over_q=True)
 
         ess_append = np.array([[it + 1, effective_sample_size(base_log_w, normalised=False),
                                 effective_sample_size(ais_log_w, normalised=False)]])
@@ -445,7 +424,7 @@ for it in range(start_iter, max_iter):
         model.transition_operator.set_eval_mode(True)
         if use_rb and rb_config['type'] == 'prioritised':
             buffer.save(os.path.join(cp_dir, 'buffer.pt'))
-            model.annealed_importance_sampler.target_log_prob = model.target_distribution.log_prob
+            model.set_ais_target(p_sq_over_q=False)  # Eval over p and not p^2/q.
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
@@ -496,7 +475,7 @@ for it in range(start_iter, max_iter):
         if config['fab']['adjust_step_size']:
             model.transition_operator.set_eval_mode(False)
         if use_rb and rb_config['type'] == 'prioritised':
-            model.annealed_importance_sampler.target_log_prob = ais_target_log_prob
+            model.set_ais_target(p_sq_over_q=True)
 
     # End job if necessary
     if it % checkpoint_iter == 0 and args.tlimit is not None:
