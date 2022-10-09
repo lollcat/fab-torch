@@ -9,8 +9,8 @@ flow:
   layer_nodes_per_dim: 5
   n_layers: 5
   act_norm: false
-  use_snf: true
-  resampled_base: false
+  use_snf: false
+  resampled_base: true
   snf: # config if snf is used.
     transition_operator_type: hmc # metropolis or hmc
     step_size: 0.001
@@ -21,7 +21,7 @@ fab:
   # loss type options: fab_p2_over_q_alpha_2_div for standard FAB loss
   # target_forward_kl: forward kl estimated with samples from the target
   # flow_reverse_kl, flow_alpha_2_div_nis for revers KL/alpha_2_div estimated with flow samples
-  loss_type: fab_p2_over_q_alpha_2_div
+  loss_type: flow_reverse_kl
   transition_operator:
     type: hmc
     n_inner_steps: 5
