@@ -219,6 +219,8 @@ if 'replay_buffer' in config['training']:
         buffer = PrioritisedReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
                                          min_sample_length=rb_config['min_length'] * batch_size,
                                          initial_sampler=initial_sampler, device=str(device))
+        # Ensure AIS target is correctly set for the prioritised buffer.
+        model.annealed_importance_sampler.p_sq_over_q_target = True
         if os.path.exists(buffer_path):
             buffer.load(buffer_path)
 else:
