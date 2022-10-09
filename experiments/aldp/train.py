@@ -138,14 +138,14 @@ if grad_clipping:
 
 # Set parameters for training
 ndim = 60
-loss_type = 'alpha_2_div' if 'loss_type' not in config['fab'] \
+loss_type = 'fab_p2_over_q_alpha_2_div' if 'loss_type' not in config['fab'] \
         else config['fab']['loss_type']
 transition_type = config['fab']['transition_type']
 flow_type = config['flow']['type']
 
 # Load train data if needed
 lam_fkld = None if not 'lam_fkld' in config['fab'] else config['fab']['lam_fkld']
-if loss_type == 'flow_forward_kl' or lam_fkld is not None:
+if loss_type == 'target_forward_kl' or lam_fkld is not None:
     path = config['data']['train']
     train_data = torch.load(path)
     if args.precision == 'double':
@@ -224,20 +224,15 @@ if 'replay_buffer' in config['training']:
 else:
     use_rb = False
     if filter_chirality_train:
-        if loss_type == 'alpha_2_div':
+        if loss_type == 'fab_p2_over_q_alpha_2_div':
             def modified_loss(bs):
-                if isinstance(model.annealed_importance_sampler.transition_operator, HamiltonianMonteCarlo):
-                    x_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
-                else:
-                    with torch.no_grad():
-                        x_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
-                x_ais = x_ais.detach()
+                point_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
                 log_w_ais = log_w_ais.detach()
-                ind_L = filter_chirality(x_ais)
+                ind_L = filter_chirality(point_ais.x)
                 if torch.mean(1. * ind_L) > 0.1:
-                    x_ais = x_ais[ind_L, :]
+                    point_ais = point_ais[ind_L, :]
                     log_w_ais = log_w_ais[ind_L]
-                loss = model.fab_lb_alpha_div_loss_inner(x_ais, log_w_ais)
+                loss = model.fab_p2_over_q_alpha_2_div_inner(point_ais, log_w_ais)
                 return loss
             model.loss = modified_loss
         elif loss_type == 'flow_reverse_kl':
@@ -267,7 +262,7 @@ start_time = time()
 
 for it in range(start_iter, max_iter):
     # Get loss
-    if loss_type == 'flow_forward_kl' or lam_fkld is not None:
+    if loss_type == 'target_forward_kl' or lam_fkld is not None:
         try:
             x = next(train_iter)
         except StopIteration:
@@ -277,7 +272,7 @@ for it in range(start_iter, max_iter):
         if lam_fkld is None:
             loss = model.loss(x)
         else:
-            loss = model.loss(batch_size) + lam_fkld * model.flow_forward_kl(x)
+            loss = model.loss(batch_size) + lam_fkld * model.forward_kl(x)
     elif use_rb:
         if rb_config['type'] == 'uniform':
             if it % rb_config['n_updates'] == 0:
@@ -296,9 +291,7 @@ for it in range(start_iter, max_iter):
                     max_log_w = torch.min(torch.topk(log_w_ais, k, dim=0).values)
                     log_w_ais = torch.clamp_max(log_w_ais, max_log_w)
                 # Compute loss
-                loss = model.fab_lb_alpha_div_loss_inner(point_ais.log_q,
-                                                         point_ais.log_p,
-                                                         log_w_ais)
+                loss = model.fab_ub_alpha_div_loss_inner(point_ais, log_w_ais)
                 # Sample from buffer
                 buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
                                                         n_batches=rb_config['n_updates'] - 1)
@@ -309,7 +302,7 @@ for it in range(start_iter, max_iter):
                 x, log_w = next(buffer_iter)
                 log_q = model.flow.log_prob(x)
                 log_p = model.target_distribution.log_prob(x)
-                loss = model.fab_lb_alpha_div_loss_inner(log_q, log_p, log_w)
+                loss = model.fab_ub_alpha_div_loss_inner(log_q, log_p, log_w)
         elif rb_config['type'] == 'prioritised':
             if it % rb_config['n_updates'] == 0:
                 # Sample
@@ -450,13 +443,8 @@ for it in range(start_iter, max_iter):
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
         while z_samples.shape[0] < eval_samples:
-            if config['fab']['transition_type'] == 'hmc':
-                z_ = model.annealed_importance_sampler.sample_and_log_weights(batch_size,
-                                                                              logging=False)[0]
-            else:
-                with torch.no_grad():
-                    z_ = model.annealed_importance_sampler.sample_and_log_weights(batch_size,
-                                                                                  logging=False)[0]
+            z_ = model.annealed_importance_sampler.sample_and_log_weights(batch_size,
+                                                                              logging=False)[0].x
             z_, _ = model.flow._nf_model.flows[-1].inverse(z_.detach())
             if filter_chirality_eval:
                 ind_L = filter_chirality(z_)

@@ -66,8 +66,7 @@ class Metropolis(TransitionOperator):
         for n in range(self.n_updates):
             x = point.x
             x_proposed = x + torch.randn(x.shape).to(x.device) * self.noise_scalings[i - 1, n]
-            point_proposed = create_point(x_proposed, self.base_log_prob, self.target_log_prob,
-                                          self.p_sq_over_q_target)
+            point_proposed = self.create_new_point(x_proposed)
             x_proposed_log_prob = self.intermediate_target_log_prob(point_proposed, beta)
             acceptance_probability = torch.exp(x_proposed_log_prob - x_prev_log_prob)
             # not that sometimes this will be greater than one, corresonding to 100% probability of

@@ -4,14 +4,13 @@ import warnings
 
 from fab.types_ import Model
 from fab.target_distributions.base import TargetDistribution
-from fab.sampling_methods import AnnealedImportanceSampler, HamiltonianMonteCarlo, \
-    TransitionOperator, Point
+from fab.sampling_methods import AnnealedImportanceSampler, TransitionOperator, Point
 from fab.trainable_distributions import TrainableDistribution
 from fab.utils.numerical import effective_sample_size
 
 
-P_SQ_OVER_Q_TARGET_LOSSES = ["p2_over_q_alpha_2_div"]
-LOSSES_USING_AIS = ["p2_over_q_alpha_2_div", "lb_alpha_2_div", "sample_log_prob", None]
+P_SQ_OVER_Q_TARGET_LOSSES = ["fab_p2_over_q_alpha_2_div"]
+LOSSES_USING_AIS = ["fab_p2_over_q_alpha_2_div", "fab_ub_alpha_2_div", "fab_forward_kl", None]
 
 class FABModel(Model):
     """Definition of various models, including the Flow Annealed Importance Sampling Bootstrap
@@ -37,9 +36,9 @@ class FABModel(Model):
             use_ais: Whether or not to use AIS. For losses that do not rely on AIS, this may still
                 be set to True if we wish to use AIS in evaluation.
         """
-        assert loss_type in [None, "lb_alpha_2_div", "forward_kl", "sample_log_prob",
-                             "flow_forward_kl", "flow_alpha_2_div",
-                             "flow_reverse_kl", "p2_over_q_alpha_2_div",
+        assert loss_type in [None, "fab_ub_alpha_2_div", "fab_forward_kl",
+                             "forward_kl", "flow_alpha_2_div",
+                             "flow_reverse_kl", "fab_p2_over_q_alpha_2_div",
                              "flow_alpha_2_div_unbiased", "flow_alpha_2_div_nis",
                              "target_forward_kl"]
         self.p_sq_over_q_target = loss_type in P_SQ_OVER_Q_TARGET_LOSSES
@@ -69,22 +68,22 @@ class FABModel(Model):
         if self.loss_type is None:
             raise NotImplementedError("If loss_type is None, then the loss must be "
                                       "manually calculated.")
-        if self.loss_type == "lb_alpha_2_div":
+        if self.loss_type == "fab_ub_alpha_2_div":
             return self.fab_alpha_div_loss(args)
-        elif self.loss_type == "forward_kl":
+        elif self.loss_type == "fab_forward_kl":
             return self.fab_forward_kl(args)
-        elif self.loss_type == "sample_log_prob":
+        elif self.loss_type == "fab_sample_log_prob":
             return self.fab_sample_log_prob(args)
-        elif self.loss_type == "flow_forward_kl":
-            return self.flow_forward_kl(args)
+        elif self.loss_type == "forward_kl":
+            return self.forward_kl(args)
         elif self.loss_type == "flow_reverse_kl":
             return self.flow_reverse_kl(args)
         elif self.loss_type == "flow_alpha_2_div":
             return self.flow_alpha_2_div(args)
         elif self.loss_type == "flow_alpha_2_div_unbiased":
             return self.flow_alpha_2_div_unbiased(args)
-        elif self.loss_type == "p2_over_q_alpha_2_div":
-            return self.p2_over_q_alpha_2_div(args)
+        elif self.loss_type == "fab_p2_over_q_alpha_2_div":
+            return self.fab_p2_over_q_alpha_2_div(args)
         elif self.loss_type == "flow_alpha_2_div_nis":
             return self.flow_alpha_2_div_nis(args)
         elif self.loss_type == "target_forward_kl":
@@ -124,74 +123,67 @@ class FABModel(Model):
         loss = - torch.mean(torch.exp(2*(log_p_x - log_q_x)).detach() * log_q_x)
         return loss
 
-    def p2_over_q_alpha_2_div(self, batch_size: int) -> torch.Tensor:
+    def fab_p2_over_q_alpha_2_div_inner(self, point: Point, log_w_ais: torch.Tensor) -> \
+            torch.Tensor:
+        return - torch.mean(torch.softmax(log_w_ais, dim=-1) * point.log_q)
+
+    def fab_p2_over_q_alpha_2_div(self, batch_size: int) -> torch.Tensor:
         """Compute the FAB loss with p^2/q as the AIS target."""
         # set ais target distribution to p^2/q
         self.set_ais_target(p_sq_over_q=True)
-        if isinstance(self.annealed_importance_sampler.transition_operator, HamiltonianMonteCarlo):
-            point_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
-        else:
-            with torch.no_grad():
-                point_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(
-                    batch_size)
-        log_w_ais = log_w_ais.detach()
-        log_q_x = point_ais.log_q
-        loss = - torch.mean(torch.softmax(log_w_ais, dim=-1) * log_q_x)
+        point_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
+        loss = self.inner_loss(point_ais, log_w_ais)
         # Reset ais target distribution back to p, which ensures evaluation is performed
         # with the target distribution.
         self.set_ais_target(p_sq_over_q=False)
         return loss
 
     def inner_loss(self, point: Point, log_w_ais) -> torch.Tensor:
-        """Loss as a function of ais samples and weights, we use this when training with a replay buffer."""
-        if self.loss_type == "lb_alpha_2_div":
-            return self.fab_lb_alpha_div_loss_inner(point.log_q, point.log_q, log_w_ais)
-        elif self.loss_type == "forward_kl":
+        """Loss as a function of ais points and weights."""
+        if self.loss_type == "fab_ub_alpha_2_div":
+            return self.fab_ub_alpha_div_loss_inner(point.log_q, point.log_q, log_w_ais)
+        elif self.loss_type == "fab_forward_kl":
             return self.fab_forward_kl_inner(point.log_q, log_w_ais)
+        elif self.loss_type == "fab_p2_over_q_alpha_2_div":
+            return self.fab_p2_over_q_alpha_2_div_inner(point, log_w_ais)
         else:
             raise NotImplementedError
 
-    def fab_lb_alpha_div_loss_inner(self, log_q, log_p, log_w_ais) -> torch.Tensor:
+    def fab_ub_alpha_div_loss_inner(self, point: Point, log_w_ais: torch.Tensor) -> torch.Tensor:
         """Compute the FAB loss based on upper-bound of alpha-divergence with alpha=2 from
         https://arxiv.org/abs/2111.11510."""
-        log_w = log_p - log_q
+        log_w = point.log_p - point.log_q
         return torch.logsumexp(log_w_ais + log_w, dim=0)
 
     def fab_alpha_div_loss(self, batch_size: int) -> torch.Tensor:
         """Compute the FAB loss based on lower-bound of alpha-divergence with alpha=2."""
         point_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
-        loss = self.fab_lb_alpha_div_loss_inner(point_ais.log_q, point_ais.log_p, log_w_ais)
+        loss = self.fab_ub_alpha_div_loss_inner(point_ais.log_q, point_ais.log_p, log_w_ais)
         return loss
 
     def target_forward_kl(self, batch_size: int) -> torch.Tensor:
         """Assumes we can sample from the target distribution"""
         x = self.target_distribution.sample((batch_size,))
-        return self.flow_forward_kl(x)
+        return self.forward_kl(x)
 
-    def flow_forward_kl(self, x: torch.Tensor) -> torch.Tensor:
-        """Compute forward KL-divergence of flow"""
-        return -torch.mean(self.flow.log_prob(x))
+    def forward_kl(self, x_p: torch.Tensor) -> torch.Tensor:
+        """Forward kl with estimated using x ~ p(x) where p is the target distribution."""
+        return -torch.mean(self.flow.log_prob(x_p))
 
-    def fab_forward_kl_inner(self, log_q_x, log_w_ais) -> torch.Tensor:
+    def fab_forward_kl_inner(self, point: Point, log_w_ais: torch.Tensor) -> torch.Tensor:
         w_ais = torch.softmax(log_w_ais, dim=0)
-        return - torch.mean(w_ais * log_q_x)
+        return - torch.mean(w_ais * point.log_q)
 
     def fab_forward_kl(self, batch_size: int) -> torch.Tensor:
         """Compute FAB estimate of forward kl-divergence."""
         point_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
-        log_w_ais = log_w_ais.detach()
-        return self.fab_forward_kl_inner(point_ais.log_q, log_w_ais)
-
-    def fab_sample_log_prob(self, batch_size: int, sample_frac: float = 1.0) -> torch.Tensor:
-        """Compute FAB loss by maximising the log prob of ais samples under the flow."""
-        point_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
-        return - torch.mean(point_ais.log_q)
+        return self.fab_forward_kl_inner(point_ais, log_w_ais)
 
     def get_iter_info(self) -> Dict[str, Any]:
         if hasattr(self, "annealed_importance_sampler"):
-            return self.annealed_importance_sampler.get_logging_info()
-        else:
-            return {}
+            if hasattr(self.annealed_importance_sampler, "_logging_info"):
+                return self.annealed_importance_sampler.get_logging_info()
+        return {}
 
     def get_eval_info(self,
                       outer_batch_size: int,
@@ -209,6 +201,7 @@ class FABModel(Model):
             ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)
             info.update(flow_info)
             info.update(ais_info)
+
         else:
             raise NotImplementedError
             # TODO
