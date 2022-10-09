@@ -80,10 +80,12 @@ def get_intermediate_log_prob(x: Point,
     Set AIS final target g=p^2/q if p_sq_over_q_target else g=p.
     log_prob = (1 - beta) log_q + beta log_g
     """
-    if p_sq_over_q_target:
-        return (1 - 2*beta) * x.log_q + 2*beta*x.log_p
-    else:
-        return (1-beta) * x.log_q + beta * x.log_p
+    with torch.no_grad():
+        # No grad as we don't backprop through this.
+        if p_sq_over_q_target:
+            return (1 - 2*beta) * x.log_q + 2*beta*x.log_p
+        else:
+            return (1-beta) * x.log_q + beta * x.log_p
 
 
 def get_grad_intermediate_log_prob(
@@ -94,10 +96,12 @@ def get_grad_intermediate_log_prob(
     Set AIS final target g=p^2/q if p_sq_over_q_target else g=p.
     \nabla_x log_prob = (1 - beta) \nabla_x log_q + beta \nabla_x log_g
     """
-    if p_sq_over_q_target:
-        return (1 - 2*beta) * x.grad_log_q + 2*beta*x.grad_log_p
-    else:
-        return (1-beta) * x.grad_log_q + beta * x.grad_log_p
+    with torch.no_grad():
+        # No grad as we don't backprop through this.
+        if p_sq_over_q_target:
+            return (1 - 2*beta) * x.grad_log_q + 2*beta*x.grad_log_p
+        else:
+            return (1-beta) * x.grad_log_q + beta * x.grad_log_p
 
 
 def resample(x_or_point: Union[Point, torch.Tensor], log_w: torch.Tensor) -> Point:
