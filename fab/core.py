@@ -11,6 +11,8 @@ from fab.utils.numerical import effective_sample_size
 
 P_SQ_OVER_Q_TARGET_LOSSES = ["fab_p2_over_q_alpha_2_div"]
 LOSSES_USING_AIS = ["fab_p2_over_q_alpha_2_div", "fab_ub_alpha_2_div", "fab_forward_kl", None]
+EXPERIMENTAL_LOSSES = ["flow_alpha_2_div_unbiased", "flow_alpha_2_div", "fab_ub_alpha_2_div",
+                       "fab_forward_kl"]
 
 class FABModel(Model):
     """Definition of various models, including the Flow Annealed Importance Sampling Bootstrap
@@ -34,13 +36,16 @@ class FABModel(Model):
             loss_type: Loss type for training. May be set to None if `self.loss` is not used.
                 E.g. for training with the prioritised buffer.
             use_ais: Whether or not to use AIS. For losses that do not rely on AIS, this may still
-                be set to True if we wish to use AIS in evaluation.
+                be set to True if we wish to use AIS in evaluation, which is why it is set to True
+                by default.
         """
         assert loss_type in [None, "fab_ub_alpha_2_div", "fab_forward_kl",
                              "forward_kl", "flow_alpha_2_div",
                              "flow_reverse_kl", "fab_p2_over_q_alpha_2_div",
                              "flow_alpha_2_div_unbiased", "flow_alpha_2_div_nis",
                              "target_forward_kl"]
+        if loss_type in EXPERIMENTAL_LOSSES:
+            warnings.warn("Running using experiment loss not used within the main FAB paper.")
         self.p_sq_over_q_target = loss_type in P_SQ_OVER_Q_TARGET_LOSSES
         self.loss_type = loss_type
         self.flow = flow
@@ -72,8 +77,6 @@ class FABModel(Model):
             return self.fab_alpha_div_loss(args)
         elif self.loss_type == "fab_forward_kl":
             return self.fab_forward_kl(args)
-        elif self.loss_type == "fab_sample_log_prob":
-            return self.fab_sample_log_prob(args)
         elif self.loss_type == "forward_kl":
             return self.forward_kl(args)
         elif self.loss_type == "flow_reverse_kl":
@@ -139,11 +142,11 @@ class FABModel(Model):
         return loss
 
     def inner_loss(self, point: Point, log_w_ais) -> torch.Tensor:
-        """Loss as a function of ais points and weights."""
+        """Loss as a function of AIS points and weights."""
         if self.loss_type == "fab_ub_alpha_2_div":
             return self.fab_ub_alpha_div_loss_inner(point.log_q, point.log_q, log_w_ais)
         elif self.loss_type == "fab_forward_kl":
-            return self.fab_forward_kl_inner(point.log_q, log_w_ais)
+            return self.fab_forward_kl_inner(point, log_w_ais)
         elif self.loss_type == "fab_p2_over_q_alpha_2_div":
             return self.fab_p2_over_q_alpha_2_div_inner(point, log_w_ais)
         else:

@@ -52,8 +52,8 @@ def grad_and_value(x, forward_fn):
     x = x.detach()
     x.requires_grad = True
     y = forward_fn(x)
-    grad = torch.autograd.grad(y, x,  grad_outputs=torch.ones_like(y))[0]
-    return grad, y
+    grad = torch.autograd.grad(y, x,  grad_outputs=torch.ones_like(y), retain_graph=True)[0]
+    return grad.detach(), y
 
 
 def create_point(x: torch.Tensor, log_q_fn: LogProbFunc, log_p_fn: LogProbFunc,

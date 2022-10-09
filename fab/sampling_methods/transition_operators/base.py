@@ -26,22 +26,27 @@ class TransitionOperator(torch.nn.Module):
 
 
     def create_new_point(self, x: torch.Tensor) -> Point:
-        """Create a new point."""
+        """Create a new instance of a `Point` given an x (sample). See the `Point` definition
+        for further details. """
         return create_point(x, self.base_log_prob, self.target_log_prob,
                             with_grad=self.uses_grad_info)
 
 
     def intermediate_target_log_prob(self, point: Point, beta: float) -> torch.Tensor:
-        return get_intermediate_log_prob(point, beta,
-                                         p_sq_over_q_target=self.p_sq_over_q_target)
-
+        with torch.no_grad():
+            # We do not backprop through MCMC/AIS. So do not include these gradients.
+            return get_intermediate_log_prob(point, beta,
+                                             p_sq_over_q_target=self.p_sq_over_q_target)
 
     def grad_intermediate_target_log_prob(self, point: Point, beta: float) -> torch.Tensor:
-        return get_grad_intermediate_log_prob(
-            point,
-            beta,
-            p_sq_over_q_target=self.p_sq_over_q_target
-        )
+        with torch.no_grad():
+            # We do not backprop through MCMC/AIS. So do not include second order grads through the
+            # intermediate log prob grad.
+            return get_grad_intermediate_log_prob(
+                point,
+                beta,
+                p_sq_over_q_target=self.p_sq_over_q_target
+            )
 
     @property
     def uses_grad_info(self) -> bool:
@@ -54,18 +59,20 @@ class TransitionOperator(torch.nn.Module):
         raise NotImplementedError
 
 
-    def transition(self, x: Point, i: int, beta: float) -> Point:
+    def transition(self, point: Point, i: int, beta: float) -> Point:
         """
-        Returns x generated from transition with log_q_x, as the invariant
-        distribution.
+        Returns points generated from transition with g, as the invariant
+        distribution. g = p^2/q if self.p_sq_over_q_target else g=p, where p is the target
+        distribution and q is the trained distribution.
 
         Args:
-            x: Input samples from the base distribution
+            point: Input samples from previous AIS step. Also contains info on the log prob
+                of p & q, and if required their gradients.
             i: Intermediate AIS distribution number.
             beta: Beta controlling interpolation between base and target log prob.
 
         Returns:
-            x: Samples from MCMC with g as the target distribution.
+            point: Points from MCMC with g as the target distribution.
         """
         raise NotImplementedError
 
