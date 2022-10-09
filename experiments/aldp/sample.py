@@ -135,7 +135,8 @@ if n_ais_samples > 0:
         else:
             end = (i + 1) * batch_size
             end_ = batch_size
-        z, lw = model.annealed_importance_sampler.sample_and_log_weights(batch_size)
+        point, lw = model.annealed_importance_sampler.sample_and_log_weights(batch_size)
+        z = point.x
         lp = model.target_distribution.log_prob(z[:end_, :].detach())
         samples[(i * batch_size):end, :] = z[:end_, :].detach().cpu().numpy()
         log_w[(i * batch_size):end] = lw[:end_].detach().cpu().numpy()
