@@ -15,6 +15,7 @@ from fab.utils.aldp import filter_chirality
 from fab.utils.numerical import effective_sample_size
 from fab.utils.replay_buffer import ReplayBuffer
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
+from fab.core import P_SQ_OVER_Q_TARGET_LOSSES
 from experiments.make_flow.make_aldp_model import make_aldp_model
 
 
@@ -219,8 +220,7 @@ if 'replay_buffer' in config['training']:
         buffer = PrioritisedReplayBuffer(dim=ndim, max_length=rb_config['max_length'] * batch_size,
                                          min_sample_length=rb_config['min_length'] * batch_size,
                                          initial_sampler=initial_sampler, device=str(device))
-        # Ensure AIS target is correctly set for the prioritised buffer.
-        model.annealed_importance_sampler.p_sq_over_q_target = True
+
         if os.path.exists(buffer_path):
             buffer.load(buffer_path)
 else:
@@ -258,6 +258,13 @@ else:
                 loss = - torch.mean(torch.exp(2 * (log_p_x - log_q_x)).detach() * log_q_x)
                 return loss
             model.loss = modified_loss
+
+# Set AIS/transition operator target.
+p_sq_over_q_target = \
+        config['training']['replay_buffer']['type'] = 'prioritised' or \
+                                                      config['fab']['loss_type'] \
+                                                      in P_SQ_OVER_Q_TARGET_LOSSES
+model.set_ais_target(p_sq_over_q=p_sq_over_q_target)
 
 # Start training
 start_time = time()
