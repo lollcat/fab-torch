@@ -10,7 +10,7 @@ class ReplayData(NamedTuple):
 def sample_without_replacement(logits: torch.Tensor, n: int) -> torch.Tensor:
     # https://timvieira.github.io/blog/post/2014/07/31/gumbel-max-trick/
     z = torch.distributions.Gumbel(torch.tensor(0.0), torch.tensor(1.0)).sample(
-        logits.shape)
+        logits.shape).to(logits.device)
     topk = torch.topk(z + logits, n)
     return topk.indices
 

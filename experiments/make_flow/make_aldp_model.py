@@ -8,6 +8,7 @@ from fab.target_distributions.aldp import AldpBoltzmann
 from fab.sampling_methods.transition_operators import HamiltonianMonteCarlo, Metropolis
 from fab.wrappers.normflows import WrappedNormFlowModel
 from fab import FABModel
+from fab.core import P_SQ_OVER_Q_TARGET_LOSSES
 
 
 def make_aldp_model(config, device):
@@ -169,35 +170,48 @@ def make_aldp_model(config, device):
     flow = nf.NormalizingFlow(base, layers)
     wrapped_flow = WrappedNormFlowModel(flow).to(device)
 
+    # Set target of AIS to p or p^2/q
+    p_sq_over_q_target = \
+        config['training']['replay_buffer']['type'] = 'prioritised' or \
+                                                      config['fab']['loss_type'] \
+                                                      in P_SQ_OVER_Q_TARGET_LOSSES
+
     # Transition operator
     transition_type = config['fab']['transition_type']
     if transition_type == 'hmc':
         # very lightweight HMC.
         transition_operator = HamiltonianMonteCarlo(
             n_ais_intermediate_distributions=config['fab']['n_int_dist'],
-            dim=ndim, L=config['fab']['n_inner'],
+            dim=ndim,
+            base_log_prob=flow.log_prob,
+            target_log_prob=target.log_prob,
+            p_sq_over_q_target=p_sq_over_q_target,
+            L=config['fab']['n_inner'],
             epsilon=config['fab']['epsilon'] / 2,
             common_epsilon_init_weight=config['fab']['epsilon'] / 2)
         if not config['fab']['adjust_step_size']:
             transition_operator.set_eval_mode(True)
     elif transition_type == 'metropolis':
-        transition_operator = Metropolis(n_transitions=config['fab']['n_int_dist'],
-                                         n_updates=config['fab']['n_inner'],
-                                         max_step_size=config['fab']['max_step_size'],
-                                         min_step_size=config['fab']['min_step_size'],
-                                         adjust_step_size=config['fab']['adjust_step_size'])
+        transition_operator = Metropolis(
+            n_ais_intermediate_distributions=config['fab']['n_int_dist'],
+            dim=ndim,
+            base_log_prob=flow.log_prob,
+            target_log_prob=target.log_prob,
+            p_sq_over_q_target=p_sq_over_q_target,
+            n_updates=config['fab']['n_inner'],
+            max_step_size=config['fab']['max_step_size'],
+            min_step_size=config['fab']['min_step_size'],
+            adjust_step_size=config['fab']['adjust_step_size'])
     else:
         raise NotImplementedError('The transition operator ' + config['fab']['transition_type']
                                   + ' is not implemented')
     transition_operator = transition_operator.to(device)
 
     # FAB model
-    loss_type = 'alpha_2_div' if 'loss_type' not in config['fab'] \
-        else config['fab']['loss_type']
+    loss_type = config['fab']['loss_type'] if 'loss_type' in config['fab'] else None
     model = FABModel(flow=wrapped_flow,
                      target_distribution=target,
                      n_intermediate_distributions=config['fab']['n_int_dist'],
                      transition_operator=transition_operator,
                      loss_type=loss_type)
-
     return model

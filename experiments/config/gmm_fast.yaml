@@ -24,7 +24,7 @@ fab:
   # loss type options: fab_p2_over_q_alpha_2_div for standard FAB loss
   # target_forward_kl: forward kl estimated with samples from the target
   # flow_reverse_kl, flow_alpha_2_div_nis for revers KL/alpha_2_div estimated with flow samples
-  loss_type: fab_p2_over_q_alpha_2_div
+  loss_type: flow_alpha_2_div_nis
   transition_operator:
     type: metropolis
     n_inner_steps: 1
@@ -41,7 +41,7 @@ training:
   lr: 1e-4
   batch_size: 128
   n_iterations: null
-  n_flow_forward_pass: 20_000_000
+  n_flow_forward_pass: 20_000_0
   use_gpu: true
   use_64_bit: true
   use_buffer: false # below config fields are all for use_buffer = True

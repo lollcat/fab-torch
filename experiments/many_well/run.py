@@ -18,7 +18,7 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
 
         samples_flow = fab_model.flow.sample((n_samples,)).detach()
         samples_ais = fab_model.annealed_importance_sampler.sample_and_log_weights(
-            n_samples, logging=False)[0].detach()
+            n_samples, logging=False)[0].x.detach()
         if cfg.training.prioritised_buffer is True and cfg.training.use_buffer is True:
             samples_buffer = buffer.sample(n_samples)[0].detach()
 
