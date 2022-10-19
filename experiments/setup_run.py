@@ -9,21 +9,22 @@ from omegaconf import DictConfig
 
 from datetime import datetime
 
+import matplotlib.pyplot as plt
+import torch
 
 from fab import Trainer, BufferTrainer, PrioritisedBufferTrainer
 from fab.target_distributions.base import TargetDistribution
 from fab.utils.logging import PandasLogger, WandbLogger, Logger, ListLogger
 from fab.utils.replay_buffer import ReplayBuffer
 from fab.utils.plotting import plot_history
-import matplotlib.pyplot as plt
-import torch
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
+from fab.core import P_SQ_OVER_Q_TARGET_LOSSES, LOSSES_USING_AIS
+from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
+from fab.trainable_distributions.defensive_mixture import DefensiveMixtureDistribution
+
 from experiments.make_flow import make_wrapped_normflow_realnvp, \
     make_wrapped_normflow_resampled_flow, make_wrapped_normflow_snf_model
-from fab.core import P_SQ_OVER_Q_TARGET_LOSSES
-from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
-
 
 Plotter = Callable[[FABModel], List[plt.Figure]]
 SetupPlotterFn = Callable[[DictConfig, TargetDistribution,
@@ -176,6 +177,11 @@ def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
         flow = make_wrapped_normflow_realnvp(dim, n_flow_layers=cfg.flow.n_layers,
                                              layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
                                              act_norm=cfg.flow.act_norm)
+
+    # defensive_dist = False
+    # if defensive_dist:
+    #     flow = DefensiveMixtureDistribution(flow)
+    #     assert cfg.fab.loss_type in LOSSES_USING_AIS
 
 
     if cfg.fab.transition_operator.type == "hmc":

@@ -11,17 +11,20 @@ class DefensiveMixtureDistribution(TrainableDistribution):
     This does not have differerentiable sampling, so cannot be used for
     training by reverse KL minimisation. But may be used in AIS where we do not
     take the derivative."""
-    def __init__(self, flow: TrainableDistribution, defensive_dist: Optional[TrainableDistribution] = None):
+    def __init__(self, flow: TrainableDistribution,
+                 defensive_dist: Optional[TrainableDistribution] = None):
         super(DefensiveMixtureDistribution, self).__init__()
         self.flow = flow
         assert len(self.flow.event_shape) == 1
         self.dim = self.flow.event_shape[0]
+
+        flow_device = flow.sample((1,)).device
         if defensive_dist is None:
-            self.loc = torch.nn.Parameter(torch.zeros(self.dim))
-            self.log_scale = torch.nn.Parameter(torch.zeros(self.dim))
+            self.loc = torch.nn.Parameter(torch.zeros(self.dim)).to(flow_device)
+            self.log_scale = torch.nn.Parameter(torch.zeros(self.dim)).to(flow_device)
         else:
-            self.defensive_dist = defensive_dist
-        self.mixture_logit = torch.nn.Parameter(torch.tensor(0.0))
+            self.defensive_dist = defensive_dist.to(flow_device)
+        self.mixture_logit = torch.nn.Parameter(torch.tensor(1.0)).to(flow_device)
         assert self.defensive_dist.event_shape == (self.dim, )
 
     @property
@@ -31,9 +34,12 @@ class DefensiveMixtureDistribution(TrainableDistribution):
     @property
     def defensive_dist(self) -> torch.distributions.Distribution:
         scale = torch.exp(self.log_scale)
-        return torch.distributions.Independent(torch.distributions.Laplace(
-            loc=self.loc, scale=scale,
+        return torch.distributions.Independent(torch.distributions.Normal(
+            loc=self.loc, scale=scale, validate_args=False,
         ), reinterpreted_batch_ndims=1)
+        # return torch.distributions.Independent(torch.distributions.Laplace(
+        #     loc=self.loc, scale=scale, validate_args=False,
+        # ), reinterpreted_batch_ndims=1)
 
 
     def log_prob(self, x: torch.Tensor) -> torch.Tensor:
