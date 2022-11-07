@@ -16,7 +16,8 @@ def test_hmc(
         dim=config.dim,
         base_log_prob=config.learnt_sampler.log_prob,
         target_log_prob=config.target.log_prob,
-        p_sq_over_q_target=config.p_sq_over_q_target,
+        alpha=config.alpha,
+        p_target=config.p_target,
         n_outer=10,
         epsilon=1.0, L=5,
         mass_init=mass_init)

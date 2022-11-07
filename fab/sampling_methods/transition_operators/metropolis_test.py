@@ -20,7 +20,7 @@ def test_metropolis(
         dim=config.dim,
         base_log_prob=config.learnt_sampler.log_prob,
         target_log_prob=config.target.log_prob,
-        p_sq_over_q_target=config.p_sq_over_q_target, n_updates=5)
+        p_target=config.p_target, alpha=config.alpha, n_updates=5)
     test_transition_operator(transition_operator=metropolis_transition,
                              config=config,
                              n_iterations=n_iterations,

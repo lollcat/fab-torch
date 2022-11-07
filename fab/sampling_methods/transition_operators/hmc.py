@@ -11,7 +11,8 @@ class HamiltonianMonteCarlo(TransitionOperator):
                  dim: int,
                  base_log_prob: LogProbFunc,
                  target_log_prob: LogProbFunc,
-                 p_sq_over_q_target: bool,
+                 alpha: float,
+                 p_target: bool,
                  epsilon: float = 1.0,
                  n_outer: int = 1,
                  L: int = 5,
@@ -27,7 +28,7 @@ class HamiltonianMonteCarlo(TransitionOperator):
         """
         super(HamiltonianMonteCarlo, self).__init__(
             n_ais_intermediate_distributions, dim, base_log_prob, target_log_prob,
-            p_sq_over_q_target)
+            alpha=alpha, p_target=p_target)
         if isinstance(mass_init, torch.Tensor):
             assert mass_init.shape == (dim, )  # check mass_init dim is correct if a vector
         self.tune_period = tune_period

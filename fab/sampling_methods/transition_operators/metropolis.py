@@ -4,7 +4,7 @@ import torch
 
 from fab.sampling_methods.transition_operators.base import TransitionOperator
 from fab.types_ import LogProbFunc
-from fab.sampling_methods.base import Point, create_point
+from fab.sampling_methods.base import Point
 
 class Metropolis(TransitionOperator):
     def __init__(self,
@@ -12,7 +12,8 @@ class Metropolis(TransitionOperator):
                  dim: int,
                  base_log_prob: LogProbFunc,
                  target_log_prob: LogProbFunc,
-                 p_sq_over_q_target: bool,
+                 alpha: float,
+                 p_target: bool,
                  n_updates,
                  max_step_size=1.0,
                  min_step_size=0.1,
@@ -20,6 +21,7 @@ class Metropolis(TransitionOperator):
                  target_p_accept=0.65,
                  eval_mode: bool = False):
         """
+        # TODO: documentation update
         Args:
             n_ais_intermediate_distributions: Number of AIS intermediate distributions.
             n_updates: Number of metropolis updates (per overall transition).
@@ -31,7 +33,7 @@ class Metropolis(TransitionOperator):
                 mode there is not tuning of the step size.
         """
         super(Metropolis, self).__init__(n_ais_intermediate_distributions, dim, base_log_prob, target_log_prob,
-            p_sq_over_q_target)
+            alpha=alpha, p_target=p_target)
         self.n_distributions = n_ais_intermediate_distributions
         self.n_updates = n_updates
         self.adjust_step_size = adjust_step_size
@@ -81,5 +83,5 @@ class Metropolis(TransitionOperator):
                 if p_accept > self.target_prob_accept:  # too much accept
                     self.noise_scalings[i - 1, n] = self.noise_scalings[i - 1, n] * 1.05
                 else:
-                    self.noise_scalings[i -1, n] = self.noise_scalings[i -1, n] / 1.05
+                    self.noise_scalings[i - 1, n] = self.noise_scalings[i -1, n] / 1.05
         return point

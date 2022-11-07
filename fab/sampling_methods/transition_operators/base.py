@@ -15,13 +15,15 @@ class TransitionOperator(torch.nn.Module):
                  dim: int,
                  base_log_prob: LogProbFunc,
                  target_log_prob: LogProbFunc,
-                 p_sq_over_q_target: bool,
+                 p_target: bool,
+                 alpha: float,
                  ):
         self.dim = dim
         self.target_log_prob = target_log_prob
         self.base_log_prob = base_log_prob
+        self.alpha = alpha
         self.n_ais_intermediate_distributions = n_ais_intermediate_distributions
-        self.p_sq_over_q_target = p_sq_over_q_target
+        self.p_target = p_target
         super(TransitionOperator, self).__init__()
 
 
@@ -35,8 +37,8 @@ class TransitionOperator(torch.nn.Module):
     def intermediate_target_log_prob(self, point: Point, beta: float) -> torch.Tensor:
         with torch.no_grad():
             # We do not backprop through MCMC/AIS. So do not include these gradients.
-            return get_intermediate_log_prob(point, beta,
-                                             p_sq_over_q_target=self.p_sq_over_q_target)
+            return get_intermediate_log_prob(point, beta, alpha=self.alpha,
+                                             p_target=self.p_target)
 
     def grad_intermediate_target_log_prob(self, point: Point, beta: float) -> torch.Tensor:
         with torch.no_grad():
@@ -45,7 +47,8 @@ class TransitionOperator(torch.nn.Module):
             return get_grad_intermediate_log_prob(
                 point,
                 beta,
-                p_sq_over_q_target=self.p_sq_over_q_target
+                alpha=self.alpha,
+                p_target=self.p_target
             )
 
     @property
