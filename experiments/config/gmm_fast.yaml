@@ -21,11 +21,11 @@ flow:
 
 
 fab:
-  # loss type options: fab_p2_over_q_alpha_2_div for standard FAB loss
+  # loss type options: fab_alpha_div for standard FAB loss
   # target_forward_kl: forward kl estimated with samples from the target
   # flow_reverse_kl, flow_alpha_2_div_nis for revers KL/alpha_2_div estimated with flow samples
   loss_type: fab_alpha_div
-  alpha: 1.0 # null
+  alpha: 0.5 # null
   transition_operator:
     type: metropolis
     n_inner_steps: 1
@@ -67,7 +67,7 @@ logger:
   pandas_logger:
     save_period: 100 # how often to save the pandas dataframe as a csv
 #  wandb:
-#    name: GMM_${fab.loss_type}
+#    name: GMM_${fab.loss_type}_${fab.alpha}
 #    project: fab
 #    entity: flow-ais-bootstrap
 #    tags: [alpha_2_loss]

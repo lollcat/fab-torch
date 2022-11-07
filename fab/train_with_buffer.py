@@ -28,6 +28,7 @@ class BufferTrainer:
                  max_gradient_norm: Optional[float] = 5.0,
                  save_path: str = "",
                  clip_ais_weights_frac: Optional[float] = None):
+        raise Exception("This code is experimental and has not been updated in a while")
         self.model = model
         self.optimizer = optimizer
         self.optim_schedular = optim_schedular
