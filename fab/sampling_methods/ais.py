@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, Any, NamedTuple
+from typing import Tuple, Dict, Any, NamedTuple, Optional
 
 import torch
 import numpy as np
@@ -24,10 +24,12 @@ class AnnealedImportanceSampler:
                  target_log_prob: LogProbFunc,
                  transition_operator: TransitionOperator,
                  p_target: bool,
-                 alpha: float,
+                 alpha: Optional[float] = None,
                  n_intermediate_distributions: int = 1,
                  distribution_spacing_type: str = "linear"
                  ):
+        if not p_target:
+            assert alpha is not None, "Must specify alpha if AIS target is not p."
         self.base_distribution = base_distribution
         self.target_log_prob = target_log_prob
         self.transition_operator = transition_operator

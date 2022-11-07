@@ -15,7 +15,7 @@ from fab.utils.aldp import filter_chirality
 from fab.utils.numerical import effective_sample_size
 from fab.utils.replay_buffer import ReplayBuffer
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
-from fab.core import P_SQ_OVER_Q_TARGET_LOSSES
+from fab.core import ALPHA_DIV_TARGET_LOSSES
 from experiments.make_flow.make_aldp_model import make_aldp_model
 
 
@@ -234,7 +234,7 @@ else:
                 if torch.mean(1. * ind_L) > 0.1:
                     point_ais = point_ais[ind_L, :]
                     log_w_ais = log_w_ais[ind_L]
-                loss = model.fab_p2_over_q_alpha_2_div_inner(point_ais, log_w_ais)
+                loss = model.fab_alpha_div_inner(point_ais, log_w_ais)
                 return loss
             model.loss = modified_loss
         elif loss_type == 'flow_reverse_kl':
@@ -263,7 +263,7 @@ else:
 p_sq_over_q_target = \
         config['training']['replay_buffer']['type'] = 'prioritised' or \
                                                       config['fab']['loss_type'] \
-                                                      in P_SQ_OVER_Q_TARGET_LOSSES
+                                                      in ALPHA_DIV_TARGET_LOSSES
 model.set_ais_target(p_sq_over_q=p_sq_over_q_target)
 
 # Start training

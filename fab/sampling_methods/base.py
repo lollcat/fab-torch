@@ -75,7 +75,7 @@ def create_point(x: torch.Tensor, log_q_fn: LogProbFunc, log_p_fn: LogProbFunc,
 
 def get_intermediate_log_prob(x: Point,
                               beta: float,
-                              alpha: float,
+                              alpha: Union[float, None],
                               p_target: bool,
                               ) -> torch.Tensor:
     """Get log prob of point according to intermediate AIS distribution.
@@ -84,6 +84,8 @@ def get_intermediate_log_prob(x: Point,
     distribution given by g=p^\alpha q^(1-\alpha).
     log_prob = (1 - beta) log_q + beta log_g
     """
+    if not p_target:
+        assert alpha is not None, "Must specify alpha if AIS target is not p."
     with torch.no_grad():
         # No grad as we don't backprop through this.
         if not p_target:
@@ -98,7 +100,7 @@ def get_intermediate_log_prob(x: Point,
 def get_grad_intermediate_log_prob(
         x: Point,
         beta: float,
-        alpha: float,
+        alpha: Union[float, None],
         p_target: bool) -> torch.Tensor:
     """Get gradient of intermediate AIS distribution for a point.
 
@@ -106,6 +108,8 @@ def get_grad_intermediate_log_prob(
     distribution given by g=p^\alpha q^(1-\alpha).
     log_prob = (1 - beta) log_q + beta log_g
     """
+    if not p_target:
+        assert alpha is not None, "Must specify alpha if AIS target is not p."
     with torch.no_grad():
         # No grad as we don't backprop through this.
         if not p_target:

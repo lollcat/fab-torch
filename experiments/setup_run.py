@@ -19,9 +19,8 @@ from fab.utils.replay_buffer import ReplayBuffer
 from fab.utils.plotting import plot_history
 
 from fab import FABModel, HamiltonianMonteCarlo, Metropolis
-from fab.core import P_SQ_OVER_Q_TARGET_LOSSES, LOSSES_USING_AIS
+from fab.core import ALPHA_DIV_TARGET_LOSSES
 from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
-from fab.trainable_distributions.defensive_mixture import DefensiveMixtureDistribution
 
 from experiments.make_flow import make_wrapped_normflow_realnvp, \
     make_wrapped_normflow_resampled_flow, make_wrapped_normflow_snf_model
@@ -151,8 +150,8 @@ def get_load_checkpoint_dir(outer_checkpoint_dir):
 
 def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
     dim = cfg.target.dim  # applies to flow and target
-    p_sq_over_q_target = cfg.fab.loss_type in P_SQ_OVER_Q_TARGET_LOSSES or \
-                         cfg.training.prioritised_buffer
+    p_target = cfg.fab.loss_type not in ALPHA_DIV_TARGET_LOSSES or \
+                         not cfg.training.prioritised_buffer
     if cfg.flow.resampled_base:
         flow = make_wrapped_normflow_resampled_flow(
             dim,
@@ -191,7 +190,8 @@ def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
             dim=dim,
             base_log_prob=flow.log_prob,
             target_log_prob=target.log_prob,
-            p_sq_over_q_target=p_sq_over_q_target,
+            alpha=cfg.fab.alpha,
+            p_target=p_target,
             n_outer=1,
             epsilon=1.0,
             L=cfg.fab.transition_operator.n_inner_steps,
@@ -203,7 +203,8 @@ def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
             dim=dim,
             base_log_prob=flow.log_prob,
             target_log_prob=target.log_prob,
-            p_sq_over_q_target=p_sq_over_q_target,
+            p_target=p_target,
+            alpha=cfg.fab.alpha,
             n_updates=cfg.fab.transition_operator.n_inner_steps,
             adjust_step_size=cfg.fab.transition_operator.tune_step_size,
             target_p_accept=cfg.fab.transition_operator.target_p_accept,
@@ -227,6 +228,7 @@ def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
                          target_distribution=target,
                          n_intermediate_distributions=cfg.fab.n_intermediate_distributions,
                          transition_operator=transition_operator,
+                         alpha=cfg.fab.alpha,
                          loss_type=cfg.fab.loss_type)
     return fab_model
 
@@ -314,14 +316,16 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                                 max_gradient_norm=cfg.training.max_grad_norm
                                 )
     else:
-        trainer = PrioritisedBufferTrainer(model=fab_model, optimizer=optimizer, logger=logger,
-                                           plot=plot,
-                          optim_schedular=scheduler, save_path=save_path,
-                                buffer=buffer,
-                                n_batches_buffer_sampling=cfg.training.n_batches_buffer_sampling,
-                                max_gradient_norm=cfg.training.max_grad_norm,
-                                w_adjust_max_clip=cfg.training.w_adjust_max_clip
-                                )
+        trainer = PrioritisedBufferTrainer(
+            model=fab_model, optimizer=optimizer, logger=logger,
+            plot=plot,
+            optim_schedular=scheduler, save_path=save_path,
+            buffer=buffer,
+            n_batches_buffer_sampling=cfg.training.n_batches_buffer_sampling,
+            max_gradient_norm=cfg.training.max_grad_norm,
+            w_adjust_max_clip=cfg.training.w_adjust_max_clip,
+            alpha=cfg.fab.alpha
+            )
 
 
     trainer.run(n_iterations=n_iterations,
