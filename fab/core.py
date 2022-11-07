@@ -50,7 +50,7 @@ class FABModel(Model):
                              "target_forward_kl"]
         if loss_type in EXPERIMENTAL_LOSSES:
             warnings.warn("Running using experiment loss not used within the main FAB paper.")
-        if ALPHA_DIV_TARGET_LOSSES:
+        if loss_type in ALPHA_DIV_TARGET_LOSSES:
             assert alpha is not None, "Alpha must be specified if using the alpha div loss."
         self.p_target = loss_type not in ALPHA_DIV_TARGET_LOSSES
         self.alpha = alpha
