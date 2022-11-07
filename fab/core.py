@@ -104,6 +104,8 @@ class FABModel(Model):
             raise NotImplementedError
 
     def set_ais_target(self, min_is_target: bool = True):
+        """Set target to minimum importance sampling distribution for estimating the loss.
+        if False, then the AIS target is set to p."""
         if not min_is_target:
             self.annealed_importance_sampler.p_target = True
             self.annealed_importance_sampler.transition_operator.p_sq_over_q_target = True

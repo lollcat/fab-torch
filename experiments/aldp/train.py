@@ -139,7 +139,7 @@ if grad_clipping:
 
 # Set parameters for training
 ndim = 60
-loss_type = 'fab_p2_over_q_alpha_2_div' if 'loss_type' not in config['fab'] \
+loss_type = 'fab_alpha_div' if 'loss_type' not in config['fab'] \
         else config['fab']['loss_type']
 transition_type = config['fab']['transition_type']
 flow_type = config['flow']['type']
@@ -226,7 +226,7 @@ if 'replay_buffer' in config['training']:
 else:
     use_rb = False
     if filter_chirality_train:
-        if loss_type == 'fab_p2_over_q_alpha_2_div':
+        if loss_type == 'fab_alpha_div':
             def modified_loss(bs):
                 point_ais, log_w_ais = model.annealed_importance_sampler.sample_and_log_weights(bs)
                 log_w_ais = log_w_ais.detach()
@@ -260,11 +260,11 @@ else:
             model.loss = modified_loss
 
 # Set AIS/transition operator target.
-p_sq_over_q_target = \
+min_is_target = \
         config['training']['replay_buffer']['type'] = 'prioritised' or \
                                                       config['fab']['loss_type'] \
                                                       in ALPHA_DIV_TARGET_LOSSES
-model.set_ais_target(p_sq_over_q=p_sq_over_q_target)
+model.set_ais_target(min_is_target=min_is_target)
 
 # Start training
 start_time = time()
@@ -336,7 +336,7 @@ for it in range(start_iter, max_iter):
                                            log_q_old.to(device), indices.to(device)
             log_q_x = model.flow.log_prob(x)
             # Adjustment to account for change to theta since sample was last added/adjusted
-            log_w_adjust = log_q_old - log_q_x.detach()
+            log_w_adjust = (1 - config['fab']['alpha']) * (log_q_x.detach() - log_q_old)
             w_adjust = torch.clip(torch.exp(log_w_adjust), max=rb_config['max_adjust_w_clip'])
             # Manually calculate the new form of the loss
             loss = - torch.mean(w_adjust * log_q_x)
@@ -390,7 +390,7 @@ for it in range(start_iter, max_iter):
         # Disable step size tuning while evaluating model
         model.transition_operator.set_eval_mode(True)
         if use_rb and rb_config['type'] == 'prioritised':
-            model.set_ais_target(p_sq_over_q=False)
+            model.set_ais_target(min_is_target=False)
 
         # Effective sample size.
         base_samples, base_log_w, ais_samples, ais_log_w = \
@@ -400,7 +400,7 @@ for it in range(start_iter, max_iter):
         if config['fab']['adjust_step_size']:
             model.transition_operator.set_eval_mode(False)
         if use_rb and rb_config['type'] == 'prioritised':
-            model.set_ais_target(p_sq_over_q=True)
+            model.set_ais_target(min_is_target=True)
 
         ess_append = np.array([[it + 1, effective_sample_size(base_log_w, normalised=False),
                                 effective_sample_size(ais_log_w, normalised=False)]])
@@ -426,7 +426,7 @@ for it in range(start_iter, max_iter):
         model.transition_operator.set_eval_mode(True)
         if use_rb and rb_config['type'] == 'prioritised':
             buffer.save(os.path.join(cp_dir, 'buffer.pt'))
-            model.set_ais_target(p_sq_over_q=False)  # Eval over p and not p^2/q.
+            model.set_ais_target(min_is_target=False)  # Eval over p and not p^2/q.
 
         # Draw samples
         z_samples = torch.zeros(0, ndim).to(device)
@@ -472,7 +472,7 @@ for it in range(start_iter, max_iter):
         if config['fab']['adjust_step_size']:
             model.transition_operator.set_eval_mode(False)
         if use_rb and rb_config['type'] == 'prioritised':
-            model.set_ais_target(p_sq_over_q=True)
+            model.set_ais_target(min_is_target=True)
 
     # End job if necessary
     if it % checkpoint_iter == 0 and args.tlimit is not None:
