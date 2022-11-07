@@ -317,9 +317,12 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
                                 )
     else:
         trainer = PrioritisedBufferTrainer(
-            model=fab_model, optimizer=optimizer, logger=logger,
+            model=fab_model,
+            optimizer=optimizer,
+            logger=logger,
             plot=plot,
-            optim_schedular=scheduler, save_path=save_path,
+            optim_schedular=scheduler,
+            save_path=save_path,
             buffer=buffer,
             n_batches_buffer_sampling=cfg.training.n_batches_buffer_sampling,
             max_gradient_norm=cfg.training.max_grad_norm,

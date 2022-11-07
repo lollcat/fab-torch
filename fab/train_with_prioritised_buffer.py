@@ -16,13 +16,15 @@ from fab.utils.prioritised_replay_buffer import PrioritisedReplayBuffer
 lr_scheduler = Any  # a learning rate schedular from torch.optim.lr_scheduler
 Plotter = Callable[[FABModel], List[plt.Figure]]
 
+
 class PrioritisedBufferTrainer:
     """A trainer for the FABModel for use with a prioritised replay buffer, and a different form
-    of loss. In this training loop we target p^2/q instead of p."""
+    of loss. In this training loop we target p^\alpha / q^(\alpha - 1) instead of p."""
     def __init__(self,
                  model: FABModel,
                  optimizer: torch.optim.Optimizer,
                  buffer: PrioritisedReplayBuffer,
+                 alpha: float,
                  n_batches_buffer_sampling: int = 2,
                  optim_schedular: Optional[lr_scheduler] = None,
                  logger: Logger = ListLogger(),
@@ -30,12 +32,14 @@ class PrioritisedBufferTrainer:
                  max_gradient_norm: Optional[float] = 5.0,
                  w_adjust_max_clip: float = 10.0,
                  w_adjust_in_buffer_after_update: bool = False,
-                 save_path: str = ""):
+                 save_path: str = "",
+                 ):
         self.model = model
+        self.alpha = alpha
 
-        # Ensure we have p^2/q as the AIS target distribution.
-        self.model.p_sq_over_q_target = True
-        self.model.annealed_importance_sampler.p_sq_over_q_target = True
+        # Ensure we have p^\alpha q^{1-\alpha} as the AIS target distribution.
+        self.model.p_target = False
+        self.model.annealed_importance_sampler.p_target = False
 
         self.optimizer = optimizer
         self.optim_schedular = optim_schedular
@@ -51,7 +55,6 @@ class PrioritisedBufferTrainer:
         self.flow_device = next(model.flow.parameters()).device
         self.max_adjust_w_clip = w_adjust_max_clip
         self.w_adjust_in_buffer_after_update = w_adjust_in_buffer_after_update
-
 
     def save_checkpoint(self, i):
         checkpoint_path = os.path.join(self.checkpoints_dir, f"iter_{i}/")
@@ -76,18 +79,18 @@ class PrioritisedBufferTrainer:
     def perform_eval(self, i, eval_batch_size, batch_size):
         # set ais distribution to target for evaluation of ess
         self.model.annealed_importance_sampler.transition_operator.set_eval_mode(True)
-        self.model.annealed_importance_sampler.p_sq_over_q_target = False
+        self.model.annealed_importance_sampler.p_target = True
         eval_info_true_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                          inner_batch_size=batch_size)
-        # set ais distribution back to p^2/q.
-        self.model.annealed_importance_sampler.p_sq_over_q_target = True
+        # set ais distribution back to p^\alpha q^{1-\alpha}.
+        self.model.annealed_importance_sampler.p_target = False
         eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                               inner_batch_size=batch_size)
         self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
         eval_info = {}
         eval_info.update({key + "_p_target": val for key, val in eval_info_true_target.items()})
         eval_info.update(
-            {key + "_p2overq_target": val for key, val in eval_info_practical_target.items()})
+            {key + "_min_var_target": val for key, val in eval_info_practical_target.items()})
 
         eval_info.update(step=i)
         self.logger.write(eval_info)
@@ -135,7 +138,8 @@ class PrioritisedBufferTrainer:
             x_ais = point_ais.x.detach()
             log_w_ais = log_w_ais.detach()
             log_q_x_ais = point_ais.log_q.detach()
-            self.buffer.add(x_ais.detach(), log_w_ais.detach(), log_q_x_ais.detach())
+            self.buffer.add(x_ais.detach(), log_w_ais.detach(),
+                            log_q_x_ais.detach())
 
             # we log info from the step of the recently generated ais points.
             info = self.model.get_iter_info()
@@ -150,7 +154,7 @@ class PrioritisedBufferTrainer:
                 self.optimizer.zero_grad()
                 log_q_x = self.model.flow.log_prob(x)
                 # adjustment to account for change to theta since sample was last added/adjusted
-                log_w_adjust = log_q_old - log_q_x.detach()
+                log_w_adjust = (1-self.alpha) * (log_q_x.detach() - log_q_old)
                 w_adjust_pre_clip = torch.exp(log_w_adjust)  # no grad
                 if self.max_adjust_w_clip is not None:
                     w_adjust = torch.clip(w_adjust_pre_clip, max=self.max_adjust_w_clip)
@@ -169,7 +173,7 @@ class PrioritisedBufferTrainer:
                 else:
                     print("nan loss in replay step")
 
-                # Adjust log weights in the buffer.
+                # Adjust log weights in the buffer on the fly.
                 if not self.w_adjust_in_buffer_after_update:
                     with torch.no_grad():
                         self.buffer.adjust(log_w_adjust, log_q_x, indices)
@@ -189,17 +193,18 @@ class PrioritisedBufferTrainer:
             if self.w_adjust_in_buffer_after_update:
                 with torch.no_grad():
                     for (x, log_w, log_q_old, indices) in mini_dataset:
-                        """Adjust importance weights in the buffer for the points in the `mini_dataset` 
-                        to account for the updated theta."""
+                        """Adjust importance weights in the buffer for the points in the 
+                        `mini_dataset` to account for the updated theta."""
                         x, log_w, log_q_old, indices = x.to(self.flow_device), log_w.to(
-                            self.flow_device), \
-                                                       log_q_old.to(self.flow_device), indices.to(
+                            self.flow_device), log_q_old.to(self.flow_device), indices.to(
                             self.flow_device)
                         log_q_new = self.model.flow.log_prob(x)
-                        log_adjust_insert = log_q_old - log_q_new
-                        self.buffer.adjust(log_adjust_insert, log_q_new, indices)
-                    info.update(log_w_adjust_insert_mean = torch.mean(log_adjust_insert).detach().cpu().item(),
-                                log_q_mean = torch.mean(log_q_new).detach().cpu().item())
+                        log_w_adjust_insert = (1 - self.alpha) * (log_q_new - log_q_old)
+                        self.buffer.adjust(log_w_adjust_insert, log_q_new, indices)
+                    info.update(
+                        log_w_adjust_insert_mean = torch.mean
+                        (log_w_adjust_insert).detach().cpu().item(),
+                        log_q_mean = torch.mean(log_q_new).detach().cpu().item())
 
             self.logger.write(info)
             pbar.set_description(f"loss: {loss.cpu().detach().item()}, ess base: {info['ess_base']},"

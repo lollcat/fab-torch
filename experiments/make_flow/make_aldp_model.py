@@ -8,7 +8,7 @@ from fab.target_distributions.aldp import AldpBoltzmann
 from fab.sampling_methods.transition_operators import HamiltonianMonteCarlo, Metropolis
 from fab.wrappers.normflows import WrappedNormFlowModel
 from fab import FABModel
-from fab.core import P_SQ_OVER_Q_TARGET_LOSSES
+from fab.core import ALPHA_DIV_TARGET_LOSSES
 
 
 def make_aldp_model(config, device):
@@ -174,7 +174,7 @@ def make_aldp_model(config, device):
     p_sq_over_q_target = \
         config['training']['replay_buffer']['type'] = 'prioritised' or \
                                                       config['fab']['loss_type'] \
-                                                      in P_SQ_OVER_Q_TARGET_LOSSES
+                                                      in ALPHA_DIV_TARGET_LOSSES
 
     # Transition operator
     transition_type = config['fab']['transition_type']
