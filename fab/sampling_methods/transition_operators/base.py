@@ -15,8 +15,8 @@ class TransitionOperator(torch.nn.Module):
                  dim: int,
                  base_log_prob: LogProbFunc,
                  target_log_prob: LogProbFunc,
-                 p_target: bool,
-                 alpha: float,
+                 p_target: bool = True,
+                 alpha: float = None,
                  ):
         self.dim = dim
         self.target_log_prob = target_log_prob
