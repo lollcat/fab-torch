@@ -217,5 +217,5 @@ def make_aldp_model(config, device):
                      n_intermediate_distributions=config['fab']['n_int_dist'],
                      transition_operator=transition_operator,
                      loss_type=loss_type,
-                     alpha=config['fab']['alpha'],)
+                     alpha=alpha)
     return model
