@@ -29,12 +29,12 @@ class FABModel(Model):
                  loss_type: Optional["str"] = None,
                  use_ais: bool = True,
                  ):
-        # TODO: Can estimate alpha-div over flow also in general way.
         """
         Args:
             flow: Trainable flow model.
             target_distribution: Target distribution to fit.
             n_intermediate_distributions: Number of intermediate AIS distributions.
+            alpha: Value of alpha if using fab_alpha_div loss.
             transition_operator: Transition operator for AIS.
             ais_distribution_spacing: AIS spacing type "geometric" or "linear"
             loss_type: Loss type for training. May be set to None if `self.loss` is not used.
