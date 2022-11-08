@@ -146,7 +146,7 @@ flow_type = config['flow']['type']
 
 # Load train data if needed
 lam_fkld = None if not 'lam_fkld' in config['fab'] else config['fab']['lam_fkld']
-if loss_type == 'target_forward_kl' or lam_fkld is not None:
+if loss_type == 'forward_kl' or lam_fkld is not None:
     path = config['data']['train']
     train_data = torch.load(path)
     if args.precision == 'double':
@@ -271,7 +271,7 @@ start_time = time()
 
 for it in range(start_iter, max_iter):
     # Get loss
-    if loss_type == 'target_forward_kl' or lam_fkld is not None:
+    if loss_type == 'forward_kl' or lam_fkld is not None:
         try:
             x = next(train_iter)
         except StopIteration:
