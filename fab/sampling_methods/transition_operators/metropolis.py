@@ -70,5 +70,5 @@ class Metropolis(TransitionOperator):
                 if p_accept > self.target_prob_accept:  # too much accept
                     self.noise_scalings[i - 1, n] = self.noise_scalings[i - 1, n] * 1.05
                 else:
-                    self.noise_scalings[i - 1, n] = self.noise_scalings[i -1, n] / 1.05
+                    self.noise_scalings[i - 1, n] = self.noise_scalings[i - 1, n] / 1.05
         return point
