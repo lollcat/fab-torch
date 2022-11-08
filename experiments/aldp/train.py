@@ -232,7 +232,7 @@ else:
                 log_w_ais = log_w_ais.detach()
                 ind_L = filter_chirality(point_ais.x)
                 if torch.mean(1. * ind_L) > 0.1:
-                    point_ais = point_ais[ind_L, :]
+                    point_ais = point_ais[ind_L]
                     log_w_ais = log_w_ais[ind_L]
                 loss = model.fab_alpha_div_inner(point_ais, log_w_ais)
                 return loss
