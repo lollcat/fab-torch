@@ -21,10 +21,11 @@ flow:
 
 
 fab:
-  # loss type options: fab_p2_over_q_alpha_2_div for standard FAB loss
+  # loss type options: fab_alpha_div for standard FAB loss
   # target_forward_kl: forward kl estimated with samples from the target
   # flow_reverse_kl, flow_alpha_2_div_nis for revers KL/alpha_2_div estimated with flow samples
-  loss_type: flow_alpha_2_div_nis
+  loss_type: fab_alpha_div
+  alpha: 0.5 # null
   transition_operator:
     type: metropolis
     n_inner_steps: 1
@@ -41,11 +42,11 @@ training:
   lr: 1e-4
   batch_size: 128
   n_iterations: null
-  n_flow_forward_pass: 20_000_0
+  n_flow_forward_pass: 20_000_00
   use_gpu: true
   use_64_bit: true
-  use_buffer: false # below config fields are all for use_buffer = True
-  prioritised_buffer: false # If True then FAB loss WILL be used no matter what fab.loss_type is.
+  use_buffer: true # below config fields are all for use_buffer = True
+  prioritised_buffer: true # If True then FAB loss WILL be used no matter what fab.loss_type is.
   n_batches_buffer_sampling: 4
   buffer_temp: 1.0 # rate that we weight new experience over old
   maximum_buffer_length: 12800
@@ -59,14 +60,14 @@ evaluation:
   n_plots: 20 # number of times we visualise the model throughout training.
   n_eval: 20 # for calculating metrics of flow w.r.t target.
   eval_batch_size: 512 # must be a multiple of inner batch size
-  n_checkpoints: 10 # number of model checkpoints saved
+  n_checkpoints: null # number of model checkpoints saved
   save_path:  ./results/gmm/seed${training.seed}/
 
 logger:
   pandas_logger:
     save_period: 100 # how often to save the pandas dataframe as a csv
 #  wandb:
-#    name: GMM_${fab.loss_type}
+#    name: GMM_${fab.loss_type}_${fab.alpha}
 #    project: fab
 #    entity: flow-ais-bootstrap
 #    tags: [alpha_2_loss]

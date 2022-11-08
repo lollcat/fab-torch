@@ -16,7 +16,7 @@ lr_scheduler = Any  # a learning rate schedular from torch.optim.lr_scheduler
 Plotter = Callable[[FABModel], List[plt.Figure]]
 
 class BufferTrainer:
-    """A trainer for the FABModel for use with a replay buffer."""
+    """A trainer for the FABModel for use with a uniform replay buffer."""
     def __init__(self,
                  model: FABModel,
                  optimizer: torch.optim.Optimizer,
@@ -28,6 +28,7 @@ class BufferTrainer:
                  max_gradient_norm: Optional[float] = 5.0,
                  save_path: str = "",
                  clip_ais_weights_frac: Optional[float] = None):
+        raise Exception("This code is experimental and has not been updated in a while")
         self.model = model
         self.optimizer = optimizer
         self.optim_schedular = optim_schedular

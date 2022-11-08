@@ -44,6 +44,7 @@ fab:
   epsilon: 0.1                      # Double, step size of HMC
   adjust_step_size: True            # Bool, flag whether to adjust step size
   loss_type: flow_reverse_kl        # String, loss to be used
+  alpha: null
 
 
 

@@ -75,31 +75,45 @@ def create_point(x: torch.Tensor, log_q_fn: LogProbFunc, log_p_fn: LogProbFunc,
 
 def get_intermediate_log_prob(x: Point,
                               beta: float,
-                              p_sq_over_q_target: bool) -> torch.Tensor:
+                              alpha: Union[float, None],
+                              p_target: bool,
+                              ) -> torch.Tensor:
     """Get log prob of point according to intermediate AIS distribution.
-    Set AIS final target g=p^2/q if p_sq_over_q_target else g=p.
+
+    Set AIS final target g=p if p_target else set it to the minimum importance sampling
+    distribution given by g=p^\alpha q^(1-\alpha).
     log_prob = (1 - beta) log_q + beta log_g
     """
+    if not p_target:
+        assert alpha is not None, "Must specify alpha if AIS target is not p."
     with torch.no_grad():
         # No grad as we don't backprop through this.
-        if p_sq_over_q_target:
-            return (1 - 2*beta) * x.log_q + 2*beta*x.log_p
+        if not p_target:
+            # Use minimum variance importance sampling distribution for alpha-divergence.
+            # AIS target: g = p^\alpha q^(1-\alpha)
+            return ((1-beta) + beta*(1-alpha)) * x.log_q + beta*alpha*x.log_p
         else:
+            # AIS target: g = p
             return (1-beta) * x.log_q + beta * x.log_p
 
 
 def get_grad_intermediate_log_prob(
         x: Point,
         beta: float,
-        p_sq_over_q_target: bool) -> torch.Tensor:
+        alpha: Union[float, None],
+        p_target: bool) -> torch.Tensor:
     """Get gradient of intermediate AIS distribution for a point.
-    Set AIS final target g=p^2/q if p_sq_over_q_target else g=p.
-    \nabla_x log_prob = (1 - beta) \nabla_x log_q + beta \nabla_x log_g
+
+    Set AIS final target g=p if p_target else set it to the minimum importance sampling
+    distribution given by g=p^\alpha q^(1-\alpha).
+    log_prob = (1 - beta) log_q + beta log_g
     """
+    if not p_target:
+        assert alpha is not None, "Must specify alpha if AIS target is not p."
     with torch.no_grad():
         # No grad as we don't backprop through this.
-        if p_sq_over_q_target:
-            return (1 - 2*beta) * x.grad_log_q + 2*beta*x.grad_log_p
+        if not p_target:
+            return ((1-beta) + beta*(1-alpha)) * x.grad_log_q + 2*beta*x.grad_log_p
         else:
             return (1-beta) * x.grad_log_q + beta * x.grad_log_p
 

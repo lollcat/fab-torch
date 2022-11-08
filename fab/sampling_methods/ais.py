@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, Any, NamedTuple
+from typing import Tuple, Dict, Any, NamedTuple, Optional
 
 import torch
 import numpy as np
@@ -18,18 +18,23 @@ class LoggingInfo(NamedTuple):
 
 
 class AnnealedImportanceSampler:
+    """Runs annealed importance sampling. Designed for use with FAB."""
     def __init__(self,
                  base_distribution: Distribution,
                  target_log_prob: LogProbFunc,
                  transition_operator: TransitionOperator,
-                 p_sq_over_q_target: bool,
+                 p_target: bool,
+                 alpha: Optional[float] = None,
                  n_intermediate_distributions: int = 1,
                  distribution_spacing_type: str = "linear"
                  ):
+        if not p_target:
+            assert alpha is not None, "Must specify alpha if AIS target is not p."
         self.base_distribution = base_distribution
         self.target_log_prob = target_log_prob
         self.transition_operator = transition_operator
-        self.p_sq_over_q_target = p_sq_over_q_target
+        self.p_target = p_target
+        self.alpha = alpha
         self.n_intermediate_distributions = n_intermediate_distributions
         self.distribution_spacing_type = distribution_spacing_type
         self.B_space = self.setup_distribution_spacing(distribution_spacing_type,
@@ -56,7 +61,7 @@ class AnnealedImportanceSampler:
                              log_q_x=log_prob_p0
                              )
         log_w = get_intermediate_log_prob(
-            point, self.B_space[1], self.p_sq_over_q_target) - log_prob_p0
+            point, self.B_space[1], self.alpha, self.p_target) - log_prob_p0
         point, log_w = self._remove_nan_and_infs(point, log_w, descriptor="chain init")
 
         # Save effective sample size over samples from base distribution if logging.
@@ -88,13 +93,14 @@ class AnnealedImportanceSampler:
         if self.B_space[j + 1] != self.B_space[j]:
             log_w = log_w \
                     + get_intermediate_log_prob(x_new,
-                                                self.B_space[j + 1], self.p_sq_over_q_target) \
-                    - get_intermediate_log_prob(x_new, self.B_space[j], self.p_sq_over_q_target)
+                                                self.B_space[j + 1], self.alpha,
+                                                self.p_target) \
+                    - get_intermediate_log_prob(x_new, self.B_space[j], self.alpha,
+                                                self.p_target)
         else:
             # Commonly we may have a few transitions with beta=1 at the end of AIS, which does not
             # change the AIS weights.
             pass
-        # TODO: can make log_w calculation even cheaper also.
         return x_new, log_w
 
 
@@ -159,8 +165,8 @@ class AnnealedImportanceSampler:
             base_samples.append(x.detach().cpu())
             base_log_w_s.append(base_log_w.detach().cpu())
 
-            log_w = get_intermediate_log_prob(point, self.B_space[1], self.p_sq_over_q_target) \
-                    - point.log_q
+            log_w = get_intermediate_log_prob(point, self.B_space[1], self.alpha,
+                                              self.p_target) - point.log_q
             # Move through sequence of intermediate distributions via MCMC.
             for j in range(1, self.n_intermediate_distributions+1):
                 point, log_w = self.perform_transition(point, log_w, j)

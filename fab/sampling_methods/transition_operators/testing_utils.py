@@ -16,7 +16,8 @@ from fab.sampling_methods.base import create_point
 
 
 class TransitionOperatorTestConfig(NamedTuple):
-    p_sq_over_q_target: bool = False
+    p_target: bool = False
+    alpha: float = 2.0
     n_ais_intermediate_distributions: int = 10
     beta_space = np.linspace(0, 1, n_ais_intermediate_distributions + 2)
     dim: int = 2
