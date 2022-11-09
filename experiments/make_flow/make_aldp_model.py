@@ -171,10 +171,11 @@ def make_aldp_model(config, device):
     wrapped_flow = WrappedNormFlowModel(flow).to(device)
 
     # Set target of AIS to p or p^2/q
-    min_is_target = \
-        config['training']['replay_buffer']['type'] = 'prioritised' or \
-                                                      config['fab']['loss_type'] \
-                                                      in ALPHA_DIV_TARGET_LOSSES
+    min_is_target = config['fab']['loss_type'] in ALPHA_DIV_TARGET_LOSSES
+    if 'replay_buffer' in config['training']:
+        min_is_target = min_is_target or config['training']['replay_buffer']['type'] == 'prioritised'
+    alpha = None if not 'alpha' in config['fab'] else config['fab']['alpha']
+
 
     # Transition operator
     transition_type = config['fab']['transition_type']
@@ -186,7 +187,7 @@ def make_aldp_model(config, device):
             base_log_prob=flow.log_prob,
             target_log_prob=target.log_prob,
             p_target=not min_is_target,
-            alpha=config['fab']['alpha'],
+            alpha=alpha,
             L=config['fab']['n_inner'],
             epsilon=config['fab']['epsilon'] / 2,
             common_epsilon_init_weight=config['fab']['epsilon'] / 2)
@@ -199,7 +200,7 @@ def make_aldp_model(config, device):
             base_log_prob=flow.log_prob,
             target_log_prob=target.log_prob,
             p_target=not min_is_target,
-            alpha=config['fab']['alpha'],
+            alpha=alpha,
             n_updates=config['fab']['n_inner'],
             max_step_size=config['fab']['max_step_size'],
             min_step_size=config['fab']['min_step_size'],
@@ -216,5 +217,5 @@ def make_aldp_model(config, device):
                      n_intermediate_distributions=config['fab']['n_int_dist'],
                      transition_operator=transition_operator,
                      loss_type=loss_type,
-                     alpha=config['fab']['alpha'],)
+                     alpha=alpha)
     return model

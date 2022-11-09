@@ -146,7 +146,7 @@ flow_type = config['flow']['type']
 
 # Load train data if needed
 lam_fkld = None if not 'lam_fkld' in config['fab'] else config['fab']['lam_fkld']
-if loss_type == 'target_forward_kl' or lam_fkld is not None:
+if loss_type == 'forward_kl' or lam_fkld is not None:
     path = config['data']['train']
     train_data = torch.load(path)
     if args.precision == 'double':
@@ -232,7 +232,7 @@ else:
                 log_w_ais = log_w_ais.detach()
                 ind_L = filter_chirality(point_ais.x)
                 if torch.mean(1. * ind_L) > 0.1:
-                    point_ais = point_ais[ind_L, :]
+                    point_ais = point_ais[ind_L]
                     log_w_ais = log_w_ais[ind_L]
                 loss = model.fab_alpha_div_inner(point_ais, log_w_ais)
                 return loss
@@ -260,10 +260,10 @@ else:
             model.loss = modified_loss
 
 # Set AIS/transition operator target.
-min_is_target = \
-        config['training']['replay_buffer']['type'] = 'prioritised' or \
-                                                      config['fab']['loss_type'] \
-                                                      in ALPHA_DIV_TARGET_LOSSES
+min_is_target = config['fab']['loss_type'] in ALPHA_DIV_TARGET_LOSSES
+if 'replay_buffer' in config['training']:
+    min_is_target = min_is_target or config['training']['replay_buffer']['type'] == 'prioritised'
+alpha = None if not 'alpha' in config['fab'] else config['fab']['alpha']
 model.set_ais_target(min_is_target=min_is_target)
 
 # Start training
@@ -271,7 +271,7 @@ start_time = time()
 
 for it in range(start_iter, max_iter):
     # Get loss
-    if loss_type == 'target_forward_kl' or lam_fkld is not None:
+    if loss_type == 'forward_kl' or lam_fkld is not None:
         try:
             x = next(train_iter)
         except StopIteration:
@@ -336,7 +336,7 @@ for it in range(start_iter, max_iter):
                                            log_q_old.to(device), indices.to(device)
             log_q_x = model.flow.log_prob(x)
             # Adjustment to account for change to theta since sample was last added/adjusted
-            log_w_adjust = (1 - config['fab']['alpha']) * (log_q_x.detach() - log_q_old)
+            log_w_adjust = (1 - alpha) * (log_q_x.detach() - log_q_old)
             w_adjust = torch.clip(torch.exp(log_w_adjust), max=rb_config['max_adjust_w_clip'])
             # Manually calculate the new form of the loss
             loss = - torch.mean(w_adjust * log_q_x)

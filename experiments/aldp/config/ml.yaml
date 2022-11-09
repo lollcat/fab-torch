@@ -44,7 +44,7 @@ fab:
   n_inner: 4                        # Int, number of steps between intermediate distributions
   epsilon: 0.1                      # Double, step size of HMC
   adjust_step_size: True            # Bool, flag whether to adjust step size
-  loss_type: target_forward_kl      # String, loss to be used
+  loss_type: forward_kl             # String, loss to be used
   alpha: null
 
 
