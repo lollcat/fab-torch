@@ -128,6 +128,60 @@ def run(cfg: DictConfig):
     plt.show()
 
 
+@hydra.main(config_path="../config", config_name="gmm.yaml")
+def plot_alpha_study(cfg: DictConfig):
+    seed = 0
+    alpha_values = ["025", "05", "1", "15", "2", "3"]
+    titles = [f"alpha = {alpha}" for alpha in alpha_values]
+    fab_type = "no_buff"
+
+
+    mpl.rcParams['figure.dpi'] = 300
+    rc('font', **{'family': 'serif', 'serif': ['Times']})
+    rc('text', usetex=True)
+    rc('axes', titlesize=20, labelsize=19)  # fontsize of the axes title and labels
+    #rc('legend', fontsize=6)
+    rc('xtick', labelsize=17)
+    rc('ytick', labelsize=17)
+
+    n_rows, n_cols = 2, 3
+    size = 3.2
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols*size, n_rows*size))
+    axs[0, 0].set_ylabel(r"$x_2$")
+    axs[1, 0].set_ylabel(r"$x_2$")
+    for i in range(n_cols):
+        axs[-1, i].set_xlabel(r"$x_1$")
+
+    axs = axs.flatten()
+
+    plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
+    torch.manual_seed(cfg.training.seed)
+    target = GMM(dim=cfg.target.dim, n_mixes=cfg.target.n_mixes,
+                 loc_scaling=cfg.target.loc_scaling, log_var_scaling=cfg.target.log_var_scaling,
+                 use_gpu=False)
+    if cfg.training.use_64_bit:
+        torch.set_default_dtype(torch.float64)
+
+    for i, (ax, alpha, title) in enumerate(zip(axs[:len(titles)], alpha_values, titles)):
+        plot_contours(target.log_prob, bounds=plotting_bounds, ax=ax, n_contour_levels=50,
+                      grid_width_n_points=200)
+
+        # Plot samples from model
+        name_without_seed = f"{fab_type}_alpha{alpha}"
+        name = name_without_seed + f"_seed{seed}"
+        path_to_model = f"{PATH}/models_alpha/{name}.pt"
+        plot_result(cfg, ax, path_to_model)
+
+        ax.set_title(title)
+        ax.axis('off')
+
+    plt.tight_layout()
+    fig.savefig(f"{PATH}/plots/alpha_study_MoG.png", bbox_inches="tight")
+    # fig.savefig(f"{PATH}/plots/MoG.png", bbox_inches="tight")
+    plt.show()
+
+
 
 if __name__ == '__main__':
-    run()
+    # run()
+    plot_alpha_study()

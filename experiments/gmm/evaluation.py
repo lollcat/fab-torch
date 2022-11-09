@@ -13,6 +13,7 @@ PATH = os.getcwd()
 
 
 def evaluate(cfg: DictConfig, path_to_model, num_samples=int(1e4)):
+    """Evaluates model, sets the AIS target to p."""
     torch.set_default_dtype(torch.float32)
     torch.manual_seed(cfg.training.seed)
     target = GMM(dim=cfg.target.dim, n_mixes=cfg.target.n_mixes,
@@ -22,6 +23,7 @@ def evaluate(cfg: DictConfig, path_to_model, num_samples=int(1e4)):
         torch.set_default_dtype(torch.float64)
         target = target.double()
     model = load_model(cfg, target, path_to_model)
+    model.set_ais_target(min_is_target=False)
     eval = model.get_eval_info(num_samples, 500)
     return eval
 
@@ -63,7 +65,38 @@ def main(cfg: DictConfig):
     results.to_csv(open(FILENAME_EVAL_INFO, "w"))
 
 
+# use base config of GMM but overwrite for specific model.
+@hydra.main(config_path="../config", config_name="gmm.yaml")
+def alpha_study(cfg: DictConfig):
+    alpha_values = ["025", "05", "1", "15", "2", "3"]
+    seeds = [0]  # , 1, 2]
+    num_samples = int(5e4)
+
+    results = pd.DataFrame()
+    fab_type = "no_buff"
+    for alpha in alpha_values:
+        for seed in seeds:
+            name_without_seed = f"{fab_type}_alpha{alpha}"
+            name = name_without_seed + f"_seed{seed}"
+            path_to_model = f"{PATH}/models_alpha/{name}.pt"
+            eval_info = evaluate(cfg, path_to_model, num_samples)
+            eval_info.update(seed=seed,
+                             model_name=name_without_seed)
+            results = results.append(eval_info, ignore_index=True)
+
+    keys = ["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob", 'kl_forward']
+    print("\n *******  mean  ********************** \n")
+    print(results.groupby("model_name").mean()[keys])
+    print("\n ******* std ********************** \n")
+    print(results.groupby("model_name").sem(ddof=0)[keys])
+    print("overall results")
+    print(results[["model_name", "seed", "eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob"]])
+    results.to_csv(open(FILENAME_EVA_ALPHA_INFO, "w"))
+
+
 FILENAME_EVAL_INFO = PATH + "/gmm_results.csv"
+FILENAME_EVA_ALPHA_INFO = PATH + "/gmm_alpha_results.csv"
 
 if __name__ == '__main__':
-    main()
+    # main()
+    alpha_study()

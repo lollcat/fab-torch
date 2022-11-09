@@ -11,9 +11,8 @@ from fab.utils.numerical import effective_sample_size
 
 
 ALPHA_DIV_TARGET_LOSSES = ["fab_alpha_div"]
-LOSSES_USING_AIS = ["fab_alpha_div", "fab_ub_alpha_2_div", "fab_forward_kl", None]
-EXPERIMENTAL_LOSSES = ["flow_alpha_2_div_unbiased", "flow_alpha_2_div", "fab_ub_alpha_2_div",
-                       "fab_forward_kl"]
+LOSSES_USING_AIS = ["fab_alpha_div", "fab_ub_alpha_2_div", None]
+EXPERIMENTAL_LOSSES = ["flow_alpha_2_div_unbiased", "flow_alpha_2_div", "fab_ub_alpha_2_div"]
 
 
 class FABModel(Model):
@@ -43,7 +42,7 @@ class FABModel(Model):
                 be set to True if we wish to use AIS in evaluation, which is why it is set to True
                 by default.
         """
-        assert loss_type in [None, "fab_ub_alpha_2_div", "fab_forward_kl",
+        assert loss_type in [None, "fab_ub_alpha_2_div",
                              "forward_kl", "flow_alpha_2_div",
                              "flow_reverse_kl", "fab_alpha_div",
                              "flow_alpha_2_div_unbiased", "flow_alpha_2_div_nis",
@@ -84,8 +83,6 @@ class FABModel(Model):
         if self.loss_type == "fab_alpha_div":
             # FAB loss estimated with AIS targeting minimum var IS distribution.
             return self.fab_alpha_div(args)
-        elif self.loss_type == "fab_forward_kl":
-            return self.fab_forward_kl(args)
         elif self.loss_type == "forward_kl":
             return self.forward_kl(args)
         elif self.loss_type == "flow_reverse_kl":
@@ -108,7 +105,7 @@ class FABModel(Model):
         if False, then the AIS target is set to p."""
         if not min_is_target:
             self.annealed_importance_sampler.p_target = True
-            self.annealed_importance_sampler.transition_operator.p_sq_over_q_target = True
+            self.annealed_importance_sampler.transition_operator.p_target = True
         else:
             self.annealed_importance_sampler.p_target = False
             self.annealed_importance_sampler.transition_operator.p_target = False
@@ -118,13 +115,14 @@ class FABModel(Model):
         """Compute FAB loss based off points and importance weights from AIS targetting
         p^\alpha/q^{\alpha-1}.
         """
-        return - np.sign(self.alpha) * torch.mean(torch.softmax(log_w_ais, dim=-1) * point.log_q)
+        log_q_x = self.flow.log_prob(point.x)
+        return - np.sign(self.alpha) * torch.mean(torch.softmax(log_w_ais, dim=-1) * log_q_x)
 
     def fab_alpha_div(self, batch_size: int) -> torch.Tensor:
         """Compute the FAB loss with p^\alpha/q^{\alpha-1} as the AIS target."""
         self.set_ais_target(min_is_target=True)
         point_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
-        loss = self.inner_loss(point_ais, log_w_ais)
+        loss = self.fab_alpha_div_inner(point_ais, log_w_ais)
         # Reset ais target distribution back to p, which ensures evaluation is performed
         # with the target distribution.
         self.set_ais_target(min_is_target=False)
@@ -159,16 +157,15 @@ class FABModel(Model):
         if self.loss_type == "fab_alpha_div":
             return self.fab_alpha_div_inner(point, log_w_ais)
         elif self.loss_type == "fab_ub_alpha_2_div":
-            return self.fab_ub_alpha_div_loss_inner(point.log_q, point.log_q, log_w_ais)
-        elif self.loss_type == "fab_forward_kl":
-            return self.fab_forward_kl_inner(point, log_w_ais)
+            return self.fab_ub_alpha_div_loss_inner(point, log_w_ais)
         else:
             raise NotImplementedError
 
     def fab_ub_alpha_div_loss_inner(self, point: Point, log_w_ais: torch.Tensor) -> torch.Tensor:
         """Compute the FAB loss based on upper-bound of alpha-divergence with alpha=2 from
         https://arxiv.org/abs/2111.11510."""
-        log_w = point.log_p - point.log_q
+        log_q_x = self.flow.log_prob(point.x)
+        log_w = point.log_p - log_q_x
         return torch.logsumexp(log_w_ais + log_w, dim=0)
 
     def fab_ub_alpha_div_loss(self, batch_size: int) -> torch.Tensor:
@@ -185,15 +182,6 @@ class FABModel(Model):
     def forward_kl(self, x_p: torch.Tensor) -> torch.Tensor:
         """Forward kl with estimated using x ~ p(x) where p is the target distribution."""
         return -torch.mean(self.flow.log_prob(x_p))
-
-    def fab_forward_kl_inner(self, point: Point, log_w_ais: torch.Tensor) -> torch.Tensor:
-        w_ais = torch.softmax(log_w_ais, dim=0)
-        return - torch.mean(w_ais * point.log_q)
-
-    def fab_forward_kl(self, batch_size: int) -> torch.Tensor:
-        """Compute FAB estimate of forward kl-divergence."""
-        point_ais, log_w_ais = self.annealed_importance_sampler.sample_and_log_weights(batch_size)
-        return self.fab_forward_kl_inner(point_ais, log_w_ais)
 
     def get_iter_info(self) -> Dict[str, Any]:
         if hasattr(self, "annealed_importance_sampler"):

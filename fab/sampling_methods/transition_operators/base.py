@@ -37,7 +37,8 @@ class TransitionOperator(torch.nn.Module):
     def intermediate_target_log_prob(self, point: Point, beta: float) -> torch.Tensor:
         with torch.no_grad():
             # We do not backprop through MCMC/AIS. So do not include these gradients.
-            return get_intermediate_log_prob(point, beta, alpha=self.alpha,
+            return get_intermediate_log_prob(point, beta,
+                                             alpha=self.alpha,
                                              p_target=self.p_target)
 
     def grad_intermediate_target_log_prob(self, point: Point, beta: float) -> torch.Tensor:
