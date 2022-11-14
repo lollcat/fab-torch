@@ -64,10 +64,10 @@ evaluation:
   save_path:  ./results/gmm/seed${training.seed}/
 
 logger:
-#  pandas_logger:
-#    save_period: 100 # how often to save the pandas dataframe as a csv
-  wandb:
-    name: GMM_${fab.loss_type}_pr${training.prioritised_buffer}_alpha${fab.alpha}
-    project: fab
-    entity: flow-ais-bootstrap
-    tags: [local_exps]
+  pandas_logger:
+    save_period: 100 # how often to save the pandas dataframe as a csv
+#  wandb:
+#    name: GMM_${fab.loss_type}_pr${training.prioritised_buffer}_alpha${fab.alpha}
+#    project: fab
+#    entity: flow-ais-bootstrap
+#    tags: [local_exps]

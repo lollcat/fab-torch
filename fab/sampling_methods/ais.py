@@ -159,10 +159,11 @@ class AnnealedImportanceSampler:
                                  log_q_x=log_prob_p0
                                  )
             base_log_w = self.target_log_prob(x) - log_prob_p0
-            point, log_w = self._remove_nan_and_infs(point, log_prob_p0, descriptor="chain init")
+            point, base_log_w = self._remove_nan_and_infs(point, base_log_w,
+                                                          descriptor="chain init")
 
             # append base samples and log probs
-            base_samples.append(x.detach().cpu())
+            base_samples.append(point.x.detach().cpu())
             base_log_w_s.append(base_log_w.detach().cpu())
 
             log_w = get_intermediate_log_prob(point, self.B_space[1], self.alpha,

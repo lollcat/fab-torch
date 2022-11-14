@@ -177,11 +177,6 @@ def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
                                              layer_nodes_per_dim=cfg.flow.layer_nodes_per_dim,
                                              act_norm=cfg.flow.act_norm)
 
-    # defensive_dist = False
-    # if defensive_dist:
-    #     flow = DefensiveMixtureDistribution(flow)
-    #     assert cfg.fab.loss_type in LOSSES_USING_AIS
-
 
     if cfg.fab.transition_operator.type == "hmc":
         # very lightweight HMC.
@@ -270,6 +265,7 @@ def setup_trainer_and_run_flow(cfg: DictConfig, setup_plotter: SetupPlotterFn,
         use_buffer=cfg.training.use_buffer,
         min_buffer_length=cfg.training.min_buffer_length,
     )
+    print(f"running for {n_iterations}")
     cfg.training.n_iterations = n_iterations
 
 

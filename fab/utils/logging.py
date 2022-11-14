@@ -70,7 +70,7 @@ class ListLogger(Logger):
 
 class WandbLogger(Logger):
     def __init__(self, **kwargs: Any):
-        self.run = wandb.init(**kwargs)
+        self.run = wandb.init(**kwargs, reinit=True)
         self.iter: int = 0
 
     def write(self, data: Dict[str, Any]) -> None:
