@@ -5,7 +5,7 @@ import pandas as pd
 import os
 from omegaconf import DictConfig
 import torch
-# torch.set_default_dtype(torch.float64)
+torch.set_default_dtype(torch.float64)
 
 from fab.target_distributions.gmm import GMM
 from experiments.load_model_for_eval import load_model
@@ -30,20 +30,18 @@ def evaluate(cfg: DictConfig, path_to_model, target, num_samples=int(1e4)):
     model = load_model(cfg, target, path_to_model)
     model.set_ais_target(min_is_target=False)
     eval = model.get_eval_info(num_samples, 500)
-
-    n_samples = 1000
-    alpha = 0.3
-    plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
-    fig, ax = plt.subplots()
-    samples_flow = model.flow.sample((n_samples,)).detach()
-    plot_marginal_pair(samples_flow, ax=ax, bounds=plotting_bounds, alpha=alpha)
-    plot_contours(target.log_prob, bounds=plotting_bounds, ax=ax, n_contour_levels=50,
-                  grid_width_n_points=200)
+    # for debugging:
+    # n_samples = 1000
+    # alpha = 0.3
+    # plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
+    # fig, ax = plt.subplots()
+    # samples_flow = model.flow.sample((n_samples,)).detach()
+    # plot_marginal_pair(samples_flow, ax=ax, bounds=plotting_bounds, alpha=alpha)
+    # plot_contours(target.log_prob, bounds=plotting_bounds, ax=ax, n_contour_levels=50,
+    #               grid_width_n_points=200)
     plt.show()
-    del model, target
-    with torch.no_grad():
-        eval = eval
-        return eval
+    eval = eval
+    return eval
 
 
 # use base config of GMM but overwrite for specific model.
