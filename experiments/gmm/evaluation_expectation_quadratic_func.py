@@ -4,28 +4,20 @@ import pandas as pd
 import os
 from omegaconf import DictConfig
 import torch
+torch.set_default_dtype(torch.float64)
 import numpy as np
 
 
 
-from fab.target_distributions.gmm import GMM
+from experiments.gmm.evaluation import setup_target
 from experiments.load_model_for_eval import load_model
 
 PATH = os.getcwd()
 
 
-def evaluate(cfg: DictConfig, path_to_model: str, num_samples=int(1e3), n_repeats=100):
+def evaluate(cfg: DictConfig, path_to_model: str, target, num_samples=int(1e3), n_repeats=100):
     """Evaluate by estimating quadratic function. If `path_to_model==target` then this is done
     using samples from the target"""
-    torch.set_default_dtype(torch.float32)
-    torch.manual_seed(cfg.training.seed)
-    target = GMM(dim=cfg.target.dim, n_mixes=cfg.target.n_mixes,
-                 loc_scaling=cfg.target.loc_scaling, log_var_scaling=cfg.target.log_var_scaling,
-                 use_gpu=False, n_test_set_samples=num_samples)
-    if cfg.training.use_64_bit:
-        torch.set_default_dtype(torch.float64)
-        target = target.double()
-
     biases = []
     biases_unweighted = []
     for i in range(n_repeats):
@@ -61,6 +53,7 @@ def main(cfg: DictConfig):
                    "fab_no_buffer", "fab_buffer"]
     seeds = [0, 1, 2]
     num_samples = int(1000)
+    target = setup_target(cfg, num_samples)
 
     results = pd.DataFrame()
     for model_name in model_names:
@@ -80,7 +73,7 @@ def main(cfg: DictConfig):
         print(model_name)
         for seed in seeds:
             name = model_name + f"_seed{seed}"
-            eval_info = evaluate(cfg, path_to_model, num_samples)
+            eval_info = evaluate(cfg, path_to_model, target, num_samples)
             eval_info.update(seed=seed,
                              model_name=model_name)
             results = results.append(eval_info, ignore_index=True)
@@ -97,21 +90,21 @@ def main(cfg: DictConfig):
 # use base config of GMM but overwrite for specific model.
 @hydra.main(config_path="../config", config_name="gmm.yaml")
 def alpha_study(cfg: DictConfig):
-    alpha_values = ["025", "05", "1", "15", "2", "3"]
-    seeds = [0]  # , 1, 2]
+    alpha_values = [0.25,  0.5, 1.0, 1.5, 2.0, 3.0]
+    seeds = [0, 1, 2]
     num_samples = int(1000)
+    target = setup_target(cfg, num_samples)
     results = pd.DataFrame()
-    fab_type = "no_buff"
-    for alpha in alpha_values:
-        for seed in seeds:
-            name_without_seed = f"{fab_type}_alpha{alpha}"
-            name = name_without_seed + f"_seed{seed}"
-            path_to_model = f"{PATH}/models_alpha/{name}.pt"
-            eval_info = evaluate(cfg, path_to_model, num_samples)
-            eval_info.update(seed=seed,
-                             model_name=name_without_seed)
-            results = results.append(eval_info, ignore_index=True)
-
+    for fab_type in ["buff", "no_buff"]:
+        for alpha in alpha_values:
+            for seed in seeds:
+                name_without_seed = f"{fab_type}_alpha{alpha}"
+                name = name_without_seed + f"_seed{seed}"
+                path_to_model = f"{PATH}/models_alpha/{name}.pt"
+                eval_info = evaluate(cfg, path_to_model, target, num_samples)
+                eval_info.update(seed=seed,
+                                 model_name=name_without_seed)
+                results = results.append(eval_info, ignore_index=True)
     fields = ["bias", "bias_unweighted"]
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[fields])

@@ -1,31 +1,49 @@
 import hydra
+import matplotlib.pyplot as plt
 
-from fab.target_distributions.gmm import GMM
 import pandas as pd
 import os
 from omegaconf import DictConfig
 import torch
+# torch.set_default_dtype(torch.float64)
 
+from fab.target_distributions.gmm import GMM
 from experiments.load_model_for_eval import load_model
+from experiments.gmm.results_vis import plot_marginal_pair, plot_contours
 
 
 PATH = os.getcwd()
 
-
-def evaluate(cfg: DictConfig, path_to_model, num_samples=int(1e4)):
-    """Evaluates model, sets the AIS target to p."""
-    torch.set_default_dtype(torch.float32)
+def setup_target(cfg, num_samples):
+    # Setup target
     torch.manual_seed(cfg.training.seed)
     target = GMM(dim=cfg.target.dim, n_mixes=cfg.target.n_mixes,
                  loc_scaling=cfg.target.loc_scaling, log_var_scaling=cfg.target.log_var_scaling,
                  use_gpu=False, n_test_set_samples=num_samples)
     if cfg.training.use_64_bit:
-        torch.set_default_dtype(torch.float64)
         target = target.double()
+    return target
+
+
+def evaluate(cfg: DictConfig, path_to_model, target, num_samples=int(1e4)):
+    """Evaluates model, sets the AIS target to p."""
     model = load_model(cfg, target, path_to_model)
     model.set_ais_target(min_is_target=False)
     eval = model.get_eval_info(num_samples, 500)
-    return eval
+
+    n_samples = 1000
+    alpha = 0.3
+    plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
+    fig, ax = plt.subplots()
+    samples_flow = model.flow.sample((n_samples,)).detach()
+    plot_marginal_pair(samples_flow, ax=ax, bounds=plotting_bounds, alpha=alpha)
+    plot_contours(target.log_prob, bounds=plotting_bounds, ax=ax, n_contour_levels=50,
+                  grid_width_n_points=200)
+    plt.show()
+    del model, target
+    with torch.no_grad():
+        eval = eval
+        return eval
 
 
 # use base config of GMM but overwrite for specific model.
@@ -34,6 +52,7 @@ def main(cfg: DictConfig):
     model_names = ["target_kld", "flow_nis", "flow_kld", "rsb", "snf", "fab_no_buffer", "fab_buffer"]
     seeds = [0, 1, 2]
     num_samples = int(5e4)
+    target = setup_target(cfg, num_samples)
 
     results = pd.DataFrame()
     for model_name in model_names:
@@ -50,7 +69,7 @@ def main(cfg: DictConfig):
         for seed in seeds:
             name = model_name + f"_seed{seed}"
             path_to_model = f"{PATH}/models/{name}.pt"
-            eval_info = evaluate(cfg, path_to_model, num_samples)
+            eval_info = evaluate(cfg, path_to_model, target, num_samples)
             eval_info.update(seed=seed,
                              model_name=model_name)
             results = results.append(eval_info, ignore_index=True)
@@ -68,21 +87,23 @@ def main(cfg: DictConfig):
 # use base config of GMM but overwrite for specific model.
 @hydra.main(config_path="../config", config_name="gmm.yaml")
 def alpha_study(cfg: DictConfig):
-    alpha_values = ["025", "05", "1", "15", "2", "3"]
-    seeds = [0]  # , 1, 2]
+    alpha_values = [2.0]  # [0.25,  0.5, 1.0, 1.5, 2.0, 3.0]
+    seeds = [0, 1, 2, 3, 4]
     num_samples = int(5e4)
 
+    target = setup_target(cfg, num_samples)
     results = pd.DataFrame()
-    fab_type = "no_buff"
-    for alpha in alpha_values:
-        for seed in seeds:
-            name_without_seed = f"{fab_type}_alpha{alpha}"
-            name = name_without_seed + f"_seed{seed}"
-            path_to_model = f"{PATH}/models_alpha/{name}.pt"
-            eval_info = evaluate(cfg, path_to_model, num_samples)
-            eval_info.update(seed=seed,
-                             model_name=name_without_seed)
-            results = results.append(eval_info, ignore_index=True)
+    for fab_type in ["buff", "no_buff"]:
+        for alpha in alpha_values:
+            for seed in seeds:
+                name_without_seed = f"{fab_type}_alpha{alpha}"
+                print(name_without_seed)
+                name = name_without_seed + f"_seed{seed}"
+                path_to_model = f"{PATH}/models_alpha/{name}.pt"
+                eval_info = evaluate(cfg, path_to_model, target, num_samples)
+                eval_info.update(seed=seed,
+                                 model_name=name_without_seed)
+                results = results.append(eval_info, ignore_index=True)
 
     keys = ["eval_ess_flow", "eval_ess_ais", "test_set_mean_log_prob", 'kl_forward']
     print("\n *******  mean  ********************** \n")
