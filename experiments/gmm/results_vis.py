@@ -7,6 +7,7 @@ from matplotlib import rc
 import matplotlib as mpl
 from omegaconf import DictConfig
 import torch
+torch.set_default_dtype(torch.float64)
 import numpy as np
 
 from fab.utils.plotting import plot_contours, plot_marginal_pair
