@@ -5,18 +5,17 @@ import pandas as pd
 import os
 from omegaconf import DictConfig
 import torch
-torch.set_default_dtype(torch.float64)
 
 from fab.target_distributions.gmm import GMM
 from experiments.load_model_for_eval import load_model
-from experiments.gmm.results_vis import plot_marginal_pair, plot_contours
+from fab.utils.plotting import plot_contours, plot_marginal_pair
 
 
 PATH = os.getcwd()
 
 def setup_target(cfg, num_samples):
     # Setup target
-    torch.manual_seed(cfg.training.seed)
+    torch.manual_seed(0)  #  Always 0 for GMM problem
     target = GMM(dim=cfg.target.dim, n_mixes=cfg.target.n_mixes,
                  loc_scaling=cfg.target.loc_scaling, log_var_scaling=cfg.target.log_var_scaling,
                  use_gpu=False, n_test_set_samples=num_samples)
@@ -30,17 +29,18 @@ def evaluate(cfg: DictConfig, path_to_model, target, num_samples=int(1e4)):
     model = load_model(cfg, target, path_to_model)
     model.set_ais_target(min_is_target=False)
     eval = model.get_eval_info(num_samples, 500)
-    # for debugging:
-    # n_samples = 1000
-    # alpha = 0.3
-    # plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
-    # fig, ax = plt.subplots()
-    # samples_flow = model.flow.sample((n_samples,)).detach()
-    # plot_marginal_pair(samples_flow, ax=ax, bounds=plotting_bounds, alpha=alpha)
-    # plot_contours(target.log_prob, bounds=plotting_bounds, ax=ax, n_contour_levels=50,
-    #               grid_width_n_points=200)
-    plt.show()
-    eval = eval
+    debug = False
+    if debug:
+        # Visualise samples to make sure they match training plots.
+        n_samples = 1000
+        alpha = 0.3
+        plotting_bounds = (-cfg.target.loc_scaling * 1.4, cfg.target.loc_scaling * 1.4)
+        fig, ax = plt.subplots()
+        samples_flow = model.flow.sample((n_samples,)).detach()
+        plot_marginal_pair(samples_flow, ax=ax, bounds=plotting_bounds, alpha=alpha)
+        plot_contours(target.log_prob, bounds=plotting_bounds, ax=ax, n_contour_levels=50,
+                      grid_width_n_points=200)
+        plt.show()
     return eval
 
 
@@ -85,8 +85,8 @@ def main(cfg: DictConfig):
 # use base config of GMM but overwrite for specific model.
 @hydra.main(config_path="../config", config_name="gmm.yaml")
 def alpha_study(cfg: DictConfig):
-    alpha_values = [2.0]  # [0.25,  0.5, 1.0, 1.5, 2.0, 3.0]
-    seeds = [0, 1, 2, 3, 4]
+    alpha_values = [0.25,  0.5, 1.0, 1.5, 2.0, 3.0]
+    seeds = [0, 1, 2]
     num_samples = int(5e4)
 
     target = setup_target(cfg, num_samples)

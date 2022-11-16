@@ -20,13 +20,13 @@ if __name__ == '__main__':
     table_values_string = ""
 
     i = 0
-    for fab_type in ["no_buff", "buff"]:
+    for fab_type in ["buff"]:  # , "buff"]: "no_buff"
         for alpha in alpha_values:
             name_without_seed = f"{fab_type}_alpha{alpha}"
             name = name_without_seed
             mean_eval, std_eval, mean_exp, std_exp = means_eval.loc[name], stds_eval.loc[name], \
                                                      means_exp.loc[name], stds_exp.loc[name]
-            column_name = fr"$\alpha={alpha}$ {'w/o buffer' if fab_type == 'no_buff' else 'w/ buffer'}"
+            column_name = alpha # fr"$\alpha={alpha}$ {'w/o buffer' if fab_type == 'no_buff' else 'w/ buffer'}"
             table_values_string += f"{column_name} & " \
                                    f"{mean_eval[keys1[0]]*100:.1f},{std_eval[keys1[0]]*100:.1f} & " \
                                    f"{mean_eval[keys1[1]]:.2f},{std_eval[keys1[1]]:.2f} & " \

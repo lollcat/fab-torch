@@ -4,10 +4,7 @@ import pandas as pd
 import os
 from omegaconf import DictConfig
 import torch
-torch.set_default_dtype(torch.float64)
 import numpy as np
-
-
 
 from experiments.gmm.evaluation import setup_target
 from experiments.load_model_for_eval import load_model
