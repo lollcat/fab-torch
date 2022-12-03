@@ -21,7 +21,7 @@ fab:
   # target_forward_kl: forward kl estimated with samples from the target
   # flow_reverse_kl, flow_alpha_2_div_nis for revers KL/alpha_2_div estimated with flow samples
   loss_type: fab_alpha_div
-  alpha: 0.5 # null
+  alpha: 2.0 # null
   transition_operator:
     type: hmc
     n_inner_steps: 5
