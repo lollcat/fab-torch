@@ -30,7 +30,7 @@ def effective_sample_size_over_p(log_w: torch.Tensor):
     return 1 / torch.mean(torch.exp(log_w))
 
 
-def setup_quadratic_function(x, seed: int = 0):
+def setup_quadratic_function(x: torch.Tensor, seed: int = 0):
     # Useful for porting this problem to non torch libraries.
     torch.random.manual_seed(seed)
     # example function that we may want to calculate expectations over
@@ -38,7 +38,11 @@ def setup_quadratic_function(x, seed: int = 0):
     A = 2 * torch.rand((x.shape[-1], x.shape[-1])).to(x.device)
     b = torch.rand(x.shape[-1]).to(x.device)
     torch.seed()  # set back to random number
-    return x_shift, A, b
+    if x.dtype == torch.float64:
+        return x_shift.double(), A.double(), b.double()
+    else:
+        assert x.dtype == torch.float32
+        return x_shift, A, b
 
 
 def quadratic_function(x: torch.Tensor, seed: int = 0):
