@@ -188,7 +188,7 @@ def setup_model(cfg: DictConfig, target: TargetDistribution) -> FABModel:
             alpha=cfg.fab.alpha,
             p_target=p_target,
             n_outer=1,
-            epsilon=1.0,
+            epsilon=cfg.fab.transition_operator.init_step_size,
             L=cfg.fab.transition_operator.n_inner_steps,
             )
 
