@@ -215,7 +215,7 @@ class FABModel(Model):
              path: "str"
              ):
         """Save FAB model to file."""
-        torch.save({'flow': self.flow._nf_model.state_dict(),
+        torch.save({'flow': self.flow.state_dict(),
                     'trans_op': self.transition_operator.state_dict()},
                    path)
 
@@ -226,7 +226,7 @@ class FABModel(Model):
         """Load FAB model from file."""
         checkpoint = torch.load(path, map_location=map_location)
         try:
-            self.flow._nf_model.load_state_dict(checkpoint['flow'])
+            self.flow.load_state_dict(checkpoint['flow'])
         except RuntimeError:
             # If flow is incorretly loaded then this will mess up evaluation, so raise Error.
             raise RuntimeError('Flow could not be loaded. '
