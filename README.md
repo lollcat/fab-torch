@@ -91,7 +91,8 @@ We used the seeds 0, 1, and 2 in our runs.
 
 The data used to evaluate our models and to train the flow model with maximum likelihood is provided 
 on [Zenodo](https://zenodo.org/record/6993124#.YvpugVpBy5M). If you want to use the configuration files
-as is, you should put the data in the `experiment/aldp/data` folder.
+in [`experiments/aldp/config`](experiments/aldp/config) as is, you should put the data in the 
+[`experiment/aldp/data`](experiments/aldp/data) folder.
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6993124.svg)](https://doi.org/10.5281/zenodo.6993124)
 
