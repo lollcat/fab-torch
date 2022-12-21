@@ -22,6 +22,13 @@ The  package can be installed via pip by navigating in the repository directory 
 pip install --upgrade .
 ```
 
+To run the alanine dipeptide experiments, you will need to install the [OpenMM Library](http://openmm.org/)
+as well as [`openmmtools`](https://openmmtools.readthedocs.io/en/stable/). This can be done via conda.
+
+```
+conda install -c conda-forge openmm openmmtools
+```
+
 ## Experiments
 
 ### Gaussian Mixture Model
@@ -83,7 +90,8 @@ The respective configuration files are located in [`experiments/aldp/config`](ex
 We used the seeds 0, 1, and 2 in our runs.
 
 The data used to evaluate our models and to train the flow model with maximum likelihood is provided 
-on [Zenodo](https://zenodo.org/record/6993124#.YvpugVpBy5M).
+on [Zenodo](https://zenodo.org/record/6993124#.YvpugVpBy5M). If you want to use the configuration files
+as is, you should put the data in the `experiment/aldp/data` folder.
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6993124.svg)](https://doi.org/10.5281/zenodo.6993124)
 
