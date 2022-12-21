@@ -2,9 +2,9 @@
 
 
 data:
-  transform: datasets/aldp/position_min_energy.pt
-  test: datasets/aldp/val.pt
-  train: datasets/aldp/train.pt
+  transform: data/position_min_energy.pt
+  test: data/val.pt
+  train: data/train.pt
 
 
 system:                             # Properties of molecular system
