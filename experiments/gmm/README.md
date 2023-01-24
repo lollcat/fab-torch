@@ -33,6 +33,9 @@ By default the logger just writes all info to a pandas dataframe, however we
 provide a simple logger definition that allows for other loggers to be plugged in, 
 such as a wandb logger.
 
+Additionally, the CRAFT experiments are run using a fork of the original CRAFT code 
+[here](https://github.com/lollcat/annealed_flow_transport). 
+
 **Further notes** This will use hydra-multirun to run the random seeds in parallel. 
 However, if you just want to run locally and get a general idea of the results, 
 you can run a single random seed for a much lower number of iterations. 
@@ -49,3 +52,4 @@ visualising each of the modes.
 
 We also provide a [colab notebook](experiments/gmm/fab_gmm.ipynb) with an example of training 
 a flow on the GMM problem, comparing FAB to training a flow with KL divergence minimisation.
+
