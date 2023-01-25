@@ -118,7 +118,7 @@ this repository. The main library we rely on is
 If you use this code in your research, please cite it as:
 
 > Laurence I. Midgley, Vincent Stimper, Gregor N. C. Simm, Bernhard Schölkopf, José Miguel 
-> Hernández-Lobato. Flow Annealed Importance Sampling Bootstrap. ArXiv, abs/2208.01893, 2022.
+> Hernández-Lobato. Flow Annealed Importance Sampling Bootstrap. arXiv preprint arXiv:2208.01893, 2022.
 
 **Bibtex**
 
@@ -126,9 +126,8 @@ If you use this code in your research, please cite it as:
 @article{Midgley2022,
   title={Flow {A}nnealed {I}mportance {S}ampling {B}ootstrap},
   author={Laurence I. Midgley and Vincent Stimper and Gregor N. C. Simm and Bernhard Sch\"olkopf and Jos{\'e} Miguel Hern{\'a}ndez-Lobato},
-  journal={ArXiv},
-  year={2022},
-  volume={abs/2208.01893}
+  journal={arXiv preprint arXiv:2208.01893},
+  year={2022}
 }
 ```
 
