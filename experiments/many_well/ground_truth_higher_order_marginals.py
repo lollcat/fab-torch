@@ -13,26 +13,18 @@ if __name__ == '__main__':
     plot_marginal_pair(double_well_marginal)
     plt.show()
 
-    double_well_marginal_bins = double_well_marginal > 0
+    double_well_light_marginal_per_dim = (double_well_marginal < -1.) & (double_well_marginal > -2.1)
 
     # Plot rate of sampling fainter modes.
-    n_big_mode = np.sum(double_well_marginal_bins.numpy(), axis=-1)
-    min_bin = 6
-    plt.hist(n_big_mode, density=True, log=True, bins=np.arange(16 - min_bin + 1) + min_bin)
-    plt.xlabel("number of dim containing heavier mode")
+    n_light_mode = np.sum(double_well_light_marginal_per_dim.numpy(), axis=-1)
+    plt.hist(n_light_mode, density=True, log=True, bins=np.arange(16+1))
+    plt.xlabel("number of dim containing light mode")
     plt.show()
 
 
     # Plot higher order marginal.
-    # First a sanity check
-    all_heavy_mode = n_big_mode == 16
-    # plot_marginal_pair(double_well_marginal[all_heavy_mode])
-    # plt.show()
-    assert double_well_marginal[all_heavy_mode].min() > 0
-
-
     # Get marginal for the first two being light.
-    marginal_condition = (double_well_marginal_bins[:, -1] == False) & (double_well_marginal_bins[:, -2] == False)
+    marginal_condition = (double_well_light_marginal_per_dim[:, -1] == True) & (double_well_light_marginal_per_dim[:, -2] == True)
     marginal_samples = double_well_marginal[marginal_condition]
     n_rows = 4
     fig, axs = plt.subplots(n_rows, n_rows, sharex=True, sharey=True, figsize=(n_rows * 3, n_rows * 3))
