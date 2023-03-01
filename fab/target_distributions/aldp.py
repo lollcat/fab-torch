@@ -157,3 +157,10 @@ class AldpBoltzmann(nn.Module, TargetDistribution):
 
     def performance_metrics(self, samples, log_w, log_q_fn, batch_size):
         return {}
+
+
+if __name__ == '__main__':
+    target = AldpBoltzmann()
+
+
+
