@@ -12,7 +12,7 @@ The following commands can each be used to train the methods from the paper:
 python experiments/many_well/run.py -m training.seed=0,1,2 training.use_buffer=True training.prioritised_buffer=True 
 
 # FAB without the prioritised buffer.
-python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=fab_p2_over_q_alpha_2_div 
+python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=fab_alpha_div 
 
 # Flow using ground truth samples, training by maximum likelihood/forward KL divergence minimiation.
 python experiments/many_well/run.py -m training.seed=0,1,2 fab.loss_type=target_forward_kl
