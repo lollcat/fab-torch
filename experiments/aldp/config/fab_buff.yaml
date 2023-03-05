@@ -2,8 +2,8 @@
 
 
 data:
-  transform: experiments/aldp/data/position_min_energy.pt
-  test: experiments/aldp/data/val.pt
+  transform: data/position_min_energy.pt
+  test: data/val.pt
 
 
 system:                             # Properties of molecular system

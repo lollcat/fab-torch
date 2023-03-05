@@ -22,6 +22,13 @@ The  package can be installed via pip by navigating in the repository directory 
 pip install --upgrade .
 ```
 
+To run the alanine dipeptide experiments, you will need to install the [OpenMM Library](http://openmm.org/)
+as well as [`openmmtools`](https://openmmtools.readthedocs.io/en/stable/). This can be done via conda.
+
+```
+conda install -c conda-forge openmm openmmtools
+```
+
 ## Experiments
 
 ### Gaussian Mixture Model
@@ -83,7 +90,9 @@ The respective configuration files are located in [`experiments/aldp/config`](ex
 We used the seeds 0, 1, and 2 in our runs.
 
 The data used to evaluate our models and to train the flow model with maximum likelihood is provided 
-on [Zenodo](https://zenodo.org/record/6993124#.YvpugVpBy5M).
+on [Zenodo](https://zenodo.org/record/6993124#.YvpugVpBy5M). If you want to use the configuration files
+in [`experiments/aldp/config`](experiments/aldp/config) as is, you should put the data in the 
+[`experiment/aldp/data`](experiments/aldp/data) folder.
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6993124.svg)](https://doi.org/10.5281/zenodo.6993124)
 
@@ -109,7 +118,7 @@ this repository. The main library we rely on is
 If you use this code in your research, please cite it as:
 
 > Laurence I. Midgley, Vincent Stimper, Gregor N. C. Simm, Bernhard Schölkopf, José Miguel 
-> Hernández-Lobato. Flow Annealed Importance Sampling Bootstrap. ArXiv, abs/2208.01893, 2022.
+> Hernández-Lobato. Flow Annealed Importance Sampling Bootstrap. arXiv preprint arXiv:2208.01893, 2022.
 
 **Bibtex**
 
@@ -117,9 +126,8 @@ If you use this code in your research, please cite it as:
 @article{Midgley2022,
   title={Flow {A}nnealed {I}mportance {S}ampling {B}ootstrap},
   author={Laurence I. Midgley and Vincent Stimper and Gregor N. C. Simm and Bernhard Sch\"olkopf and Jos{\'e} Miguel Hern{\'a}ndez-Lobato},
-  journal={ArXiv},
-  year={2022},
-  volume={abs/2208.01893}
+  journal={arXiv preprint arXiv:2208.01893},
+  year={2022}
 }
 ```
 
