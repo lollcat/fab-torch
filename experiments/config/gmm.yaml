@@ -1,8 +1,5 @@
 #defaults:
 #  - override hydra/launcher: joblib
-hydra:
-  job:
-    chdir: false
 
 target:
   dim: 2

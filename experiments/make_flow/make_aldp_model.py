@@ -219,12 +219,3 @@ def make_aldp_model(config, device):
                      loss_type=loss_type,
                      alpha=alpha)
     return model
-
-
-if __name__ == '__main__':
-    torch.set_default_dtype(torch.float64)
-    from fab.utils.training import load_config
-    config = load_config('experiments/aldp/config/fab_buff.yaml')
-    model = make_aldp_model(config=config, device='cpu')
-
-

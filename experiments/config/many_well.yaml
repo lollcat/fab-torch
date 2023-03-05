@@ -1,8 +1,5 @@
 #defaults:
 #  - override hydra/launcher: joblib
-hydra:
-  job:
-    chdir: false
 
 target:
   dim: 32
@@ -63,12 +60,6 @@ evaluation:
 
 
 logger:
-  wandb:
-    name: GMM_${fab.loss_type}_pr${training.prioritised_buffer}_alpha${fab.alpha}
-    project: fab
-    entity: flow-ais-bootstrap
-    tags: [local_exps]
-
-#  pandas_logger:
-#    save_period: 1000 # how often to save the pandas dataframe as a csv
+  pandas_logger:
+    save_period: 1000 # how often to save the pandas dataframe as a csv
 
