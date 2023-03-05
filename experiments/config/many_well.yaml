@@ -25,6 +25,7 @@ fab:
   transition_operator:
     type: hmc
     n_inner_steps: 5
+    init_step_size: 1.0
   n_intermediate_distributions: 4
 
 

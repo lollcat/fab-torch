@@ -118,6 +118,7 @@ class PrioritisedReplayBuffer:
         valid_adjustment = ~torch.isinf(log_w_adjustment) & ~torch.isnan(log_q)
         log_w_adjustment, log_q, indices = \
             log_w_adjustment[valid_adjustment], log_q[valid_adjustment], indices[valid_adjustment]
+        indices = indices.to(self.device)
         self.buffer.log_w[indices] += log_w_adjustment.to(self.device)
         self.buffer.log_q_old[indices] = log_q.to(self.device)
 

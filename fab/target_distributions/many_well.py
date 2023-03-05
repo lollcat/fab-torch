@@ -108,8 +108,9 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
             log_w = log_w[:n_vals_per_split*n_runs]
             log_w = torch.stack(log_w.split(n_runs), dim=-1)
             # Check accuracy in estimating normalisation constant.
-            Z_estimate = torch.exp(torch.logsumexp(log_w, axis=-1) - np.log(log_w.shape[-1]))
-            MSE_Z_estimate = torch.mean(torch.abs((Z_estimate - self.Z) / self.Z))
+            log_Z_estimate = torch.logsumexp(log_w, axis=-1) - np.log(log_w.shape[-1])
+            relative_error = torch.exp(log_Z_estimate - self.log_Z) - 1
+            MSE_Z_estimate = torch.mean(torch.abs(relative_error))
 
 
             sum_log_prob = 0.0
