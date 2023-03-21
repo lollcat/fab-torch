@@ -102,19 +102,20 @@ class HamiltonianMonteCarlo(TransitionOperator):
     def joint_log_prob(self, point: Point, p, mass_matrix, U):
         return - U(point) - self.kinetic_energy(p, mass_matrix)
 
-    def metropolis_acceptance_prob(self, point_proposed: Point, point_current: Point,
+    def metropolis_log_acceptance_prob(self, point_proposed: Point, point_current: Point,
                                    p_proposed: torch.Tensor, p_current: torch.Tensor,
                                    mass_matrix: torch.Tensor, U: Callable):
         log_prob_current = self.joint_log_prob(point_current, p_current, mass_matrix, U)
         log_prob_proposed = self.joint_log_prob(point_proposed, p_proposed, mass_matrix, U)
-        acceptance_prob = torch.exp(log_prob_proposed - log_prob_current)
+        log_acceptance_prob = torch.exp(log_prob_proposed - log_prob_current)
         # reject samples with nan acceptance probability
-        acceptance_probability = torch.nan_to_num(acceptance_prob,
-                                                  nan=0.0,
-                                                  posinf=0.0,
-                                                  neginf=0.0)
-        acceptance_prob = torch.clamp(acceptance_probability, min=0.0, max=1.0)
-        return acceptance_prob.detach()
+        log_acceptance_prob = torch.nan_to_num(log_acceptance_prob,
+                                                  nan=-1e30,
+                                                  posinf=-1e30,
+                                                  neginf=-1e30)
+        # Clamp at max acceptance prob of 1.
+        log_acceptance_prob = torch.clamp(log_acceptance_prob, max=torch.log(torch.ones_like((log_acceptance_prob))))
+        return log_acceptance_prob.detach()
 
     def kinetic_energy(self, p, mass_matrix):
         return torch.sum(p**2 / mass_matrix, dim=-1) / 2
@@ -139,15 +140,15 @@ class HamiltonianMonteCarlo(TransitionOperator):
                 # make momentum half step
                 p = p - epsilon * grad_u / 2
 
-            acceptance_probability = self.metropolis_acceptance_prob(
+            log_acceptance_probability = self.metropolis_log_acceptance_prob(
                 point_proposed=point, point_current=current_point,
                 p_proposed=p, p_current=current_p,
                 U=U, mass_matrix=self.mass_vector
             )
-            accept = acceptance_probability > torch.rand(
-                acceptance_probability.shape).to(point.device)
+            accept = log_acceptance_probability > torch.log(torch.rand(
+                log_acceptance_probability.shape)).to(point.device)
             current_point[accept] = point[accept]
-            p_accept_mean = torch.mean(acceptance_probability)
+            p_accept_mean = torch.mean(torch.exp(log_acceptance_probability))
             self.store_info(i=i, n=n, p_accept_mean=p_accept_mean, current_x=point.x,
                             original_x=original_point.x)
             if not self.eval_mode:
