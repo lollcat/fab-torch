@@ -108,7 +108,7 @@ class HamiltonianMonteCarlo(TransitionOperator):
         log_prob_current = self.joint_log_prob(point_current, p_current, mass_matrix, U)
         log_prob_proposed = self.joint_log_prob(point_proposed, p_proposed, mass_matrix, U)
         with torch.no_grad():
-            log_acceptance_prob = torch.exp(log_prob_proposed - log_prob_current)
+            log_acceptance_prob = log_prob_proposed - log_prob_current
             # reject samples with nan acceptance probability
             valid_samples = torch.isfinite(log_acceptance_prob)
             log_acceptance_prob = torch.nan_to_num(log_acceptance_prob,
