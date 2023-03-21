@@ -102,20 +102,27 @@ class HamiltonianMonteCarlo(TransitionOperator):
     def joint_log_prob(self, point: Point, p, mass_matrix, U):
         return - U(point) - self.kinetic_energy(p, mass_matrix)
 
-    def metropolis_log_acceptance_prob(self, point_proposed: Point, point_current: Point,
-                                   p_proposed: torch.Tensor, p_current: torch.Tensor,
-                                   mass_matrix: torch.Tensor, U: Callable):
+    def metropolis_accept(self, point_proposed: Point, point_current: Point,
+                          p_proposed: torch.Tensor, p_current: torch.Tensor,
+                          mass_matrix: torch.Tensor, U: Callable):
         log_prob_current = self.joint_log_prob(point_current, p_current, mass_matrix, U)
         log_prob_proposed = self.joint_log_prob(point_proposed, p_proposed, mass_matrix, U)
-        log_acceptance_prob = torch.exp(log_prob_proposed - log_prob_current)
-        # reject samples with nan acceptance probability
-        log_acceptance_prob = torch.nan_to_num(log_acceptance_prob,
-                                                  nan=-1e30,
-                                                  posinf=-1e30,
-                                                  neginf=-1e30)
-        # Clamp at max acceptance prob of 1.
-        log_acceptance_prob = torch.clamp(log_acceptance_prob, max=torch.log(torch.ones_like((log_acceptance_prob))))
-        return log_acceptance_prob.detach()
+        with torch.no_grad():
+            log_acceptance_prob = torch.exp(log_prob_proposed - log_prob_current)
+            # reject samples with nan acceptance probability
+            valid_samples = torch.isfinite(log_acceptance_prob)
+            log_acceptance_prob = torch.nan_to_num(log_acceptance_prob,
+                                                      nan=-1e30,
+                                                      posinf=-1e30,
+                                                      neginf=-1e30)
+            accept = log_acceptance_prob > torch.log(torch.rand(
+                log_acceptance_prob.shape)).to(log_acceptance_prob.device)
+            accept = accept & valid_samples
+            p_accept = torch.exp(log_acceptance_prob)
+            p_accept[~valid_samples] = 0.0  # Set to 0 for invalid samples.
+            p_accept = torch.clamp(p_accept, max=1.0)
+            p_accept_mean = torch.mean(p_accept)
+            return accept, p_accept_mean
 
     def kinetic_energy(self, p, mass_matrix):
         return torch.sum(p**2 / mass_matrix, dim=-1) / 2
@@ -140,15 +147,12 @@ class HamiltonianMonteCarlo(TransitionOperator):
                 # make momentum half step
                 p = p - epsilon * grad_u / 2
 
-            log_acceptance_probability = self.metropolis_log_acceptance_prob(
+            accept, p_accept_mean = self.metropolis_accept(
                 point_proposed=point, point_current=current_point,
                 p_proposed=p, p_current=current_p,
                 U=U, mass_matrix=self.mass_vector
             )
-            accept = log_acceptance_probability > torch.log(torch.rand(
-                log_acceptance_probability.shape)).to(point.device)
             current_point[accept] = point[accept]
-            p_accept_mean = torch.mean(torch.exp(log_acceptance_probability))
             self.store_info(i=i, n=n, p_accept_mean=p_accept_mean, current_x=point.x,
                             original_x=original_point.x)
             if not self.eval_mode:
