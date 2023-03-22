@@ -115,14 +115,13 @@ class HamiltonianMonteCarlo(TransitionOperator):
                                                       nan=-1e30,
                                                       posinf=-1e30,
                                                       neginf=-1e30)
-            accept = log_acceptance_prob > torch.log(torch.rand(
-                log_acceptance_prob.shape)).to(log_acceptance_prob.device)
+            accept = log_acceptance_prob > -torch.distributions.Exponential(1.).sample(
+                log_acceptance_prob.shape).to(log_acceptance_prob.device)
             accept = accept & valid_samples
-            p_accept = torch.exp(log_acceptance_prob)
-            p_accept[~valid_samples] = 0.0  # Set to 0 for invalid samples.
-            p_accept = torch.clamp(p_accept, max=1.0)
-            p_accept_mean = torch.mean(p_accept)
-            return accept, p_accept_mean
+            log_acceptance_prob = torch.clamp(log_acceptance_prob, max=0.0)  # prob can't be higher than 1.
+            log_p_accept_mean = torch.logsumexp(log_acceptance_prob, dim=-1) - \
+                                torch.log(torch.tensor(log_acceptance_prob.shape[0])).to(log_acceptance_prob.device)
+            return accept, log_p_accept_mean
 
     def kinetic_energy(self, p, mass_matrix):
         return torch.sum(p**2 / mass_matrix, dim=-1) / 2
@@ -147,23 +146,23 @@ class HamiltonianMonteCarlo(TransitionOperator):
                 # make momentum half step
                 p = p - epsilon * grad_u / 2
 
-            accept, p_accept_mean = self.metropolis_accept(
+            accept, log_p_accept_mean = self.metropolis_accept(
                 point_proposed=point, point_current=current_point,
                 p_proposed=p, p_current=current_p,
                 U=U, mass_matrix=self.mass_vector
             )
             current_point[accept] = point[accept]
-            self.store_info(i=i, n=n, p_accept_mean=p_accept_mean, current_x=point.x,
+            self.store_info(i=i, n=n, p_accept_mean=torch.exp(log_p_accept_mean), current_x=point.x,
                             original_x=original_point.x)
             if not self.eval_mode:
-                self.adjust_step_size_p_accept(p_accept_mean=p_accept_mean,
+                self.adjust_step_size_p_accept(log_p_accept_mean=log_p_accept_mean,
                                                i=i, n=n)
         return current_point
 
-    def adjust_step_size_p_accept(self, p_accept_mean, i, n):
+    def adjust_step_size_p_accept(self, log_p_accept_mean, i, n):
         """Adjust step size to reach the target p-accept."""
         index = i - 1
-        if p_accept_mean > self.target_p_accept:  # too much accept
+        if log_p_accept_mean > torch.log(torch.tensor(self.target_p_accept)):  # too much accept
             self.epsilons[index, n] = self.epsilons[index, n] * 1.05
             self.common_epsilon = self.common_epsilon * 1.02
         else:
