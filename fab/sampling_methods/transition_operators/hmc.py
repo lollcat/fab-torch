@@ -112,9 +112,9 @@ class HamiltonianMonteCarlo(TransitionOperator):
             # reject samples with nan acceptance probability
             valid_samples = torch.isfinite(log_acceptance_prob)
             log_acceptance_prob = torch.nan_to_num(log_acceptance_prob,
-                                                      nan=-1e30,
-                                                      posinf=-1e30,
-                                                      neginf=-1e30)
+                                                      nan=-float('inf'),
+                                                      posinf=-float('inf'),
+                                                      neginf=-float('inf'))
             accept = log_acceptance_prob > -torch.distributions.Exponential(1.).sample(
                 log_acceptance_prob.shape).to(log_acceptance_prob.device)
             accept = accept & valid_samples
@@ -162,7 +162,7 @@ class HamiltonianMonteCarlo(TransitionOperator):
     def adjust_step_size_p_accept(self, log_p_accept_mean, i, n):
         """Adjust step size to reach the target p-accept."""
         index = i - 1
-        if log_p_accept_mean > torch.log(torch.tensor(self.target_p_accept)):  # too much accept
+        if log_p_accept_mean > torch.log(torch.tensor(self.target_p_accept).to(log_p_accept_mean.device)):  # too much accept
             self.epsilons[index, n] = self.epsilons[index, n] * 1.05
             self.common_epsilon = self.common_epsilon * 1.02
         else:
