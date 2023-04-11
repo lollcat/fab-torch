@@ -14,6 +14,11 @@ In this repository, we implement FAB and provide the code to reproduce our exper
 details about our method and the results of our experiments, please read
 [our paper](https://arxiv.org/abs/2208.01893).
 
+**Note**: The most important thing to get right when applying FAB to a given problem is to make sure that AIS is returning reasonable samples,
+where by reasonable we mean that the samples from AIS are closer to the target than the flow. 
+See [About the code](#about-the-code) for further details on how to use the FAB codebase on new problems.
+
+
 ## Methods of Installation
 
 The  package can be installed via pip by navigating in the repository directory and running
@@ -102,10 +107,23 @@ The main FAB loss can be found in [core.py](fab/core.py), and we provide a simpl
 train a flow with this loss (or other flow - loss combinations that meet the spec) in [train.py](fab/train.py) 
 The FAB training algorithm **with** the prioritised buffer can be found in [train_with_prioritised_buffer.py](fab/train_with_prioritised_buffer.py). 
 Additionally, we provide the code for running the SNR/dimensionality analysis with p and q set to independent Gaussians.
-in the [fab-jax](https://github.com/lollcat/fab-jax) repository.
+in the [fab-jax](https://github.com/lollcat/fab-jax-old) repository.
 For training the CRAFT model on the GMM problem we forked the 
 [Annealed Flow Transport repository](https://github.com/deepmind/annealed_flow_transport). 
-This fork may be found [here](https://github.com/lollcat/annealed_flow_transport), and may be used for training the CRAFT model. 
+This fork may be found [here](https://github.com/lollcat/annealed_flow_transport), and may be used for training the CRAFT model.
+
+
+#### Applying FAB to a new problem:
+The most important thing to get right when applying FAB to a given problem is to make sure that AIS is returning reasonable samples,
+where by reasonable we just mean that the samples from AIS are closer to the target than the flow. 
+Simply visualising the samples from the flow and AIS provides a good check for whether this is the case.
+Making sure that the transition kernel (e.g. HMC) is working well (e.g. has well tuned step size) is key for AIS to work well.
+
+An additional source of instability can be if the target energy function gives spurious values to points that have extreme values.
+For example, evaluating the density of a zero-mean unit variance Gaussian on a point that has a value of 100 will give a spurious values. 
+One can fix this by manually setting the log prob of the target to be -inf for regions that are 
+known to be far outside of where samples from the target lie. 
+
 
 ### Normalizing Flow Libraries
 We offer a simple wrapper that allows for various normalising flow libraries to be plugged into 
