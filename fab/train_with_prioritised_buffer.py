@@ -84,6 +84,7 @@ class PrioritisedBufferTrainer:
                                                          set_p_target=True)
         # Double check the ais distribution has been set back to p^\alpha q^{1-\alpha}.
         assert self.model.annealed_importance_sampler.p_target is False
+        assert self.model.annealed_importance_sampler.transition_operator.p_target is False
         # Evaluation with the AIS ESS with target set as p^\alpha q^{1-\alpha}.
         eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                               inner_batch_size=batch_size,
