@@ -68,7 +68,7 @@ class FABModel(Model):
                 transition_operator=self.transition_operator,
                 n_intermediate_distributions=self.n_intermediate_distributions,
                 distribution_spacing_type=self.ais_distribution_spacing,
-                p_target=True,
+                p_target=False,
                 alpha=self.alpha
             )
 
