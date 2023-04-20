@@ -14,7 +14,7 @@ class Metropolis(TransitionOperator):
                  target_log_prob: LogProbFunc,
                  n_updates,
                  alpha: float = None,
-                 p_target: bool = None,
+                 p_target: bool = False,
                  max_step_size=1.0,
                  min_step_size=0.1,
                  adjust_step_size=True,
