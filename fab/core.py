@@ -48,10 +48,9 @@ class FABModel(Model):
                              "flow_alpha_2_div_unbiased", "flow_alpha_2_div_nis",
                              "target_forward_kl"]
         if loss_type in EXPERIMENTAL_LOSSES:
-            warnings.warn("Running using experiment loss not used within the main FAB paper.")
+            raise Exception("Running using experiment loss not used within the main FAB paper.")
         if loss_type in ALPHA_DIV_TARGET_LOSSES:
             assert alpha is not None, "Alpha must be specified if using the alpha div loss."
-        self.p_target = loss_type not in ALPHA_DIV_TARGET_LOSSES
         self.alpha = alpha
         self.loss_type = loss_type
         self.flow = flow
@@ -69,7 +68,7 @@ class FABModel(Model):
                 transition_operator=self.transition_operator,
                 n_intermediate_distributions=self.n_intermediate_distributions,
                 distribution_spacing_type=self.ais_distribution_spacing,
-                p_target=self.p_target,
+                p_target=False,
                 alpha=self.alpha
             )
 
@@ -192,8 +191,11 @@ class FABModel(Model):
     def get_eval_info(self,
                       outer_batch_size: int,
                       inner_batch_size: int,
+                      set_p_target: bool = True
                       ) -> Dict[str, Any]:
         if hasattr(self, "annealed_importance_sampler"):
+            if set_p_target:
+                self.set_ais_target(min_is_target=False)  # Evaluate with target=p.
             base_samples, base_log_w, ais_samples, ais_log_w = \
                 self.annealed_importance_sampler.generate_eval_data(outer_batch_size,
                                                                     inner_batch_size)
@@ -205,6 +207,9 @@ class FABModel(Model):
             ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)
             info.update(flow_info)
             info.update(ais_info)
+
+            # Back to target = p^\alpha & q^(1-\alpha).
+            self.set_ais_target(min_is_target=True)
 
         else:
             raise NotImplementedError

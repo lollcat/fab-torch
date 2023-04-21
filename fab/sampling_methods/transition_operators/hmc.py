@@ -12,7 +12,7 @@ class HamiltonianMonteCarlo(TransitionOperator):
                  base_log_prob: LogProbFunc,
                  target_log_prob: LogProbFunc,
                  alpha: float = None,
-                 p_target: bool = True,
+                 p_target: bool = False,
                  epsilon: float = 1.0,
                  n_outer: int = 1,
                  L: int = 5,
