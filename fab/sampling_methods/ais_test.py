@@ -12,6 +12,55 @@ from fab.wrappers.torch import WrappedTorchDist
 from fab.utils.plotting import plot_history
 from fab.sampling_methods.base import resample
 
+
+def test_ais_num_dist(dim: int = 1,
+            batch_size: int = 10000,
+             ) -> None:
+    """Set q and p equal to simple normal distributions. And test that ESS, and error in estimation of
+    the normalization constant scales nicely with more intermedediate distributions"""
+    logger = ListLogger()
+    base_dist = WrappedTorchDist(torch.distributions.MultivariateNormal(loc=torch.zeros(dim)+0.5,
+                                                                 scale_tril=torch.eye(dim)))
+    target = WrappedTorchDist(torch.distributions.MultivariateNormal(loc=torch.zeros(dim)-0.5,
+                                                                 scale_tril=torch.eye(dim)))
+
+
+    n_intermedaite_distributions_list = [1, 1, 1, 8, 8, 8, 32, 32, 32, 64, 64, 64, 128, 128, 128]
+    for n_ais_intermediate_distributions in n_intermedaite_distributions_list:
+        transition_operator = Metropolis(n_ais_intermediate_distributions=n_ais_intermediate_distributions,
+                                         n_updates=1,
+                                         base_log_prob=base_dist.log_prob,
+                                         target_log_prob=target.log_prob,
+                                         p_target=True,
+                                         dim=dim,
+                                         max_step_size=1.,
+                                         min_step_size=1.
+                                         )
+        ais = AnnealedImportanceSampler(base_distribution=base_dist,
+                                    target_log_prob=target.log_prob,
+                                    transition_operator=transition_operator,
+                                    n_intermediate_distributions=n_ais_intermediate_distributions,
+                                    distribution_spacing_type='linear',
+                                    p_target=True)
+
+
+        points, log_w = ais.sample_and_log_weights(batch_size=batch_size)
+        ess = 1 / torch.mean(torch.exp(log_w)**2)
+        log_Z_estimate = torch.logsumexp(log_w, dim=0) - torch.log(torch.tensor(log_w.shape[0]))
+        info = {}
+        info.update(log_Z_estimate=log_Z_estimate, ess=ess,
+                    n_ais_intermediate_distributions=n_ais_intermediate_distributions)
+        logger.write(info)
+    plt.plot(logger.history['n_ais_intermediate_distributions'], np.abs(logger.history['log_Z_estimate']), 'o',
+             label="abs error log_Z estimate")
+    plt.legend()
+    plt.show()
+    plt.plot(logger.history['n_ais_intermediate_distributions'], logger.history['ess'], label="ESS of AIS")
+    plt.legend()
+    plt.show()
+
+
+
 def setup_ais(dim: int = 2,
             n_ais_intermediate_distributions: int = 40,
             seed: int = 0,
@@ -31,14 +80,18 @@ def setup_ais(dim: int = 2,
             dim=dim,
             base_log_prob=base_dist.log_prob,
             target_log_prob=target.log_prob,
-            p_sq_over_q_target=p_sq_over_q_target,
+            p_target=not p_sq_over_q_target,
             n_outer=5,
             epsilon=1.0,
             L=5,
         )
     elif transition_operator_type == "metropolis":
-        transition_operator = Metropolis(n_transitions=n_ais_intermediate_distributions,
-                                         n_updates=5)
+        transition_operator = Metropolis(n_ais_intermediate_distributions=n_ais_intermediate_distributions,
+                                         n_updates=5,
+                                         base_log_prob=base_dist.log_prob,
+                                         target_log_prob=target.log_prob,
+                                         p_target=not p_sq_over_q_target,
+                                         dim=dim)
     else:
         raise NotImplementedError
     ais = AnnealedImportanceSampler(base_distribution=base_dist,
@@ -46,7 +99,7 @@ def setup_ais(dim: int = 2,
                                     transition_operator=transition_operator,
                                     n_intermediate_distributions=n_ais_intermediate_distributions,
                                     distribution_spacing_type=spacing,
-                                    p_sq_over_q_target=p_sq_over_q_target
+                                    p_target=not p_sq_over_q_target
                                     )
     return ais, target
 
@@ -140,9 +193,4 @@ def test_ais__overall(dim: int = 2,
 
     plot_history(logger.history)
     plt.show()
-
-
-if __name__ == '__main__':
-    test_ais__overall(n_ais_intermediate_distributions=4)
-
 
