@@ -118,6 +118,7 @@ This fork may be found [here](https://github.com/lollcat/annealed_flow_transport
 As we are still adding improvements to the efficiency and stability of the code, make sure you use the latest version.
 Additionally, if you spot any areas of the code that could be improved then make an issue and we will be more 
 than happy to fix it.
+For the version of the code that was used in the paper see our [releases](https://github.com/lollcat/fab-torch/releases).
 
 #### Applying FAB to a new problem:
 The most important thing to get right when applying FAB to a given problem is to make sure that AIS is returning reasonable samples,
