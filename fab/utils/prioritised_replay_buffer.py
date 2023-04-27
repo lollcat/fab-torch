@@ -125,7 +125,7 @@ class PrioritisedReplayBuffer:
         # Kill samples in the buffer for which the `log_w_adjustment` is invalid.
         # A common reason this can occur is if AIS discovers a point far outside the reasonable range of the problem.
         # Which causes nan log probs under the flow.
-        invalid_indices = indices[~valid_adjustment]
+        invalid_indices = indices[~valid_adjustment].to(self.device)
         self.buffer.log_w[invalid_indices] = -torch.ones_like(self.buffer.log_w[invalid_indices])*(float("inf"))
 
     def save(self, path):
