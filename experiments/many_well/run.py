@@ -65,7 +65,7 @@ def _run(cfg: DictConfig):
     setup_trainer_and_run_flow(cfg, setup_many_well_plotter, target)
 
 
-@hydra.main(config_path="../config", config_name="many_well_fast.yaml")
+@hydra.main(config_path="../config", config_name="many_well.yaml")
 def run(cfg: DictConfig):
     _run(cfg)
 
