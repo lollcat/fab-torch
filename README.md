@@ -115,6 +115,9 @@ For training the CRAFT model on the GMM problem we forked the
 [Annealed Flow Transport repository](https://github.com/deepmind/annealed_flow_transport). 
 This fork may be found [here](https://github.com/lollcat/annealed_flow_transport), and may be used for training the CRAFT model.
 
+As we are still adding improvements to the efficiency and stability of the code, make sure you use the latest version.
+Additionally, if you spot any areas of the code that could be improved then make an issue and we will be more 
+than happy to fix it.
 
 #### Applying FAB to a new problem:
 The most important thing to get right when applying FAB to a given problem is to make sure that AIS is returning reasonable samples,
@@ -126,6 +129,8 @@ An additional source of instability can be if the target energy function gives s
 For example, evaluating the density of a zero-mean unit variance Gaussian on a point that has a value of 100 will give a spurious values. 
 One can fix this by manually setting the log prob of the target to be -inf for regions that are 
 known to be far outside of where samples from the target lie. 
+
+Feel free to contact us if you would like any help getting FAB to work nicely!
 
 
 ### Normalizing Flow Libraries

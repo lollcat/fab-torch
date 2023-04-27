@@ -50,7 +50,7 @@ def setup_many_well_plotter(cfg: DictConfig, target, buffer=None) -> Plotter:
         axs[0, 0].set_title("flow samples")
         if cfg.training.use_buffer is True:
             axs[0, 2].set_title("buffer samples")
-        # plt.show()
+        plt.show()
         return [fig]
     return plot
 

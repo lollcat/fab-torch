@@ -110,7 +110,9 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
         info = {"MSE_log_Z_estimate": MSE_Z_estimate.cpu().item()}
 
         if log_q_fn is not None:
-            n_batches = log_w.shape[0] // batch_size  # Used later for estimation of test set probabilities.
+            # Used later for estimation of test set probabilities.
+            assert batch_size is not None
+            n_batches = max(log_w.shape[0] // batch_size, 1)
 
             sum_log_prob = 0.0
             sum_log_prob_exact = 0.0

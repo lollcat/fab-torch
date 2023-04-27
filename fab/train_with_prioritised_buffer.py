@@ -94,7 +94,7 @@ class PrioritisedBufferTrainer:
 
 
         eval_info = {}
-        eval_info.update({key + "p_target": val for key, val in eval_info_true_target.items()})
+        eval_info.update({key + "_p_target": val for key, val in eval_info_true_target.items()})
         eval_info.update(
             {key + "_min_var_target": val for key, val in eval_info_practical_target.items()})
 

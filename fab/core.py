@@ -22,7 +22,7 @@ class FABModel(Model):
                  flow: TrainableDistribution,
                  target_distribution: TargetDistribution,
                  n_intermediate_distributions: int,
-                 alpha: Union[float, None],
+                 alpha: float = 2.,
                  transition_operator: Optional[TransitionOperator] = None,
                  ais_distribution_spacing: "str" = "linear",
                  loss_type: Optional["str"] = None,
