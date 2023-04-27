@@ -11,8 +11,10 @@ def sample_without_replacement(logits: torch.Tensor, n: int) -> torch.Tensor:
     # https://timvieira.github.io/blog/post/2014/07/31/gumbel-max-trick/
     z = torch.distributions.Gumbel(torch.tensor(0.0), torch.tensor(1.0)).sample(
         logits.shape).to(logits.device)
-    topk = torch.topk(z + logits, n)
-    return topk.indices
+    topk = torch.topk(z + logits, n, sorted=False)
+    indices = topk.indices
+    indices = indices[torch.randperm(n).to(indices.device)]
+    return indices
 
 
 class PrioritisedReplayBuffer:
@@ -121,6 +123,12 @@ class PrioritisedReplayBuffer:
         valid_indices = valid_indices.to(self.device)
         self.buffer.log_w[valid_indices] += log_w_adjustment.to(self.device)
         self.buffer.log_q_old[valid_indices] = log_q.to(self.device)
+
+        # Kill samples in the buffer for which the `log_w_adjustment` is invalid.
+        # A common reason this can occur is if AIS discovers a point far outside the reasonable range of the problem.
+        # Which causes nan log probs under the flow.
+        invalid_indices = indices[~valid_adjustment].to(self.device)
+        self.buffer.log_w[invalid_indices] = -torch.ones_like(self.buffer.log_w[invalid_indices])*(float("inf"))
 
 
     def save(self, path):
