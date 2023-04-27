@@ -88,12 +88,13 @@ class PrioritisedBufferTrainer:
         # Evaluation with the AIS ESS with target set as p^\alpha q^{1-\alpha}.
         eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                               inner_batch_size=batch_size,
-                                                              set_p_target=False)
+                                                              set_p_target=False,
+                                                              ais_only=True)
         self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
 
 
         eval_info = {}
-        eval_info.update({key + "_p_target": val for key, val in eval_info_true_target.items()})
+        eval_info.update({key + "p_target": val for key, val in eval_info_true_target.items()})
         eval_info.update(
             {key + "_min_var_target": val for key, val in eval_info_practical_target.items()})
 

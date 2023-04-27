@@ -40,8 +40,8 @@ training:
   n_flow_forward_pass: 30_000 # assumes split coupling where log prob & sample are same speed.
   use_gpu: True
   use_64_bit: true
-  use_buffer: false # below config fields are all for use_buffer = True
-  prioritised_buffer: false
+  use_buffer: true # below config fields are all for use_buffer = True
+  prioritised_buffer: true
   n_batches_buffer_sampling: 2
   buffer_temp: 1.0 # rate that we weight new experience over old
   maximum_buffer_length: 200

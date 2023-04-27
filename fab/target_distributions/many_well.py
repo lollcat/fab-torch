@@ -96,7 +96,6 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
     def performance_metrics(self, samples: torch.Tensor, log_w: torch.Tensor,
                             log_q_fn: Optional[LogProbFunc] = None,
                             batch_size: Optional[int] = None) -> Dict:
-        n_batches = log_w.shape[0] // batch_size # Used later for estimation of test set probabilities.
 
         del samples
         n_runs = 50
@@ -111,6 +110,8 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
         info = {"MSE_log_Z_estimate": MSE_Z_estimate.cpu().item()}
 
         if log_q_fn is not None:
+            n_batches = log_w.shape[0] // batch_size  # Used later for estimation of test set probabilities.
+
             sum_log_prob = 0.0
             sum_log_prob_exact = 0.0
             sum_kl_exact = 0.0
