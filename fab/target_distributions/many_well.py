@@ -96,23 +96,21 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
     def performance_metrics(self, samples: torch.Tensor, log_w: torch.Tensor,
                             log_q_fn: Optional[LogProbFunc] = None,
                             batch_size: Optional[int] = None) -> Dict:
-        if log_q_fn is None:
-            return {}
-        else:
-            n_batches = log_w.shape[0] // batch_size # Used later for estimation of test set probabilities.
+        n_batches = log_w.shape[0] // batch_size # Used later for estimation of test set probabilities.
 
+        del samples
+        n_runs = 50
+        n_vals_per_split = log_w.shape[0] // n_runs
+        log_w = log_w[:n_vals_per_split*n_runs]
+        log_w = torch.stack(log_w.split(n_runs), dim=-1)
+        # Check accuracy in estimating normalisation constant.
+        log_Z_estimate = torch.logsumexp(log_w, dim=-1) - np.log(log_w.shape[-1])
+        relative_error = torch.exp(log_Z_estimate - self.log_Z) - 1
+        MSE_Z_estimate = torch.mean(torch.abs(relative_error))
 
-            del samples
-            n_runs = 50
-            n_vals_per_split = log_w.shape[0] // n_runs
-            log_w = log_w[:n_vals_per_split*n_runs]
-            log_w = torch.stack(log_w.split(n_runs), dim=-1)
-            # Check accuracy in estimating normalisation constant.
-            log_Z_estimate = torch.logsumexp(log_w, axis=-1) - np.log(log_w.shape[-1])
-            relative_error = torch.exp(log_Z_estimate - self.log_Z) - 1
-            MSE_Z_estimate = torch.mean(torch.abs(relative_error))
+        info = {"MSE_log_Z_estimate": MSE_Z_estimate.cpu().item()}
 
-
+        if log_q_fn is not None:
             sum_log_prob = 0.0
             sum_log_prob_exact = 0.0
             sum_kl_exact = 0.0
@@ -132,15 +130,13 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
 
             eval_batch_size = batch_size * n_batches
 
-            info = {
-                "test_set_modes_mean_log_prob":
-                    (sum_log_prob / test_set_iterator_modes.test_set_n_points).cpu().item(),
-                "test_set_exact_mean_log_prob": (sum_log_prob_exact / eval_batch_size).cpu().item(),
-                "MSE_log_Z_estimate": MSE_Z_estimate.cpu().item(),
-                "forward_kl": (sum_kl_exact / eval_batch_size).cpu().item(),
-                "eval_batch_size": eval_batch_size
-            }
-            return info
+            info.update(
+                test_set_modes_mean_log_prob=(sum_log_prob / test_set_iterator_modes.test_set_n_points).cpu().item(),
+                test_set_exact_mean_log_prob=(sum_log_prob_exact / eval_batch_size).cpu().item(),
+                forward_kl=(sum_kl_exact / eval_batch_size).cpu().item(),
+                eval_batch_size=eval_batch_size
+            )
+        return info
 
 if __name__ == '__main__':
     from fab.utils.plotting import plot_contours, plot_marginal_pair

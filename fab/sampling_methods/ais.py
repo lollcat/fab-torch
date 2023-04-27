@@ -91,12 +91,13 @@ class AnnealedImportanceSampler:
         """" Transition via MCMC with the j'th intermediate distribution as the target."""
         x_new = self.transition_operator.transition(x_new, j, self.B_space[j])
         if self.B_space[j + 1] != self.B_space[j]:
-            log_w = log_w \
-                    + get_intermediate_log_prob(x_new,
+            log_numerator = get_intermediate_log_prob(x_new,
                                                 self.B_space[j + 1], self.alpha,
-                                                self.p_target) \
-                    - get_intermediate_log_prob(x_new, self.B_space[j], self.alpha,
                                                 self.p_target)
+            log_denominator = get_intermediate_log_prob(x_new, self.B_space[j], self.alpha,
+                                                self.p_target)
+            log_w_increment = log_numerator - log_denominator
+            log_w = log_w + log_w_increment
         else:
             # Commonly we may have a few transitions with beta=1 at the end of AIS, which does not
             # change the AIS weights.

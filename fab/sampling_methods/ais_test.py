@@ -13,11 +13,19 @@ from fab.utils.plotting import plot_history
 from fab.sampling_methods.base import resample
 
 
+def analytic_alpha_2_div(mean_q: torch.Tensor, mean_p: torch.Tensor) -> torch.Tensor:
+    """Calculate \int p(x)^2/q dx where p and q are unit-variance Gaussians."""
+    return torch.exp(torch.sum(mean_p**2 + mean_q**2 - 2*mean_p*mean_q))
+
+
 def test_ais_num_dist(dim: int = 1,
             batch_size: int = 10000,
              ) -> None:
     """Set q and p equal to simple normal distributions. And test that ESS, and error in estimation of
     the normalization constant scales nicely with more intermedediate distributions"""
+    # Note: alpha=1. or p_target = True & alpha=2 both set the target to p.
+    alpha = 1.
+    p_target = False
     logger = ListLogger()
     base_dist = WrappedTorchDist(torch.distributions.MultivariateNormal(loc=torch.zeros(dim)+0.5,
                                                                  scale_tril=torch.eye(dim)))
@@ -31,17 +39,20 @@ def test_ais_num_dist(dim: int = 1,
                                          n_updates=1,
                                          base_log_prob=base_dist.log_prob,
                                          target_log_prob=target.log_prob,
-                                         p_target=True,
+                                         p_target=p_target,
+                                         alpha=alpha,
                                          dim=dim,
-                                         max_step_size=1.,
-                                         min_step_size=1.
+                                         max_step_size=2.,
+                                         min_step_size=2.,
+                                         adjust_step_size=False
                                          )
         ais = AnnealedImportanceSampler(base_distribution=base_dist,
-                                    target_log_prob=target.log_prob,
-                                    transition_operator=transition_operator,
-                                    n_intermediate_distributions=n_ais_intermediate_distributions,
-                                    distribution_spacing_type='linear',
-                                    p_target=True)
+                                        p_target=p_target,
+                                        alpha=alpha,
+                                        target_log_prob=target.log_prob,
+                                        transition_operator=transition_operator,
+                                        n_intermediate_distributions=n_ais_intermediate_distributions,
+                                        distribution_spacing_type='linear')
 
 
         points, log_w = ais.sample_and_log_weights(batch_size=batch_size)
@@ -51,6 +62,17 @@ def test_ais_num_dist(dim: int = 1,
         info.update(log_Z_estimate=log_Z_estimate, ess=ess,
                     n_ais_intermediate_distributions=n_ais_intermediate_distributions)
         logger.write(info)
+
+        x_linspace = torch.linspace(-5., 5., 50)[:, None]
+        log_q = base_dist.log_prob(x_linspace)
+        log_p = target.log_prob(x_linspace)
+        fig, axs = plt.subplots()
+        axs.plot(x_linspace, torch.exp(log_q), label="q")
+        axs.plot(x_linspace, torch.exp(log_p), label="p")
+        axs.hist(torch.squeeze(points.x), label="samples", density=True, bins=100, alpha=0.3)
+        plt.legend()
+        plt.show()
+
     plt.plot(logger.history['n_ais_intermediate_distributions'], np.abs(logger.history['log_Z_estimate']), 'o',
              label="abs error log_Z estimate")
     plt.legend()
