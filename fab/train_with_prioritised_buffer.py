@@ -30,7 +30,7 @@ class PrioritisedBufferTrainer:
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None,
                  max_gradient_norm: Optional[float] = 5.0,
-                 w_adjust_max_clip: float = 10.0,
+                 w_adjust_max_clip: Optional[float] = 10.0,
                  w_adjust_in_buffer_after_update: bool = False,
                  save_path: str = "",
                  ):
@@ -88,7 +88,8 @@ class PrioritisedBufferTrainer:
         # Evaluation with the AIS ESS with target set as p^\alpha q^{1-\alpha}.
         eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
                                                               inner_batch_size=batch_size,
-                                                              set_p_target=False)
+                                                              set_p_target=False,
+                                                              ais_only=True)
         self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
 
 

@@ -6,11 +6,11 @@ target:
   dim: 6
 
 flow:
-  layer_nodes_per_dim: 5
-  n_layers: 5
+  layer_nodes_per_dim: 40
+  n_layers: 10
   act_norm: false
   use_snf: false
-  resampled_base: true
+  resampled_base: false
   snf: # config if snf is used.
     transition_operator_type: hmc # metropolis or hmc
     step_size: 0.001
@@ -22,12 +22,14 @@ fab:
   # target_forward_kl: forward kl estimated with samples from the target
   # flow_reverse_kl, flow_alpha_2_div_nis for revers KL/alpha_2_div estimated with flow samples
   loss_type: fab_alpha_div
-  alpha: 0.5 # null
+  alpha: 2.0 # null
   transition_operator:
     type: hmc
     n_inner_steps: 5
     init_step_size: 1.0
-  n_intermediate_distributions: 2
+    tune_step_size: true
+    target_p_accept: 0.65
+  n_intermediate_distributions: 4
 
 
 training:
@@ -35,19 +37,19 @@ training:
   checkpoint_load_dir: null
   seed: 0
   lr: 2e-4
-  batch_size: 20
-  n_iterations: null
-  n_flow_forward_pass: 30_000 # assumes split coupling where log prob & sample are same speed.
+  batch_size: 128
+  n_iterations: 500
+  n_flow_forward_pass: null
   use_gpu: True
   use_64_bit: true
-  use_buffer: false # below config fields are all for use_buffer = True
-  prioritised_buffer: false
-  n_batches_buffer_sampling: 2
+  use_buffer: true # below config fields are all for use_buffer = True
+  prioritised_buffer: true
+  n_batches_buffer_sampling: 4
   buffer_temp: 1.0 # rate that we weight new experience over old
-  maximum_buffer_length: 200
-  min_buffer_length: 20 # heuristic: set this to n_batches_buffer_sampling*batch_size*10
+  maximum_buffer_length: 6400
+  min_buffer_length: 640 # heuristic: set this to n_batches_buffer_sampling*batch_size*10
   log_w_clip_frac: null # null for no clipping, for non-prioritised replay
-  max_grad_norm: 10 # null for no clipping
+  max_grad_norm: 100 # null for no clipping
   w_adjust_max_clip: 10.0 # clipping of weight adjustment factor for prioritised replay
 
 
@@ -55,15 +57,16 @@ training:
 evaluation:
   n_plots: 20 # number of times we visualise the model throughout training.
   n_eval: 10 # for calculating metrics of flow w.r.t target.
-  eval_batch_size: 100 # must be a multiple of inner batch size
+  eval_batch_size: 128 # must be a multiple of inner batch size
   n_checkpoints: 10 # number of model checkpoints saved
   save_path:  ./results/many_well/seed${training.seed}/
 
 
 
 logger:
-  pandas_logger:
-    save_period: 100 # how often to save the pandas dataframe as a csv
+  list_logger:
+#  pandas_logger:
+#    save_period: 100 # how often to save the pandas dataframe as a csv
 #  wandb:
 #    name: ManyWell32
 #    tags: [alpha_2_loss,ManyWell32]

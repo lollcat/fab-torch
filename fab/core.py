@@ -22,7 +22,7 @@ class FABModel(Model):
                  flow: TrainableDistribution,
                  target_distribution: TargetDistribution,
                  n_intermediate_distributions: int,
-                 alpha: Union[float, None],
+                 alpha: float = 2.,
                  transition_operator: Optional[TransitionOperator] = None,
                  ais_distribution_spacing: "str" = "linear",
                  loss_type: Optional["str"] = None,
@@ -191,7 +191,8 @@ class FABModel(Model):
     def get_eval_info(self,
                       outer_batch_size: int,
                       inner_batch_size: int,
-                      set_p_target: bool = True
+                      set_p_target: bool = True,
+                      ais_only: bool = False
                       ) -> Dict[str, Any]:
         if hasattr(self, "annealed_importance_sampler"):
             if set_p_target:
@@ -201,12 +202,14 @@ class FABModel(Model):
                                                                     inner_batch_size)
             info = {"eval_ess_flow": effective_sample_size(log_w=base_log_w, normalised=False).item(),
                     "eval_ess_ais": effective_sample_size(log_w=ais_log_w, normalised=False).item()}
-            flow_info = self.target_distribution.performance_metrics(base_samples, base_log_w,
-                                                                     self.flow.log_prob,
-                                                                     batch_size=inner_batch_size)
+
+            if not ais_only:
+                flow_info = self.target_distribution.performance_metrics(base_samples, base_log_w,
+                                                                         self.flow.log_prob,
+                                                                         batch_size=inner_batch_size)
+                info.update({"flow_" + key: val for key, val in flow_info.items()})
             ais_info = self.target_distribution.performance_metrics(ais_samples, ais_log_w)
-            info.update(flow_info)
-            info.update(ais_info)
+            info.update({"ais_" + key: val for key, val in ais_info.items()})
 
             # Back to target = p^\alpha & q^(1-\alpha).
             self.set_ais_target(min_is_target=True)
