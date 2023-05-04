@@ -9,7 +9,6 @@ import boltzgen as bg
 
 from time import time
 from fab.utils.training import load_config
-from fab.sampling_methods.transition_operators import HamiltonianMonteCarlo, Metropolis
 from fab.utils.aldp import evaluate_aldp
 from fab.utils.aldp import filter_chirality
 from fab.utils.numerical import effective_sample_size
@@ -325,13 +324,9 @@ for it in range(start_iter, max_iter):
                         log_w_ais = log_w_ais[ind_L]
                 # Add sample to buffer
                 buffer.add(point_ais.x, log_w_ais.detach(), point_ais.log_q)
-                # Sample from buffer
-                buffer_sample = buffer.sample_n_batches(batch_size=batch_size,
-                                                        n_batches=rb_config['n_updates'])
-                buffer_iter = iter(buffer_sample)
 
             # Get batch from buffer
-            x, log_w, log_q_old, indices = next(buffer_iter)
+            x, log_w, log_q_old, indices = buffer.sample(batch_size=batch_size)
             x, log_w, log_q_old, indices = x.to(device), log_w.to(device), \
                                            log_q_old.to(device), indices.to(device)
             log_q_x = model.flow.log_prob(x)

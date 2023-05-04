@@ -100,19 +100,6 @@ class PrioritisedReplayBuffer:
                                        self.buffer.log_q_old[indices], indices
         return x, log_w, log_q_old, indices
 
-
-    def sample_n_batches(self, batch_size: int, n_batches: int) -> \
-            Iterable[Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]:
-        """Returns a list of batches."""
-        x, log_w, log_q_old, indices = self.sample(batch_size*n_batches)
-        x_batches = torch.chunk(x, n_batches)
-        log_w_batches = torch.chunk(log_w, n_batches)
-        log_q_old_batches = torch.chunk(log_q_old, n_batches)
-        indices_batches = torch.chunk(indices, n_batches)
-        dataset = [(x, log_w, log_q_old, indxs) for x, log_w, log_q_old, indxs in zip(x_batches, log_w_batches,
-                                                                           log_q_old_batches, indices_batches)]
-        return dataset
-
     @torch.no_grad()
     def adjust(self, log_w_adjustment, log_q, indices):
         """Adjust log weights and log q to match new value of theta, this is typically performed
