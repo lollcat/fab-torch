@@ -100,7 +100,7 @@ class BufferTrainer:
             self.logger.write(info)
 
             # We now take an additional self.n_batches_buffer_sampling gradient steps using
-            # data from the replay buffer.
+            # batches of data from the replay buffer.
             for (x, log_w) in self.buffer.sample_n_batches(
                     batch_size=batch_size, n_batches=self.n_batches_buffer_sampling):
 
