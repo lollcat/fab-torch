@@ -144,8 +144,8 @@ this repository. The main library we rely on is
 
 If you use this code in your research, please cite it as:
 
-> Laurence I. Midgley, Vincent Stimper, Gregor N. C. Simm, Bernhard Schölkopf, José Miguel 
-> Hernández-Lobato. Flow Annealed Importance Sampling Bootstrap. arXiv preprint arXiv:2208.01893, 2022.
+> Laurence I. Midgley, Vincent Stimper, Gregor N. C. Simm, Bernhard Schölkopf, José Miguel Hernández-Lobato.
+> Flow Annealed Importance Sampling Bootstrap. The Eleventh International Conference on Learning Representations. 2023.
 
 **Bibtex**
 
