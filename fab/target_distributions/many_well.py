@@ -108,7 +108,7 @@ class ManyWellEnergy(DoubleWellEnergy, TargetDistribution):
         relative_error = torch.exp(log_Z_estimate - self.log_Z) - 1
         MSE_Z_estimate = torch.mean(torch.abs(relative_error))
 
-        abs_MSE_log_Z_estimate = jnp.mean(jnp.abs(log_Z_estimate - self.log_Z))
+        abs_MSE_log_Z_estimate = torch.mean(torch.abs(log_Z_estimate - self.log_Z))
 
         info = {}
         info.update(relative_MSE_Z_estimate=MSE_Z_estimate.cpu().item())
