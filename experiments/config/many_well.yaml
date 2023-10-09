@@ -36,7 +36,7 @@ training:
   lr: 3e-4
   batch_size: 100
   n_iterations: null
-  n_flow_forward_pass: 10_000_000_00
+  n_flow_forward_pass: 10_000_000_000
   use_gpu: true
   use_64_bit: true
   use_buffer: false
