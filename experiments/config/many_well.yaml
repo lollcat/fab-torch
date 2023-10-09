@@ -60,6 +60,11 @@ evaluation:
 
 
 logger:
-  pandas_logger:
-    save_period: 1000 # how often to save the pandas dataframe as a csv
+  wandb:
+    name: Manywell
+    project: fab
+    entity: flow-ais-bootstrap
+    tags: [many_well]
+#  pandas_logger:
+#    save_period: 1000 # how often to save the pandas dataframe as a csv
 
