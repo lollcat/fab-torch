@@ -14,6 +14,9 @@ In this repository, we implement FAB and provide the code to reproduce our exper
 details about our method and the results of our experiments, please read
 [our paper](https://arxiv.org/abs/2208.01893).
 
+
+**FAB in JAX**: See the JAX implementation of the FAB algorithm in the [fab-jax](https://github.com/lollcat/fab-jax) repo. 
+
 **Note**: The most important thing to get right when applying FAB to a given problem is to make sure that AIS is returning reasonable samples,
 where by reasonable we mean that the samples from AIS are closer to the target than the flow. 
 See [About the code](#about-the-code) for further details on how to use the FAB codebase on new problems.
@@ -35,6 +38,8 @@ conda install -c conda-forge openmm openmmtools
 ```
 
 ## Experiments
+
+NB: See README within experiments/{problem-name} for further details on training and evaluation for each problem. 
 
 ### Gaussian Mixture Model
 
@@ -110,7 +115,7 @@ The main FAB loss can be found in [core.py](fab/core.py), and we provide a simpl
 train a flow with this loss (or other flow - loss combinations that meet the spec) in [train.py](fab/train.py) 
 The FAB training algorithm **with** the prioritised buffer can be found in [train_with_prioritised_buffer.py](fab/train_with_prioritised_buffer.py). 
 Additionally, we provide the code for running the SNR/dimensionality analysis with p and q set to independent Gaussians.
-in the [fab-jax](https://github.com/lollcat/fab-jax-old) repository.
+in the [fab-jax-old](https://github.com/lollcat/fab-jax-old) repository.
 For training the CRAFT model on the GMM problem we forked the 
 [Annealed Flow Transport repository](https://github.com/deepmind/annealed_flow_transport). 
 This fork may be found [here](https://github.com/lollcat/annealed_flow_transport), and may be used for training the CRAFT model.
