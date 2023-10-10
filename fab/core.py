@@ -251,7 +251,7 @@ class FABModel(Model):
                 base_distribution=self.flow,
                 target_log_prob=self.target_distribution.log_prob,
                 transition_operator=self.transition_operator,
-                p_target=self.p_target,
+                p_target=False,
                 alpha=self.alpha,
                 n_intermediate_distributions=self.n_intermediate_distributions,
                 distribution_spacing_type=self.ais_distribution_spacing)
