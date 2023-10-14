@@ -1,4 +1,6 @@
 # Flow Annealed Importance Sampling Bootstrap (FAB)
+**FAB in JAX**: See the JAX implementation of the FAB algorithm in the [fab-jax](https://github.com/lollcat/fab-jax) repo. The `fab-jax` code is cleaner, faster and easier to use - hence we recommend it over the `fab-torch` code. Additionally, the `fab-jax` code applies FAB to some new problems, including the commonly used, challenging, 1600 dimensional log Gaussian
+Cox process [[Møller et al., 1998](https://api.semanticscholar.org/CorpusID:120543073), [Arbel et al., 2021](https://arxiv.org/abs/2102.07501), [Mathews et al., 2022](https://arxiv.org/abs/2201.13117), [Zhang et at., 2023](https://arxiv.org/abs/2310.02679)]. 
 
 ## Overview
 
@@ -13,9 +15,6 @@ where the flow is a poor approximation of the target, facilitating the discovery
 In this repository, we implement FAB and provide the code to reproduce our experiments. For more
 details about our method and the results of our experiments, please read
 [our paper](https://arxiv.org/abs/2208.01893).
-
-
-**FAB in JAX**: See the JAX implementation of the FAB algorithm in the [fab-jax](https://github.com/lollcat/fab-jax) repo. 
 
 **Note**: The most important thing to get right when applying FAB to a given problem is to make sure that AIS is returning reasonable samples,
 where by reasonable we mean that the samples from AIS are closer to the target than the flow. 
