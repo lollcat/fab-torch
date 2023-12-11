@@ -2,6 +2,9 @@
 **FAB in JAX**: See the JAX implementation of the FAB algorithm in the [fab-jax](https://github.com/lollcat/fab-jax) repo. The `fab-jax` code is cleaner, faster and easier to use - hence we recommend it over the `fab-torch` code. Additionally, the `fab-jax` code applies FAB to some new problems, including the commonly used, challenging, 1600 dimensional log Gaussian
 Cox process [[Møller et al., 1998](https://api.semanticscholar.org/CorpusID:120543073), [Arbel et al., 2021](https://arxiv.org/abs/2102.07501), [Mathews et al., 2022](https://arxiv.org/abs/2201.13117), [Zhang et at., 2023](https://arxiv.org/abs/2310.02679)]. 
 
+
+Please contact us if you need any help running the code and replicating our experiments. 
+
 ## Overview
 
 Normalizing flows can approximate complicated Boltzmann distributions of physical systems. However, 

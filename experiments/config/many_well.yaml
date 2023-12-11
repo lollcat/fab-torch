@@ -60,11 +60,11 @@ evaluation:
 
 
 logger:
-  wandb:
-    name: ManyWell32
-    project: fab
-    entity: flow-ais-bootstrap
-    tags: [alpha_2_loss,ManyWell32]
-#  pandas_logger:
-#    save_period: 1000 # how often to save the pandas dataframe as a csv
-
+  pandas_logger:
+    save_period: 1000 # how often to save the pandas dataframe as a csv
+#  wandb:
+#    name: ManyWell32
+#    project: fab
+#    entity: flow-ais-bootstrap
+#    tags: [alpha_2_loss,ManyWell32]
+#  list_logger:
