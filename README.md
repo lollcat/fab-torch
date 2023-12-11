@@ -2,6 +2,9 @@
 **FAB in JAX**: See the JAX implementation of the FAB algorithm in the [fab-jax](https://github.com/lollcat/fab-jax) repo. The `fab-jax` code is cleaner, faster and easier to use - hence we recommend it over the `fab-torch` code. Additionally, the `fab-jax` code applies FAB to some new problems, including the commonly used, challenging, 1600 dimensional log Gaussian
 Cox process [[Møller et al., 1998](https://api.semanticscholar.org/CorpusID:120543073), [Arbel et al., 2021](https://arxiv.org/abs/2102.07501), [Mathews et al., 2022](https://arxiv.org/abs/2201.13117), [Zhang et at., 2023](https://arxiv.org/abs/2310.02679)]. 
 
+
+Please contact us if you need any help running the code and replicating our experiments. 
+
 ## Overview
 
 Normalizing flows can approximate complicated Boltzmann distributions of physical systems. However, 
@@ -38,9 +41,14 @@ conda install -c conda-forge openmm openmmtools
 
 ## Experiments
 
-NB: See README within experiments/{problem-name} for further details on training and evaluation for each problem. 
+**NB**: See README within experiments/{problem-name} for further details on training and evaluation for each problem. 
+
+**NB**: Quickstart notebooks are simply to get up and running with the code with some visualisation of results after 
+a little bit of training. To replicate the results from the paper run the python commands described below.
 
 ### Gaussian Mixture Model
+
+Quickstart (**NB** just for getting started, to replicate results from paper see python command below)
 
 <a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/experiments/gmm/fab_gmm.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
@@ -61,6 +69,8 @@ The below plot shows samples from various trained models, with the GMM problem t
 ![Gaussian Mixture Model samples vs contours](experiments/gmm/plots/MoG.png)
 
 ### Many Well distribution
+Quickstart (**NB** just for getting started, to replicate results from paper see python command below)
+
 <a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/experiments/many_well/fab_many_well.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
 
