@@ -1,11 +1,11 @@
 numpy
-torch
+torch==0.14.1
 normflows
 boltzgen @ git+https://github.com/VincentStimper/boltzmann-generators.git
 larsflow @ git+https://github.com/VincentStimper/resampled-base-flows.git
 mdtraj
 nflows
-pandas
+pandas==1.5.3
 tqdm
 wandb
 hydra-core
