@@ -38,9 +38,14 @@ conda install -c conda-forge openmm openmmtools
 
 ## Experiments
 
-NB: See README within experiments/{problem-name} for further details on training and evaluation for each problem. 
+**NB**: See README within experiments/{problem-name} for further details on training and evaluation for each problem. 
+
+**NB**: Quickstart notebooks are simply to get up and running with the code with some visualisation of results after 
+a little bit of training. To replicate the results from the paper run the python commands described below.
 
 ### Gaussian Mixture Model
+
+Quickstart (**NB** just for getting started, to replicate results from paper see python command below)
 
 <a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/experiments/gmm/fab_gmm.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
@@ -61,6 +66,8 @@ The below plot shows samples from various trained models, with the GMM problem t
 ![Gaussian Mixture Model samples vs contours](experiments/gmm/plots/MoG.png)
 
 ### Many Well distribution
+Quickstart (**NB** just for getting started, to replicate results from paper see python command below)
+
 <a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/experiments/many_well/fab_many_well.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
 
