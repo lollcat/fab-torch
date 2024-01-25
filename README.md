@@ -1,4 +1,9 @@
 # Flow Annealed Importance Sampling Bootstrap (FAB)
+**FAB in JAX**: See the JAX implementation of the FAB algorithm in the [fab-jax](https://github.com/lollcat/fab-jax) repo. The `fab-jax` code is cleaner, faster and easier to use - hence we recommend it over the `fab-torch` code. Additionally, the `fab-jax` code applies FAB to some new problems, including the commonly used, challenging, 1600 dimensional log Gaussian
+Cox process [[Møller et al., 1998](https://api.semanticscholar.org/CorpusID:120543073), [Arbel et al., 2021](https://arxiv.org/abs/2102.07501), [Mathews et al., 2022](https://arxiv.org/abs/2201.13117), [Zhang et at., 2023](https://arxiv.org/abs/2310.02679)]. 
+
+
+Please contact us if you need any help running the code and replicating our experiments. 
 
 ## Overview
 
@@ -13,6 +18,11 @@ where the flow is a poor approximation of the target, facilitating the discovery
 In this repository, we implement FAB and provide the code to reproduce our experiments. For more
 details about our method and the results of our experiments, please read
 [our paper](https://arxiv.org/abs/2208.01893).
+
+**Note**: The most important thing to get right when applying FAB to a given problem is to make sure that AIS is returning reasonable samples,
+where by reasonable we mean that the samples from AIS are closer to the target than the flow. 
+See [About the code](#about-the-code) for further details on how to use the FAB codebase on new problems.
+
 
 ## Methods of Installation
 
@@ -31,7 +41,14 @@ conda install -c conda-forge openmm openmmtools
 
 ## Experiments
 
+**NB**: See README within experiments/{problem-name} for further details on training and evaluation for each problem. 
+
+**NB**: Quickstart notebooks are simply to get up and running with the code with some visualisation of results after 
+a little bit of training. To replicate the results from the paper run the python commands described below.
+
 ### Gaussian Mixture Model
+
+Quickstart (**NB** just for getting started, to replicate results from paper see python command below)
 
 <a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/experiments/gmm/fab_gmm.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
@@ -52,12 +69,17 @@ The below plot shows samples from various trained models, with the GMM problem t
 ![Gaussian Mixture Model samples vs contours](experiments/gmm/plots/MoG.png)
 
 ### Many Well distribution
+Quickstart (**NB** just for getting started, to replicate results from paper see python command below)
+
+<a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/experiments/many_well/fab_many_well.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
+
 The Many Well distribution is made up of multiple repeats of the Double Well distribution, 
 from the [original Boltzmann generators paper](https://www.science.org/doi/10.1126/science.aaw1147).
 
 We provide a [colab notebook](experiments/many_well/fab_many_well.ipynb) comparing FAB to training a flow via KL divergence minimisation, on the 
 6 dimensional Many Well problem, where the difference between the two methods is apparent after a 
-short (<10 min) training period.
+short (<5 min) training period. This experiment can be run locally on a laptop using just CPU. 
 
 To run the experiment for the FAB with a prioritised replay buffer (for the first seed) on the 
 32 dimensional Many Well problem, use the following command:
@@ -102,10 +124,29 @@ The main FAB loss can be found in [core.py](fab/core.py), and we provide a simpl
 train a flow with this loss (or other flow - loss combinations that meet the spec) in [train.py](fab/train.py) 
 The FAB training algorithm **with** the prioritised buffer can be found in [train_with_prioritised_buffer.py](fab/train_with_prioritised_buffer.py). 
 Additionally, we provide the code for running the SNR/dimensionality analysis with p and q set to independent Gaussians.
-in the [fab-jax](https://github.com/lollcat/fab-jax) repository.
+in the [fab-jax-old](https://github.com/lollcat/fab-jax-old) repository.
 For training the CRAFT model on the GMM problem we forked the 
 [Annealed Flow Transport repository](https://github.com/deepmind/annealed_flow_transport). 
-This fork may be found [here](https://github.com/lollcat/annealed_flow_transport), and may be used for training the CRAFT model. 
+This fork may be found [here](https://github.com/lollcat/annealed_flow_transport), and may be used for training the CRAFT model.
+
+As we are still adding improvements to the efficiency and stability of the code, make sure you use the latest version.
+Additionally, if you spot any areas of the code that could be improved then make an issue and we will be more 
+than happy to fix it.
+For the version of the code that was used in the paper see our [releases](https://github.com/lollcat/fab-torch/releases).
+
+#### Applying FAB to a new problem:
+The most important thing to get right when applying FAB to a given problem is to make sure that AIS is returning reasonable samples,
+where by reasonable we just mean that the samples from AIS are closer to the target than the flow. 
+Simply visualising the samples from the flow and AIS provides a good check for whether this is the case.
+Making sure that the transition kernel (e.g. HMC) is working well (e.g. has well tuned step size) is key for AIS to work well.
+
+An additional source of instability can be if the target energy function gives spurious values to points that have extreme values.
+For example, evaluating the density of a zero-mean unit variance Gaussian on a point that has a value of 100 will give a spurious values. 
+One can fix this by manually setting the log prob of the target to be -inf for regions that are 
+known to be far outside of where samples from the target lie. 
+
+Feel free to contact us if you would like any help getting FAB to work nicely!
+
 
 ### Normalizing Flow Libraries
 We offer a simple wrapper that allows for various normalising flow libraries to be plugged into 
@@ -117,17 +158,19 @@ this repository. The main library we rely on is
 
 If you use this code in your research, please cite it as:
 
-> Laurence I. Midgley, Vincent Stimper, Gregor N. C. Simm, Bernhard Schölkopf, José Miguel 
-> Hernández-Lobato. Flow Annealed Importance Sampling Bootstrap. arXiv preprint arXiv:2208.01893, 2022.
+> Laurence I. Midgley, Vincent Stimper, Gregor N. C. Simm, Bernhard Schölkopf, José Miguel Hernández-Lobato.
+> Flow Annealed Importance Sampling Bootstrap. The Eleventh International Conference on Learning Representations. 2023.
 
 **Bibtex**
 
 ```
-@article{Midgley2022,
-  title={Flow {A}nnealed {I}mportance {S}ampling {B}ootstrap},
-  author={Laurence I. Midgley and Vincent Stimper and Gregor N. C. Simm and Bernhard Sch\"olkopf and Jos{\'e} Miguel Hern{\'a}ndez-Lobato},
-  journal={arXiv preprint arXiv:2208.01893},
-  year={2022}
+@inproceedings{
+midgley2023flow,
+title={Flow Annealed Importance Sampling Bootstrap},
+author={Laurence Illing Midgley and Vincent Stimper and Gregor N. C. Simm and Bernhard Sch{\"o}lkopf and Jos{\'e} Miguel Hern{\'a}ndez-Lobato},
+booktitle={The Eleventh International Conference on Learning Representations },
+year={2023},
+url={https://openreview.net/forum?id=XCTVFJwS9LJ}
 }
 ```
 

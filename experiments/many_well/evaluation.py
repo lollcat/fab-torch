@@ -27,11 +27,10 @@ def evaluate_many_well(cfg: DictConfig, path_to_model: str, target, num_samples=
 def main(cfg: DictConfig):
     """Evaluate each of the models, assume model checkpoints are saved as {model_name}_seed{i}.pt,
     where the model names for each method are `model_names` and `seeds` below."""
-    # model_names = ["target_kld", "flow_nis", "flow_kld", "rbd", "snf_hmc", "fab_no_buffer",
-    #                "fab_buffer"]
-    model_names = ["rbd", "snf_hmc"]
+    model_names = ["target_kld", "flow_nis", "flow_kld", "rbd", "snf_hmc", "fab_no_buffer",
+                   "fab_buffer"]
     seeds = [1, 2, 3]
-    num_samples = int(5e4)
+    num_samples = int(5e4)  # Divided into 50 runs of 1000
 
     results = pd.DataFrame()
     for model_name in model_names:
@@ -61,7 +60,7 @@ def main(cfg: DictConfig):
 
 
     keys = ["eval_ess_flow", 'test_set_exact_mean_log_prob', 'test_set_modes_mean_log_prob',
-            'MSE_log_Z_estimate', "forward_kl"]
+            'relative_MSE_Z_estimate', 'abs_MSE_log_Z_estimate', "forward_kl"]
     print("\n *******  mean  ********************** \n")
     print(results.groupby("model_name").mean()[keys].to_latex())
     print("\n ******* std ********************** \n")

@@ -25,6 +25,7 @@ fab:
   transition_operator:
     type: hmc
     n_inner_steps: 5
+    init_step_size: 1.0
   n_intermediate_distributions: 4
 
 
@@ -61,4 +62,9 @@ evaluation:
 logger:
   pandas_logger:
     save_period: 1000 # how often to save the pandas dataframe as a csv
-
+#  wandb:
+#    name: ManyWell32
+#    project: fab
+#    entity: flow-ais-bootstrap
+#    tags: [alpha_2_loss,ManyWell32]
+#  list_logger:

@@ -30,7 +30,7 @@ class PrioritisedBufferTrainer:
                  logger: Logger = ListLogger(),
                  plot: Optional[Plotter] = None,
                  max_gradient_norm: Optional[float] = 5.0,
-                 w_adjust_max_clip: float = 10.0,
+                 w_adjust_max_clip: Optional[float] = 10.0,
                  w_adjust_in_buffer_after_update: bool = False,
                  save_path: str = "",
                  ):
@@ -77,16 +77,22 @@ class PrioritisedBufferTrainer:
             plt.close(figure)
 
     def perform_eval(self, i, eval_batch_size, batch_size):
-        # set ais distribution to target for evaluation of ess
+        # Set ais distribution to target for evaluation of ess, freeze transition operator params.
         self.model.annealed_importance_sampler.transition_operator.set_eval_mode(True)
-        self.model.annealed_importance_sampler.p_target = True
         eval_info_true_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
-                                                         inner_batch_size=batch_size)
-        # set ais distribution back to p^\alpha q^{1-\alpha}.
-        self.model.annealed_importance_sampler.p_target = False
+                                                         inner_batch_size=batch_size,
+                                                         set_p_target=True)
+        # Double check the ais distribution has been set back to p^\alpha q^{1-\alpha}.
+        assert self.model.annealed_importance_sampler.p_target is False
+        assert self.model.annealed_importance_sampler.transition_operator.p_target is False
+        # Evaluation with the AIS ESS with target set as p^\alpha q^{1-\alpha}.
         eval_info_practical_target = self.model.get_eval_info(outer_batch_size=eval_batch_size,
-                                                              inner_batch_size=batch_size)
+                                                              inner_batch_size=batch_size,
+                                                              set_p_target=False,
+                                                              ais_only=True)
         self.model.annealed_importance_sampler.transition_operator.set_eval_mode(False)
+
+
         eval_info = {}
         eval_info.update({key + "_p_target": val for key, val in eval_info_true_target.items()})
         eval_info.update(
@@ -94,6 +100,7 @@ class PrioritisedBufferTrainer:
 
         eval_info.update(step=i)
         self.logger.write(eval_info)
+
 
 
     def run(self,
