@@ -96,7 +96,7 @@ Furthermore, we compared the Ramachandran plots of the different methods in the 
 The weights for the flow model trained with FAB are available on [huggingface](https://huggingface.co/VincentStimper/fab). 
 Additionally, we provide the colab notebook 
 <a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/demo/aldp.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
-which demo's inference with this trained model.
+which demos inference with this trained model.
 
 To reproduce our experiment, use the [`experiments/aldp/train.py`](experiments/aldp/train.py) script.
 The respective configuration files are located in [`experiments/aldp/config`](experiments/aldp/config).
