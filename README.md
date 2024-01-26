@@ -1,28 +1,14 @@
 # Flow Annealed Importance Sampling Bootstrap (FAB)
+
+## Overview
+Code for the paper [Flow Annealed Importance Sampling Bootstrap (FAB)](https://arxiv.org/abs/2208.01893).
+
 **FAB in JAX**: See the JAX implementation of the FAB algorithm in the [fab-jax](https://github.com/lollcat/fab-jax) repo. The `fab-jax` code is cleaner, faster and easier to use - hence we recommend it over the `fab-torch` code. Additionally, the `fab-jax` code applies FAB to some new problems, including the commonly used, challenging, 1600 dimensional log Gaussian
 Cox process [[Møller et al., 1998](https://api.semanticscholar.org/CorpusID:120543073), [Arbel et al., 2021](https://arxiv.org/abs/2102.07501), [Mathews et al., 2022](https://arxiv.org/abs/2201.13117), [Zhang et at., 2023](https://arxiv.org/abs/2310.02679)]. 
 
 
-Please contact us if you need any help running the code and replicating our experiments. 
-
-## Overview
-
-Normalizing flows can approximate complicated Boltzmann distributions of physical systems. However, 
-current methods for training flows either suffer from mode-seeking behavior, use samples from the 
-target generated beforehand by expensive MCMC simulations, or use stochastic losses that have very 
-high variance. We tackle this challenge by augmenting flows with annealed importance sampling (AIS) 
-and minimize the mass covering $\alpha$-divergence with $\alpha = 2$, which minimizes importance 
-weight variance. Our method, Flow AIS Bootstrap (FAB), uses AIS to generate samples in regions 
-where the flow is a poor approximation of the target, facilitating the discovery of new modes. 
-
-In this repository, we implement FAB and provide the code to reproduce our experiments. For more
-details about our method and the results of our experiments, please read
-[our paper](https://arxiv.org/abs/2208.01893).
-
-**Note**: The most important thing to get right when applying FAB to a given problem is to make sure that AIS is returning reasonable samples,
-where by reasonable we mean that the samples from AIS are closer to the target than the flow. 
 See [About the code](#about-the-code) for further details on how to use the FAB codebase on new problems.
-
+Please contact us if you need any help running the code and replicating our experiments. 
 
 ## Methods of Installation
 
@@ -106,6 +92,11 @@ dihedral angle $\phi$ comparing the ground truth, which was obtrained with a mol
 Furthermore, we compared the Ramachandran plots of the different methods in the following figure.
 
 ![Ramachandran plot of alanine dipeptide](experiments/aldp/plots/ramachandran.png)
+
+The weights for the flow model trained with FAB are available on [huggingface](https://huggingface.co/VincentStimper/fab). 
+Additionally, we provide the colab notebook 
+<a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/demo/aldp.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+which demo's inference with this trained model.
 
 To reproduce our experiment, use the [`experiments/aldp/train.py`](experiments/aldp/train.py) script.
 The respective configuration files are located in [`experiments/aldp/config`](experiments/aldp/config).
