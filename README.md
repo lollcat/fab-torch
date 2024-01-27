@@ -69,7 +69,7 @@ short (<5 min) training period. This experiment can be run locally on a laptop u
 
 Additionally, we provide the colab notebook 
 <a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/demo/many_well.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
-which demos inference with this trained model.
+which demos inference with the flow trained with FAB (+prioritised buffer) on the 32 dim Many Well problem. 
 
 To run the experiment for the FAB with a prioritised replay buffer (for the first seed) on the 
 32 dimensional Many Well problem, use the following command:
