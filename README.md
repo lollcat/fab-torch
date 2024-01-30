@@ -67,6 +67,10 @@ We provide a [colab notebook](experiments/many_well/fab_many_well.ipynb) compari
 6 dimensional Many Well problem, where the difference between the two methods is apparent after a 
 short (<5 min) training period. This experiment can be run locally on a laptop using just CPU. 
 
+Additionally, we provide the colab notebook 
+<a href="https://colab.research.google.com/github/lollcat/fab-torch/blob/master/demo/many_well.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+which demos inference with the flow trained with FAB (+prioritised buffer) on the 32 dim Many Well problem. 
+
 To run the experiment for the FAB with a prioritised replay buffer (for the first seed) on the 
 32 dimensional Many Well problem, use the following command:
 ```

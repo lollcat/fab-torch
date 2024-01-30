@@ -235,10 +235,13 @@ class FABModel(Model):
         checkpoint = torch.load(path, map_location=map_location)
         try:
             self.flow.load_state_dict(checkpoint['flow'])
-        except RuntimeError:
-            # If flow is incorretly loaded then this will mess up evaluation, so raise Error.
-            raise RuntimeError('Flow could not be loaded. '
-                  'Perhaps there is a mismatch in the architectures.')
+        except:
+            try:
+                self.flow._nf_model.load_state_dict(checkpoint['flow'])
+            except RuntimeError:
+                # If flow is incorretly loaded then this will mess up evaluation, so raise Error.
+                raise RuntimeError('Flow could not be loaded. '
+                      'Perhaps there is a mismatch in the architectures.')
         try:
             self.transition_operator.load_state_dict(checkpoint['trans_op'])
         except RuntimeError:
